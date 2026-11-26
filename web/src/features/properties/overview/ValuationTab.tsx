@@ -16,7 +16,7 @@ import { ProblemMessage } from '@/components/ProblemMessage';
 import { NEUTRAL_COLOR } from '@/components/ProviderIcon';
 import { ChartContainer, type ChartConfig } from '@/components/ui/chart';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { toPlot } from '@/lib/plot';
+import { toPlot, yearTicks } from '@/lib/plot';
 import { Direction } from '@/components/Direction';
 import { money, signedMoney } from '@/features/loans/format';
 import { PROPERTIES_VALUATION, type PropertiesValuation, type ValuationRow } from '@/api/properties';
@@ -119,7 +119,7 @@ function History({ p, to }: { p: ValuationRow; to: string }) {
         <ChartContainer config={config} className="h-40 w-full" aria-hidden="true">
           <LineChart data={rows} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
             <CartesianGrid vertical={false} />
-            <XAxis dataKey="at" type="number" scale="time" domain={['dataMin', 'dataMax']} tickLine={false} axisLine={false}
+            <XAxis dataKey="at" type="number" scale="time" domain={['dataMin', 'dataMax']} ticks={yearTicks(rows.map((r) => r.at))} tickLine={false} axisLine={false}
               tickFormatter={(n: number) => String(new Date(n).getUTCFullYear())} />
             <YAxis width={56} tickLine={false} axisLine={false} domain={['auto', 'auto']} tickFormatter={(n: number) => axis.format(n)} />
             <Line dataKey="cost" type="stepAfter" stroke="var(--color-cost)" strokeWidth={1.5} strokeDasharray="4 3" dot={false} animationDuration={800} />

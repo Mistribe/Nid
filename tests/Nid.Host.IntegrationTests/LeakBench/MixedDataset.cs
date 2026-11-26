@@ -611,6 +611,10 @@ public sealed class MixedDataset
     public ItemId PropertyTwinOfSubscription(ItemId subscription)
         => Items.Where(kv => kv.Value == subscription).Select(kv => (ItemId?)Properties[kv.Key]).FirstOrDefault() ?? subscription;
 
+    /// <summary>The asset twin of a subscription twin's row; any other id as it is (an unknown id stays unknown).</summary>
+    public ItemId AssetTwinOfSubscription(ItemId subscription)
+        => Items.Where(kv => kv.Value == subscription).Select(kv => (ItemId?)Assets[kv.Key]).FirstOrDefault() ?? subscription;
+
     /// <summary>The envelope twin of a scenario or goal twin's row; any other id as it is (an unknown id stays unknown).</summary>
     public ItemId EnvelopeTwinOf(ItemId twin)
         => Scenarios.Concat(Goals).Where(kv => kv.Value == twin).Select(kv => (ItemId?)Envelopes[kv.Key]).FirstOrDefault() ?? twin;

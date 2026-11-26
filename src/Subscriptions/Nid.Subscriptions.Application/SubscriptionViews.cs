@@ -46,12 +46,13 @@ public static class SubscriptionViews
             timeline.Warnings.Select(FindingView.From).Concat(FxFindings(converted, annual, spent.Missing)).ToList(),
             owners,
             annual.Total is { } m ? MoneyView.From(m) : null,
-            spent.View);
+            spent.View,
+            MoneyView.Twelfth(annual.Total is { } y ? MoneyView.From(y) : null));
 
     public static SubscriptionDetail Detail(
         SubscriptionInput input, Timeline timeline, string displayName, ProviderSummaryView? provider, DateRange window, Converted converted,
         SubscriptionEditing editing, LocalDate today, InsuranceView? insurance = null,
-        (SpentView? View, IReadOnlyList<Finding> Missing) spent = default, SavedView? saved = null)
+        (SpentView? View, IReadOnlyList<Finding> Missing) spent = default, SavedView? saved = null, LinkedAssetView? asset = null, bool assetHidden = false)
         => new(
             input.Subscription.Id,
             displayName,
@@ -80,7 +81,9 @@ public static class SubscriptionViews
             CancellationView.From(ContractCancellation.Outlook(input, timeline, today)),
             insurance,
             spent.View,
-            saved);
+            saved,
+            asset,
+            assetHidden);
 }
 
 /// <summary>

@@ -5,7 +5,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import type { LoansOverview } from '@/api/loans';
-import { CAR, household, LOAN, overview, overviewRow } from '../testData';
+import { CAR, eur, household, LOAN, overview, overviewRow } from '../testData';
 import { expectOnePrimary } from '@/test/headerActions';
 
 const serve = (body: LoansOverview, seen: string[] = []) =>
@@ -55,6 +55,13 @@ describe('Crédits › vue d’ensemble', () => {
     // Both tabs and the page read the one answer.
     expect(seen).toEqual(['?scope=household']);
     await expectNoAxeViolations(container);
+  });
+
+  it('measures the capital repaid against the principal and the interest total deferrals capitalised (#709)', async () => {
+    serve(household({ capitalToRepay: eur('217000.00'), capitalisedInterest: eur('5000.00') }));
+    const { user } = await renderApp('/loans');
+    await user.click(await screen.findByRole('tab', { name: 'Analyse' }));
+    expect(await region('Avancement')).toHaveTextContent('12 435,77 € remboursés sur 217 000,00 €, dont 5 000,00 € d’intérêts capitalisés pendant un différé · 5,87 %');
   });
 
   it('leads with the hero: the balance as the page’s first figure', async () => {
@@ -130,6 +137,7 @@ describe('Crédits › vue d’ensemble', () => {
     expect(figures).toHaveTextContent('Taux d’endettement27,83 %raisonnable : sous les 35 % des banquesencore 556,43 € / mois de mensualités possibles');
     await user.hover(within(figures).getByRole('button', { name: /Taux d’endettement/ }));
     expect((await screen.findAllByText(/au-delà de 35 % \(règle du HCSF\)/))[0]).toBeInTheDocument();
+    expect(screen.getAllByText(/compte les loyers perçus à 70 %/)[0]).toBeInTheDocument();
   });
 
   it('says a debt ratio over the ceiling is high, without a negative room', async () => {

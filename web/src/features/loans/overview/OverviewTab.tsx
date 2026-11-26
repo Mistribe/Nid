@@ -164,10 +164,15 @@ function DebtRatio({ d, ratio }: { d: LoansOverview; ratio: NonNullable<LoansOve
 /** As a loan's own progress: the bar is sized by plotting numbers, the person reads the server's strings. */
 function Advance({ d }: { d: LoansOverview }) {
   const { t } = useTranslation();
-  if (!d.principal || !d.principalRepaid || !d.repaidShare) return <p className="text-sm text-muted-foreground">{t('loans_overview.unknown')}</p>;
-  const total = toPlot(d.principal.amount);
+  // #709: the payments repay the principal and the interest total deferrals capitalised.
+  const base = d.capitalToRepay ?? d.principal;
+  if (!base || !d.principalRepaid || !d.repaidShare) return <p className="text-sm text-muted-foreground">{t('loans_overview.unknown')}</p>;
+  const total = toPlot(base.amount);
   const value = total > 0 ? Math.min(100, (toPlot(d.principalRepaid.amount) / total) * 100) : 0;
-  const label = t('loans_overview.progress', { repaid: formatMoney(d.principalRepaid), principal: formatMoney(d.principal), share: percent(t, d.repaidShare) });
+  const values = { repaid: formatMoney(d.principalRepaid), principal: formatMoney(base), share: percent(t, d.repaidShare) };
+  const label = d.capitalisedInterest
+    ? t('loans_overview.progress_capitalised', { ...values, interest: formatMoney(d.capitalisedInterest) })
+    : t('loans_overview.progress', values);
   return (
     <div className="space-y-2">
       <Progress value={value} aria-label={label} getValueLabel={() => label} />

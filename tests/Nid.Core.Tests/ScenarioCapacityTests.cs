@@ -60,6 +60,19 @@ public class ScenarioCapacityTests
     }
 
     [Fact]
+    public void The_rents_already_received_count_at_seventy_percent_before_and_after()
+    {
+        // #758: 5 000 of income, 1 000 of it rents: the ratio's income is 4 000 + 700, as Crédits counts it; what is left keeps the whole rent.
+        var facts = Facts(5_000m, [Main], existingToday: 400m) with { Rents = 1_000m };
+
+        var r = ScenarioCalculator.Capacity(Doc(PurchaseUse.Rental, expectedRent: 900m), facts);
+
+        Assert.Equal(400m / 4_700m, r.DebtRatioBefore);
+        Assert.Equal(1_220.22m / (4_700m + 630m), r.DebtRatioAfter);
+        Assert.Equal(4_450m, r.LeftBefore);
+    }
+
+    [Fact]
     public void Above_35_percent_warns() =>
         Assert.Contains("debt_ratio_above_hcsf", ScenarioCalculator.Capacity(Doc(), Facts(3_000m, [Main])).Warnings);
 

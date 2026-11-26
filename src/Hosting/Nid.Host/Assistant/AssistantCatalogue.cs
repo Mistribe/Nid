@@ -23,7 +23,7 @@ public static class AssistantCatalogue
         ["list_envelopes"] = Figures, ["get_envelope"] = Figures, ["get_envelope_performance"] = Figures,
         ["list_loans"] = Figures, ["get_loan"] = Figures, ["get_loans_overview"] = Figures,
         ["list_properties"] = Figures, ["get_property"] = Figures,
-        ["list_assets"] = Figures, ["get_asset"] = Figures,
+        ["list_assets"] = Figures, ["get_asset"] = Figures, ["list_asset_costs"] = Figures,
         ["list_income_sources"] = Figures, ["get_income_source"] = Figures,
         ["list_tax_years"] = Figures, ["get_tax"] = Figures,
         ["get_goals"] = Figures, ["get_goal"] = Figures,

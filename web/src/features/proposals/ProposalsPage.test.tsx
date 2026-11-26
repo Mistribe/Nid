@@ -7,9 +7,10 @@ import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import { proposal } from './testData';
 
+const page = (items: unknown[], total = items.length) => HttpResponse.json({ items, total });
+
 const serve = (byStatus: Record<string, unknown[]>) =>
-  server.use(http.get('*/api/v1/core/proposals', ({ request }) =>
-    HttpResponse.json({ items: byStatus[new URL(request.url).searchParams.get('status') ?? 'pending'] ?? [] })));
+  server.use(http.get('*/api/v1/core/proposals', ({ request }) => page(byStatus[new URL(request.url).searchParams.get('status') ?? 'pending'] ?? [])));
 
 /** The body rows of the table (the phone list below `md:` repeats them, so the table is the one queried). */
 async function rows(): Promise<HTMLElement[]> {
@@ -46,7 +47,7 @@ describe('À valider', () => {
     let asked: string | null = null;
     server.use(http.get('*/api/v1/core/proposals', ({ request }) => {
       asked = new URL(request.url).searchParams.get('targetItemId');
-      return HttpResponse.json({ items: asked ? [proposal()] : [proposal(), proposal({ targetName: 'Assurance-vie' })] });
+      return page(asked ? [proposal()] : [proposal(), proposal({ targetName: 'Assurance-vie' })]);
     }));
     const { user } = await renderApp('/proposals?target=e1');
 
@@ -84,6 +85,33 @@ describe('À valider', () => {
     expect(screen.getByRole('tab', { name: 'Approuvées' })).toHaveAttribute('aria-selected', 'true');
     await user.click(screen.getByRole('tab', { name: 'Rejetées' }));
     expect(await screen.findByRole('heading', { level: 2, name: 'Aucune proposition rejetée' })).toBeInTheDocument();
+  });
+
+  // #774: the decided ones are history: the server searches and pages them, the URL keeps both.
+  it('asks the server for one page of the decided proposals and for what is searched', async () => {
+    const asked: URLSearchParams[] = [];
+    server.use(http.get('*/api/v1/core/proposals', ({ request }) => {
+      const query = new URL(request.url).searchParams;
+      asked.push(query);
+      return query.get('status') === 'pending' ? page([]) : page([proposal({ status: 'approved', decidedAt: '2026-10-16T09:00:00+00:00' })], 120);
+    }));
+    const { user, router } = await renderApp('/proposals?status=approved&page=2');
+
+    await screen.findByRole('navigation', { name: 'Pages des propositions' });
+    expect(screen.getByText('Page 2 sur 3')).toBeInTheDocument();
+    expect(asked.at(-1)?.get('page')).toBe('2');
+    await user.type(screen.getByRole('searchbox', { name: 'Rechercher un document ou un élément' }), 'PEA');
+    await waitFor(() => expect(asked.at(-1)?.get('q')).toBe('PEA'));
+    expect(asked.at(-1)?.get('page')).toBe('1');
+    expect(router.state.location.search).toEqual({ status: 'approved', q: 'PEA' });
+    expect(asked.filter((q) => q.get('status') === 'pending').every((q) => !q.has('page'))).toBe(true);
+  });
+
+  it('says when the search finds nothing', async () => {
+    serve({});
+    await renderApp('/proposals?status=rejected&q=zzz');
+
+    expect(await screen.findByText('Aucune proposition ne correspond à cette recherche.')).toBeInTheDocument();
   });
 
   // Review Focus 1.
@@ -124,7 +152,7 @@ describe('À valider', () => {
 
   it('shows the list loading while a status is read', async () => {
     serve({ pending: [] });
-    server.use(http.get('*/api/v1/core/proposals', async () => { await delay('infinite'); return HttpResponse.json({ items: [] }); }));
+    server.use(http.get('*/api/v1/core/proposals', async () => { await delay('infinite'); return page([]); }));
     await renderApp('/proposals');
 
     expect(await screen.findByRole('status', { name: 'Chargement des propositions' })).toHaveAttribute('aria-busy', 'true');

@@ -133,9 +133,9 @@ public class PropertiesRentalTests
     [Fact]
     public void One_property_s_credit_never_hides_another_s_arrears()
     {
-        // The flat's October rent is missing (780 owed); the studio paid its October rent on the 20th, ahead of its lease's
-        // prorated first month: a credit of 203.23. The household owes 780, not 576.77.
-        var flat = Flat() with { Flows = Flat().Flows.Where(f => f.OccurredOn != new LocalDate(2026, 10, 5)).ToList() };
+        // The flat's September and October rents are missing (September, over, 780 owed); the studio paid its October rent on
+        // the 20th, ahead of its lease's prorated first month: a credit of 203.23. The household owes 780, not 576.77.
+        var flat = Flat() with { Flows = Flat().Flows.Where(f => f.OccurredOn != new LocalDate(2026, 10, 5) && f.OccurredOn != new LocalDate(2026, 9, 5)).ToList() };
         var rental = PropertiesRentalMath.Build([flat, Studio(), Home()], Currency.Eur, RateTable.Empty(Today, 0), Today, null)!;
 
         Assert.Equal(("780.00", "-203.23"), (rental.Properties.Single(p => p.Name == "T2 Villeurbanne").Arrears, rental.Properties.Single(p => p.Name == "Studio").Arrears));

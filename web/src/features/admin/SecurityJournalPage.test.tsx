@@ -104,7 +104,7 @@ describe('Administration › Journal de sécurité', () => {
     const { user } = await renderApp('/admin/security', { capabilities: adminCapabilities });
 
     await screen.findByRole('combobox', { name: 'Événement' });
-    await pick(user, 'Événement', /violation d'accès/);
+    await pick(user, 'Événement', /violation d’accès/);
 
     await expect.poll(() => asked.at(-1)).toBe('access_violation');
   });
@@ -127,7 +127,7 @@ describe('Administration › Journal de sécurité', () => {
     await waitFor(() => expect(router.state.location.search).toEqual({ event: 'login_refused', page: 2 }));
     await waitFor(() => expect(seen.at(-1)).toBe('?event=login_refused&page=2'));
 
-    await pick(user, 'Événement', /violation d'accès/);
+    await pick(user, 'Événement', /violation d’accès/);
     await waitFor(() => expect(router.state.location.search).toEqual({ event: 'access_violation' }));
     await waitFor(() => expect(seen.at(-1)).toBe('?event=access_violation&page=1'));
   });

@@ -167,6 +167,24 @@ public class AssetsNetWorthTests(PostgresFixture fixture) : IClassFixture<Postgr
         Assert.False(row.GetProperty("estimated").GetBoolean());
     }
 
+    // #778: a purchase price five years old is all Nid knows: the value is to update, on Accueil, in its to-do and on the asset's page.
+    [Fact]
+    public async Task An_old_purchase_price_alone_is_a_value_to_update()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var old = await NewAssetAsync(app, "Tableau", "8000", "2020-03-01");
+        var recent = await NewAssetAsync(app, "Sculpture", "2000", "2024-06-01");
+
+        var view = await DashboardAsync(app, app.AdultA);
+
+        Assert.Equal(1, view.GetProperty("staleEnvelopes").GetInt32());
+        var todo = Assert.Single(view.GetProperty("todo").EnumerateArray(), t => t.GetProperty("kind").GetString() == "stale_value");
+        Assert.Equal((old, "assets", "2020-03-01"), (todo.GetProperty("id").GetGuid(), todo.GetProperty("module").GetString(), todo.GetProperty("on").GetString()));
+        async Task<bool> StaleAsync(Guid id) => JsonDocument.Parse(await app.GetRawAsync(app.AdultA, $"{Route}/{id}")).RootElement.GetProperty("valueStale").GetBoolean();
+        Assert.True(await StaleAsync(old));
+        Assert.False(await StaleAsync(recent));
+    }
+
     [Fact]
     public async Task Bought_this_year_then_revalued_the_gain_is_the_revaluation_over_the_price()
     {
@@ -204,5 +222,73 @@ public class AssetsNetWorthTests(PostgresFixture fixture) : IClassFixture<Postgr
         Assert.Equal((1_800m, 1_800m), (Eur(points[1].Values), Eur(points[1].Moved)));
         Assert.Equal((1_800m, 1_800m), (Eur(points[2].Values), Eur(points[2].Moved))); // the purchase day changes nothing
         Assert.Equal((1_800m, 1_800m), (Eur(points[3].Values), Eur(points[3].Moved)));
+    }
+
+    private static async Task<Guid> NewVehicleAsync(NidApp app, string price, string on, decimal? rate)
+    {
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Post, Route, new Dictionary<string, object?>
+        {
+            ["name"] = "Citadine", ["kind"] = "vehicle", ["purchasePrice"] = price, ["purchasedOn"] = on, ["depreciationRate"] = rate,
+            ["visibility"] = "shared", ["owners"] = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } },
+        });
+        Assert.Equal(System.Net.HttpStatusCode.Created, response.StatusCode);
+        return JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("id").GetGuid();
+    }
+
+    [Fact]
+    public async Task A_depreciated_vehicle_is_an_estimate_dated_by_its_base()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await NewVehicleAsync(app, "10000", "2024-10-15", 20m);
+
+        var view = await DashboardAsync(app, app.AdultA);
+
+        Assert.Equal("8000.00", Total(view.GetProperty("netWorth")));
+        Assert.Equal(1, view.GetProperty("estimatedEnvelopes").GetInt32());
+        var row = Assert.Single(view.GetProperty("envelopeSplit").EnumerateArray());
+        Assert.Equal("2025-10-15", row.GetProperty("asOf").GetString()); // the estimate is today's; its base is the valued-on date
+        Assert.True(row.GetProperty("estimated").GetBoolean());
+        Assert.Equal("2025-10-15", view.GetProperty("valuesAsOf").GetString());
+    }
+
+    [Fact]
+    public async Task A_vehicle_without_a_rule_stays_a_bare_price()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await NewVehicleAsync(app, "10000", "2024-10-15", null);
+
+        var view = await DashboardAsync(app, app.AdultA);
+
+        Assert.Equal("10000.00", Total(view.GetProperty("netWorth")));
+        Assert.Equal(0, view.GetProperty("estimatedEnvelopes").GetInt32());
+    }
+
+    [Fact]
+    public async Task Depreciation_history_declines_and_moved_stays_the_first_counted_value()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await NewVehicleAsync(app, "10000", "2024-10-15", 20m);
+
+        var points = await HistoryAsync(app, "2024-10-14", "2024-10-15", "2025-10-15");
+
+        Assert.Equal((0m, 0m), (Eur(points[0].Values), Eur(points[0].Moved)));
+        Assert.Equal((10_000m, 10_000m), (Eur(points[1].Values), Eur(points[1].Moved)));
+        Assert.Equal((8_000m, 10_000m), (Eur(points[2].Values), Eur(points[2].Moved)));
+        Assert.Equal(new Dictionary<string, decimal> { ["assets.paid_in"] = 0m, ["assets.moved"] = 0m, ["assets.value"] = -2_000m }, Parts(points[1], points[2]));
+    }
+
+    [Fact]
+    public async Task A_depreciated_vehicle_gains_the_estimates_decline_since_1_January()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await NewVehicleAsync(app, "10000", "2024-01-01", 20m);
+
+        var change = Total((await DashboardAsync(app, app.AdultA)).GetProperty("change"));
+        var points = await HistoryAsync(app, "2025-01-01", "2025-10-15");
+
+        // Both ends are estimates: 1 January and today, never the purchase price.
+        var expected = Eur(points[1].Values) - Eur(points[0].Values);
+        Assert.True(expected < 0m);
+        Assert.Equal(expected.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture), change);
     }
 }

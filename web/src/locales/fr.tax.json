@@ -144,7 +144,7 @@
       "empty_body": "Sans revenu, Nid n’a pas d’impôt à estimer. Ajoutez un revenu ou complétez le profil fiscal.",
       "empty_income": "Ajouter un revenu",
       "empty_profile": "Compléter le profil fiscal",
-      "left_monthly": "Reste par mois",
+      "left_monthly": "Revenu après impôt / mois",
       "net_taxable": "Revenu imposable",
       "marginal_rate": "Votre tranche d’imposition",
       "withholding_rate": "Taux de prélèvement",
@@ -171,6 +171,7 @@
         "stay_flat": "Rester au prélèvement forfaitaire",
         "stay_scale": "Rester au barème"
       },
+      "refund": "votre impôt deviendrait un remboursement de {{amount}}",
       "cut": {
         "title": "Être prélevé de {{amount}} de moins cette année",
         "detail": "Taux de {{rate}}, sans majoration"
@@ -183,7 +184,7 @@
     "split": {
       "title": "Où vont vos revenus",
       "note": "sur {{amount}} de revenus nets avant impôt",
-      "left": "Reste"
+      "left": "Après impôt"
     },
     "declarant": {
       "title": "Revenus par déclarant",
@@ -193,7 +194,7 @@
       "allowance": "Abattement de 10 %",
       "pensions": "Pensions et pensions alimentaires reçues",
       "pension_allowance": "Abattement de 10 % sur les pensions",
-      "per": "Versements PER déduits",
+      "per": "Versements PER déduits du revenu global",
       "taxable": "Imposable",
       "method": { "entered": "saisi", "estimated": "estimé", "mixed": "mixte" },
       "show_payments": "Voir les versements ({{count}})",
@@ -379,7 +380,7 @@
       "excess": "Non déduit",
       "minimum": "Minimum à verser avant le 31 décembre",
       "minimum_estimated": "plafond de l’année estimé",
-      "progress_label": "PER de {{name}}",
+      "progress_label": "PER {{name, de}}",
       "progress_value": "{{deducted}} déduits sur un plafond de {{ceiling}}",
       "to_pay": "{{amount}} à verser avant le 31 décembre",
       "lost_otherwise": "dont {{amount}} perdus sinon",
@@ -531,6 +532,9 @@
         "monthly": "{{name}} : prélevé chaque mois",
         "rental_monthly": "Acompte foncier, par mois",
         "less": "Prélevé en moins sur l’année",
+        "less_months_one": "sur le dernier mois de l’année, le nouveau taux s’appliquant deux mois après la demande ; la baisse se poursuit en {{next}}",
+        "less_months_other": "sur les {{count}} derniers mois de l’année, le nouveau taux s’appliquant deux mois après la demande ; la baisse se poursuit en {{next}}",
+        "less_next_year": "rien cette année : le nouveau taux s’appliquerait deux mois après la demande, la baisse porte sur {{next}}",
         "balance": "Solde restant à la déclaration",
         "help": "La baisse reste sous la tolérance de 10 % (art. 1729 G du CGI) : au-delà, l’écart est majoré. Le reste des réductions et crédits revient par l’avance de janvier (60 % de ceux de l’an dernier) et le solde de l’été."
       }
@@ -581,8 +585,8 @@
       "pinel_property": "Bien",
       "pinel_year": "Acheté en",
       "pinel_engagement": "Engagement Pinel",
-      "pinel_engagement_of": "Engagement Pinel de {{name}}",
-      "pinel_plus_of": "Pinel+ de {{name}}",
+      "pinel_engagement_of": "Engagement Pinel {{name, de}}",
+      "pinel_plus_of": "Pinel+ {{name, de}}",
       "not_applicable": "Sans objet",
       "status_hint": "Sert à passer du brut au net imposable.",
       "rate_hint": "Vide : celui du statut (22, 25 ou 18 %). Sur la fiche de paie : (brut − net avant impôt) ÷ brut.",
@@ -596,7 +600,7 @@
       "per_expiring": "dont perdu au 31 décembre",
       "per_pooling": "Mutualiser les plafonds des deux déclarants",
       "exempt_toggle": "Revenus exonérés (heures supplémentaires, prime de partage de la valeur)",
-      "exempt": "Revenus exonérés de {{name}}",
+      "exempt": "Revenus exonérés {{name, de}}",
       "exempt_hint": "Non imposés, mais comptés dans le revenu fiscal de référence. Bulletin de décembre, cumul « heures supplémentaires exonérées » ; plus la prime de partage de la valeur exonérée.",
       "dependents": "Enfants à charge",
       "under6": "Dont enfants de moins de 6 ans au 1er janvier",
@@ -695,12 +699,12 @@
       "submit": "Calculer",
       "reset": "Revenir à l’estimation",
       "done": "Simulation calculée.",
-      "announce": "Simulation : impôt total {{tax}}, {{left}} de reste par mois.",
+      "announce": "Simulation : impôt total {{tax}}, {{left}} de revenu après impôt par mois.",
       "result": "Estimation et simulation",
       "column": "Simulation",
       "result_title": "Avant / après",
       "total_tax": "Impôt total",
-      "left_monthly": "Reste par mois",
+      "left_monthly": "Revenu après impôt / mois",
       "before": "avant {{value}}",
       "before_refund": "avant {{amount}} remboursés",
       "before_to_pay": "avant {{amount}} à payer",

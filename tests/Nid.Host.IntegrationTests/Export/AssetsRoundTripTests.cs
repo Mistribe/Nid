@@ -23,7 +23,7 @@ public class AssetsRoundTripTests(PostgresFixture fixture) : IClassFixture<Postg
         await NameAdultsAsync(source);
         string[] assets =
         [
-            """{"id":"asset-car","name":"Voiture","kind":"vehicle","currency":"EUR","purchase_price":"15000.00","purchased_on":"2023-05-01","note":"Citadine","ownership":[{"person":"adult-1","share_bp":10000}]}""",
+            """{"id":"asset-car","name":"Voiture","kind":"vehicle","currency":"EUR","purchase_price":"15000.00","purchased_on":"2023-05-01","note":"Citadine","registered_on":"2022-03-01","mileage_km":45000,"mileage_on":"2025-06-01","fiscal_hp":5,"energy":"diesel","depreciation_rate":"12.50","ownership":[{"person":"adult-1","share_bp":10000}]}""",
             """{"id":"asset-gold","name":"Lingot","kind":"precious_metal","currency":"EUR","weight_grams":"100.000","fineness":"999.9","closed":true,"ownership":[{"person":"adult-1","share_bp":6000},{"person":"adult-2","share_bp":4000}]}""",
         ];
         await RoundTripTests.CommitAsync(source, source.AdultA, AssetsImportTests.File(assets,
@@ -39,6 +39,9 @@ public class AssetsRoundTripTests(PostgresFixture fixture) : IClassFixture<Postg
         Assert.Equal(RoundTripTests.Canonical(first), RoundTripTests.Canonical(second));
         var gold = first["assets"].Single(a => a.GetProperty("name").GetString() == "Lingot");
         Assert.Equal(("999.9", true), (gold.GetProperty("fineness").GetString(), gold.GetProperty("closed").GetBoolean()));
+        var car = first["assets"].Single(a => a.GetProperty("name").GetString() == "Voiture");
+        Assert.Equal(("2022-03-01", 45000, "diesel"), (car.GetProperty("registered_on").GetString(), car.GetProperty("mileage_km").GetInt32(), car.GetProperty("energy").GetString()));
+        Assert.Equal("12.50", car.GetProperty("depreciation_rate").GetString());
         Assert.Single(first["valuations"]);
     }
 }

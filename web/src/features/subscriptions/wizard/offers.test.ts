@@ -4,7 +4,7 @@ import { fieldOf, type WizardValues } from './schema';
 
 const base: WizardValues = {
   offer: 'recurring', trialVariant: 'free',
-  provider: null, displayName: 'Netflix', visibility: 'shared', owners: [{ personId: 'p1', share: '100' }], users: [], note: '',
+  provider: null, displayName: 'Netflix', visibility: 'shared', owners: [{ personId: 'p1', share: '100' }], users: [], note: '', asset: '',
   startsOn: '2025-01-01', amount: '9,99', currency: 'EUR', everyCount: '1', everyUnit: 'month', sameCovers: true,
   coversCount: '1', coversUnit: 'month', maxCycles: '', payerType: 'household', payerPerson: '',
   offerDate: '2025-01-01', offerLabel: 'Offre', offerAmount: '0', offerPayerType: 'household', offerPayerPerson: '',

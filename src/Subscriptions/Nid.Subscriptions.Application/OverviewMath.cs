@@ -8,12 +8,14 @@ namespace Nid.Subscriptions.Application;
 
 /// <summary>
 /// Spec §4.1: every block of the overview from the visible subscriptions and one rate table. The month's figures follow the
-/// list (every visible subscription); the blocks ahead (months, upcoming, watch) read the active ones only.
+/// list (every visible subscription), and so do the 12 months (#711: this one and the 11 after, adding up to « Par an »); the
+/// blocks ahead (upcoming, watch) read the active ones only.
 /// </summary>
 public static class OverviewMath
 {
     private const int UpcomingDays = 30; // P4: today and the next 29 days
     private const int LongCycleSoonDays = 90; // spec §4.1: today + 90 included
+    private const int EndsSoonDays = 60; // #728: an end without renewal is worth an alert two months ahead, not a year
 
     public static SubscriptionsOverview Build(
         IReadOnlyList<BuiltSubscription> set, IReadOnlyList<PersonInfo> persons, Currency reference, RateTable rates, LocalDate today, InflationSeries inflation)
@@ -39,20 +41,23 @@ public static class OverviewMath
         var summaries = set.Select(b => SubscriptionViews.Summarise(
             b.Input, b.Timeline, b.DisplayName, b.Provider, window,
             Conversion.Of(b.Timeline.CashCostPieces(window), b.Timeline.AmortizedCostPieces(window), reference, rates), b.Owners,
-            FxConversion.Convert(b.Timeline.AmortizedCostPieces(year), rates, reference),
+            FxConversion.Convert(b.Timeline.CashCostPieces(year), rates, reference),
             SpendingViews.Spent(b.Timeline, reference, rates, today))).ToList();
         estimate |= summaries.Any(s => s.ConvertedIsEstimate);
 
-        var monthlyAmortized = View(HouseholdCost.AmortizedPieces(timelines, window));
-        var annualAmortized = View(HouseholdCost.AmortizedPieces(timelines, year));
+        // #711: « Par an » is what the 12 months of `months` charge, « Par mois » a twelfth of it.
+        var annualAmortized = View(HouseholdCost.CashPieces(timelines, year));
+        var monthlyAmortized = MoneyView.Twelfth(annualAmortized);
         var monthCash = View(HouseholdCost.CashPieces(timelines, window));
         var monthCashRemaining = View(HouseholdCost.CashPieces(timelines, CostWindow.Resolve(today, today, nextMonth)));
 
         var ahead = ChargeRules.HouseholdCharges(active).ToList();
+        // This month and the 11 after, every subscription's charges (one ended this month charged it too): « Par an » adds them up.
+        var charged = ChargeRules.HouseholdCharges(set).ToList();
         var months = Enumerable.Range(0, 12).Select(i =>
         {
-            var start = nextMonth.PlusMonths(i);
-            var inMonth = ahead.Where(x => x.Charge.Date >= start && x.Charge.Date < start.PlusMonths(1)).ToList();
+            var start = window.Start.PlusMonths(i);
+            var inMonth = charged.Where(x => x.Charge.Date >= start && x.Charge.Date < start.PlusMonths(1)).ToList();
             bool Recurring((BuiltSubscription Sub, Charge Charge) x)
                 => ChargeRules.PhaseOf(x.Sub.Input, x.Charge) is { } phase && !ChargeRules.LongerThanAMonth(phase.Every);
             return new MonthView(
@@ -74,13 +79,13 @@ public static class OverviewMath
         {
             var owned = active.Select(b => b.Owners).Where(o => o.Any(x => x.PersonId == p.Id.Value)).ToList();
             return new PersonShareView(p.Id.Value,
-                byPerson.TryGetValue(p.Id.Value.ToString(), out var group) ? group.AmortizedCostConverted : zero,
+                byPerson.TryGetValue(p.Id.Value.ToString(), out var group) ? group.MonthlyCostConverted : zero,
                 owned.Count(o => o.Count == 1), owned.Count(o => o.Count > 1));
         }).ToList();
 
         var colors = set.SelectMany(b => b.Provider?.Labels.Take(1) ?? []).DistinctBy(l => l.Key).ToDictionary(l => l.Key, l => l.Color);
         var byLabel = ListGrouping.Group(ListGroup.Label, summaries)
-            .Select(g => new LabelShareView(g.Key, g.Name, colors.GetValueOrDefault(g.Key), g.AmortizedCostConverted)).ToList();
+            .Select(g => new LabelShareView(g.Key, g.Name, colors.GetValueOrDefault(g.Key), g.MonthlyCostConverted)).ToList();
 
         var watch = Watch(active, summaries, today, View).OrderBy(w => w.Date is null).ThenBy(w => w.Date)
             .ThenBy(w => w.Code, StringComparer.Ordinal).ToList();
@@ -169,7 +174,7 @@ public static class OverviewMath
         foreach (var b in active)
         {
             var id = b.Input.Subscription.Id.Value;
-            if (!b.Input.Subscription.AutoRenew && b.Timeline.ExpiresOn() is { } end && end > today && end <= today.PlusMonths(12))
+            if (!b.Input.Subscription.AutoRenew && b.Timeline.ExpiresOn() is { } end && end > today && end <= today.PlusDays(EndsSoonDays))
                 yield return new WatchView(OverviewCodes.EndsWithoutRenewal, [id], end, null);
             foreach (var charge in ChargeCycles.FirstLongCycleCharges(b.Input, b.Timeline, today, today.PlusDays(LongCycleSoonDays)))
                 yield return new WatchView(OverviewCodes.LongCycleChargeSoon, [id], charge.Date, view([SpendingHistory.Piece(charge)]));
@@ -181,7 +186,7 @@ public static class OverviewMath
         {
             // The same rule as a provider group of the list: its subtotal, null when a member has none.
             var group = ListGrouping.Group(ListGroup.Provider, provider.ToList()).Single();
-            yield return new WatchView(OverviewCodes.SameProvider, group.ItemIds, null, group.AmortizedCostConverted);
+            yield return new WatchView(OverviewCodes.SameProvider, group.ItemIds, null, group.MonthlyCostConverted);
         }
     }
 }

@@ -106,6 +106,16 @@ describe('« Opérations »', () => {
     expect(screen.queryByRole('group', { name: 'Mois' })).toBeNull();
   });
 
+  it('a card purchase says which account it was debited from', async () => {
+    const purchase = { ...netflix, id: 't3', label: 'CARTE SHOP', fromCard: true, cardName: 'Carte', accountName: 'Carte', debitedFrom: 'Compte joint' };
+    server.use(http.get('*/api/v1/banking/operations', () => HttpResponse.json(answer([purchase, netflix]))));
+    await renderApp('/spending?tab=operations');
+
+    const rows = within(await screen.findByRole('table', { name: 'Opérations' })).getAllByRole('row');
+    expect(rows[1]).toHaveTextContent('Débitée sur Compte joint');
+    expect(rows[2]).not.toHaveTextContent('Débitée sur');
+  });
+
   it('announces an ignored line', async () => {
     server.use(
       http.get('*/api/v1/banking/operations', () => HttpResponse.json(answer([netflix]))),
@@ -299,7 +309,7 @@ describe('« Opérations » receipts', () => {
     const { user } = await renderApp('/spending?tab=operations');
     await user.click(within(await rowOf()).getByRole('button', { name: '2 justificatifs' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Reçu' }));
-    expect(await screen.findByText("Ce justificatif n'est plus disponible.")).toBeInTheDocument();
+    expect(await screen.findByText("Ce justificatif n’est plus disponible.")).toBeInTheDocument();
     // Another failure says so as any other does, and closes too.
     await user.click(within(await rowOf()).getByRole('button', { name: '2 justificatifs' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Facture octobre' }));

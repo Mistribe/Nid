@@ -14,7 +14,7 @@ namespace Nid.RealEstate.Application;
 /// </summary>
 public sealed record CreateLoanCommand(
     string Name, Currency Currency, Visibility Visibility, IReadOnlyList<OwnerShare> Owners, string? Lender, string? Note,
-    LoanContract Contract, ItemId? PropertyId = null, ShareLevel ShareLevel = ShareLevel.View, ItemId? EnvelopeId = null)
+    LoanContract Contract, ItemId? PropertyId = null, ShareLevel ShareLevel = ShareLevel.View, ItemId? EnvelopeId = null, ItemId? AssetId = null)
     : ICommand<ItemId>, ICreatesItem, ITransactional;
 
 /// <summary>Spec 3A2 §4: name, lender, note, linked property and (3F2) the schedule's reference, only what is sent; borrowers, visibility and currency are set at creation.</summary>
@@ -43,8 +43,9 @@ public sealed class CreateLoanHandler(
             return Result.Failure<ItemId>(LoanPaths.ForContract(failure!));
         var person = actor.Current!.PersonId!.Value;
         if ((await PropertyCheck.LinkableAsync(properties, policy, person, command.PropertyId, ct)
-             ?? LoanCheck.OneFinanced(command.PropertyId, command.EnvelopeId)
-             ?? await LoanCheck.EnvelopeLinkableAsync(envelopes, policy, person, command.EnvelopeId, ct)) is { } unlinkable)
+             ?? LoanCheck.OneFinanced(command.PropertyId, command.EnvelopeId, command.AssetId)
+             ?? await LoanCheck.EnvelopeLinkableAsync(envelopes, policy, person, command.EnvelopeId, ct)
+             ?? await LoanCheck.AssetLinkableAsync(policy, items, person, command.AssetId, ct)) is { } unlinkable)
             return Result.Failure<ItemId>(unlinkable);
 
         var created = await items.CreateAsync(
@@ -52,7 +53,7 @@ public sealed class CreateLoanHandler(
         if (created.TryGetFailure(out failure))
             return Result.Failure<ItemId>(FieldErrors.At(failure!, "borrowers")); // a failure rolls the transaction back: nothing is left
         created.TryGetValue(out var id);
-        await loans.CreateAsync(id, command.Lender, command.Note, command.PropertyId, command.Contract, ct, command.EnvelopeId);
+        await loans.CreateAsync(id, command.Lender, command.Note, command.PropertyId, command.Contract, ct, command.EnvelopeId, command.AssetId);
         return Result.Success(id);
     }
 }
@@ -84,11 +85,13 @@ public sealed class EditLoanHandler(
             && await PropertyCheck.LinkableAsync(properties, policy, actor.Current!.PersonId!.Value, change.PropertyId, ct) is { } unlinkable)
             return Result.Failure<ItemId>(unlinkable);
 
-        // #180: the same for an SCPI envelope, and the loan as it will be finances one of them at most.
+        // #180, #188: the same for an SCPI envelope and an asset, and the loan as it will be finances one of them at most.
         var property = change.ClearProperty ? null : change.PropertyId ?? found.Loan.PropertyId;
         var envelope = change.ClearEnvelope ? null : change.EnvelopeId ?? found.Loan.EnvelopeId;
-        if ((LoanCheck.OneFinanced(property, envelope)
-             ?? (change.ClearEnvelope ? null : await LoanCheck.EnvelopeLinkableAsync(envelopes, policy, actor.Current!.PersonId!.Value, change.EnvelopeId, ct)))
+        var asset = change.ClearAsset ? null : change.AssetId ?? found.Loan.AssetId;
+        if ((LoanCheck.OneFinanced(property, envelope, asset)
+             ?? (change.ClearEnvelope ? null : await LoanCheck.EnvelopeLinkableAsync(envelopes, policy, actor.Current!.PersonId!.Value, change.EnvelopeId, ct))
+             ?? (change.ClearAsset ? null : await LoanCheck.AssetLinkableAsync(policy, items, actor.Current!.PersonId!.Value, change.AssetId, ct)))
             is { } unfinanced)
             return Result.Failure<ItemId>(unfinanced);
 

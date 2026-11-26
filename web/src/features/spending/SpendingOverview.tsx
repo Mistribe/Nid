@@ -17,6 +17,7 @@ import { RowMenu } from '@/components/page/RowMenu';
 import { SectionCard } from '@/components/page/SectionCard';
 import { Loading, TableSkeleton } from '@/components/page/skeletons';
 import { SortableTable } from '@/components/page/SortableTable';
+import { UnattachedCards } from '@/components/UnattachedCards';
 import { StatLine } from '@/components/page/StatLine';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Badge } from '@/components/ui/badge';
@@ -212,8 +213,10 @@ function Figures({ data, period, year, household, picked, onOpen, onBudget, onSu
   const budgets = household && !year && !picked;
   // What qualifies a budget's amount, each word with its tip: where it comes from, and how much of a typed one is already committed.
   const notes = (r: Row, b: SpendingBudget) => {
-    const mark = b.source === 'committed' ? 'committed' : b.period === 'year' ? 'yearly' : null;
-    const committed = b.source === 'typed' && b.committed ? t('spending.budget.committed_part', { amount: money(b.committed) }) : null;
+    // #722: a budget from commitments adds the usual month of what they do not cover; it then says how much is committed.
+    const usual = b.source === 'committed' && b.planned !== b.committed;
+    const mark = usual ? 'committed_usual' : b.source === 'committed' ? 'committed' : b.period === 'year' ? 'yearly' : null;
+    const committed = (b.source === 'typed' || usual) && b.committed ? t('spending.budget.committed_part', { amount: money(b.committed) }) : null;
     return [
       mark ? <span key="mark" className="inline-flex items-center gap-1">{t(`spending.budget.${mark}`)}<InfoTip label={t('spending.budget.of', { name: r.name })}>{t(`spending.budget.${mark}_tip`)}</InfoTip></span> : null,
       committed ? <span key="committed" className="inline-flex items-center gap-1">{committed}<InfoTip label={committed}>{t('spending.budget.committed_part_tip')}</InfoTip></span> : null,
@@ -299,6 +302,7 @@ function Figures({ data, period, year, household, picked, onOpen, onBudget, onSu
           { label: t('spending.uncategorised'), value: money(data.uncategorised.amount), tip: t('spending.uncategorised_tip'), hint: toOperations },
         ]} />
         {data.incomplete ? <Incomplete /> : null}
+        <UnattachedCards cards={data.unattachedCards} />
         {budgets && data.budgetIncomplete ? <Incomplete text={t('spending.budget_incomplete')} /> : null}
         {data.categories.length === 0 ? (
           <>

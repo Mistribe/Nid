@@ -43,9 +43,14 @@ export function LoanStats({ loan }: { loan: LoanDetail }) {
  */
 export function LoanProgress({ loan }: { loan: LoanDetail }) {
   const { t } = useTranslation();
-  const total = toPlot(loan.contract.principal);
-  const share = total > 0 ? Math.min(100, (toPlot(loan.figures.principalRepaid) / total) * 100) : 0;
-  const label = t('loan_detail.progress', { repaid: money(loan.currency, loan.figures.principalRepaid), principal: money(loan.currency, loan.contract.principal) });
+  const f = loan.figures;
+  // #709: the payments repay the principal and the interest a total deferral capitalised.
+  const total = toPlot(f.capitalToRepay);
+  const share = total > 0 ? Math.min(100, (toPlot(f.principalRepaid) / total) * 100) : 0;
+  const values = { repaid: money(loan.currency, f.principalRepaid), principal: money(loan.currency, f.capitalToRepay) };
+  const label = f.capitalisedInterest
+    ? t('loan_detail.progress_capitalised', { ...values, interest: money(loan.currency, f.capitalisedInterest) })
+    : t('loan_detail.progress', values);
   return (
     <div className="space-y-2">
       <Progress value={share} aria-label={label} getValueLabel={() => label} />

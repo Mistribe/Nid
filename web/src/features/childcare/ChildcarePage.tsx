@@ -78,6 +78,11 @@ function Current({ row }: { row: ChildcareSummary }) {
         )}
         aside={(
           <StatLine items={[
+            // #723: the dashboard's « Garde » links here: the same figure, named the same way.
+            ...(detail?.monthCost ? [{
+              label: t('childcare_list.month_cost'), tip: t('childcare_list.month_cost_tip'), value: <Money value={detail.monthCost} tabular />,
+              hint: detail.monthCostEstimated ? t('childcare_list.month_cost_estimated') : undefined,
+            }] : []),
             { label: t('childcare_detail.cmg_estimate'), tip: t('childcare_detail.cmg_tip'),
               value: detail?.cmgEstimate ? <Money value={detail.cmgEstimate} tabular /> : dash,
               hint: detail && !detail.cmgEstimate ? t('childcare_detail.cmg_estimate_none') : undefined },

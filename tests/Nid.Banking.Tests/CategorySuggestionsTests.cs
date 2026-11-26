@@ -38,4 +38,27 @@ public class CategorySuggestionsTests
         var picks = Run(new Evidence("SHOP", true, Groceries, 2), new Evidence("SHOP", false, Restaurants, 2));
         Assert.Equal([(true, Groceries), (false, Restaurants)], picks.Select(p => (p.Debit, p.Category)).OrderByDescending(p => p.Debit));
     }
+
+    private static Pick? Near(params Neighbour[] neighbours)
+        => ByMeaning("NEW SHOP", true, neighbours,
+            [new Evidence("SUPER SHOP", true, Groceries, 2), new Evidence("FOOD SHOP", true, Groceries, 3), new Evidence("BISTRO", true, Restaurants, 2),
+             new Evidence("SUPER SHOP", false, Restaurants, 5)],
+            id => id != Archived);
+
+    [Fact]
+    public void Patterns_near_by_meaning_decide_on_the_same_thresholds()
+    {
+        var pick = Near(new Neighbour("NEW SHOP", "SUPER SHOP", 0.9), new Neighbour("NEW SHOP", "FOOD SHOP", 0.85))!;
+        Assert.Equal((Groceries, 5, 5, true), (pick.Category, pick.Lines, pick.Total, pick.ByMeaning));
+        // Too far: not counted. A disagreeing neighbour brings the agreement under 80 %.
+        Assert.Null(Near(new Neighbour("NEW SHOP", "SUPER SHOP", MinSimilarity - 0.01)));
+        Assert.Null(Near(new Neighbour("NEW SHOP", "SUPER SHOP", 0.9), new Neighbour("NEW SHOP", "BISTRO", 0.9)));
+        // Another pattern's neighbours, or the other direction's lines, never count.
+        Assert.Null(Near(new Neighbour("OTHER", "FOOD SHOP", 0.99)));
+        Assert.Equal(Groceries, Near(new Neighbour("NEW SHOP", "FOOD SHOP", 0.9))!.Category);
+    }
+
+    [Fact]
+    public void A_household_name_is_held_back_as_labels_write_it()
+        => Assert.Equal(["ELODIE", "MARTIN", "LEA"], NameWords(["Élodie Martin", "Léa", "Jo"]));
 }

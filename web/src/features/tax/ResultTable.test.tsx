@@ -52,4 +52,13 @@ describe('ResultTable', () => {
     expect(screen.queryByRole('columnheader', { name: 'Infos' })).toBeNull();
     expect(screen.getByRole('columnheader', { name: 'Ligne' })).toBeInTheDocument();
   });
+
+  // #781: « Imposable » is salaries less the allowance; the PER comes after it, off the global income.
+  it('lists the PER after « Imposable », as deducted from the global income', () => {
+    const base = result();
+    render(<DeclarantTable result={{ ...base, declarants: [{ ...base.declarants[0]!, netTaxableIncome: '50000.00', allowance: '5000.00', taxable: '45000.00', perDeducted: '5000.00' }] }} />);
+    const lines = screen.getAllByRole('rowheader').map((h) => h.textContent);
+    expect(lines.indexOf('Imposable')).toBeGreaterThan(lines.indexOf('Abattement de 10 %'));
+    expect(lines.indexOf('Versements PER déduits du revenu global')).toBe(lines.indexOf('Imposable') + 1);
+  });
 });

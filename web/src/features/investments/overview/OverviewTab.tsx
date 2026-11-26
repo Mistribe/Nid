@@ -130,7 +130,9 @@ function Estimated({ on }: { on: string }) {
 function ValueHero({ d, aside }: { d: InvestmentsOverview; aside?: ReactNode }) {
   const { t } = useTranslation();
   const figure = useFigure(d);
-  const notes = d.oldestAsOf || d.staleCount > 0 || d.estimatedCount > 0 || d.withoutValueCount > 0;
+  // #712, #768: an envelope without a recent 1 January value is left out of the change, as on the Performance tab.
+  const withoutStart = d.sinceJanuary ? d.withoutStartCount : 0;
+  const notes = d.oldestAsOf || d.staleCount > 0 || d.estimatedCount > 0 || d.withoutValueCount > 0 || withoutStart > 0;
   return (
     <Hero aside={aside} label={t('investments_overview.value')} figure={d.value ? figure(d.value) : <HeroUnknown>{figure(d.value)}</HeroUnknown>}
       change={d.sinceJanuary ? (
@@ -145,6 +147,7 @@ function ValueHero({ d, aside }: { d: InvestmentsOverview; aside?: ReactNode }) 
           {d.staleCount > 0 ? <Sub><span className="inline-flex items-center gap-1"><Clock aria-hidden="true" className="size-3.5" />{t('investments_overview.stale', { count: d.staleCount })}</span></Sub> : null}
           {d.estimatedCount > 0 ? <Sub>{t('investments_overview.estimated_count', { count: d.estimatedCount })}</Sub> : null}
           {d.withoutValueCount > 0 ? <Sub>{t('investments_overview.without_value', { count: d.withoutValueCount })}</Sub> : null}
+          {withoutStart > 0 ? <Sub>{t('investments_overview.since_without_start', { count: withoutStart })}</Sub> : null}
         </>
       ) : null}
     />

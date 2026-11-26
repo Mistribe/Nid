@@ -20,15 +20,17 @@ public static class ChargeKinds
     public const string PropertyCost = "property_cost";
     public const string Rent = "rent";
     public const string Childcare = "childcare";
+    public const string Income = "income";
 }
 
 /// <summary>
 /// 5C spec §6.1: a debit (a credit for a rent) a module expects on an item. <c>Key</c> is stable and unique per item and kind;
-/// <c>LabelHints</c> are the words a bank line of it may carry.
+/// <c>LabelHints</c> are the words a bank line of it may carry. #755: <c>Estimated</c>, its amount and day a projection (a childcare month
+/// not validated yet), not a known figure.
 /// </summary>
 public sealed record ExpectedCharge(
     string Module, ItemId Item, string ItemName, ChargeKind Kind, string Key, LocalDate DueOn,
-    Money Amount, bool Credit, int ToleranceDays, IReadOnlyList<string> LabelHints);
+    Money Amount, bool Credit, int ToleranceDays, IReadOnlyList<string> LabelHints, bool Estimated = false);
 
 public interface IExpectedCharges
 {
@@ -38,3 +40,9 @@ public interface IExpectedCharges
     /// </summary>
     Task<Result<IReadOnlyList<ExpectedCharge>>> ChargesAsync(PersonId reader, VisibilityScope scope, LocalDate from, LocalDate to, CancellationToken ct);
 }
+
+/// <summary>
+/// #714: money the calendar expects that the bank reconciliation does not link: an income source's payments, a childcare month not
+/// validated yet. Registered under this interface only, so the readers of <see cref="IExpectedCharges"/> (the reconciliation) never see them.
+/// </summary>
+public interface IProjectedCharges : IExpectedCharges;

@@ -16,10 +16,10 @@ describe('Réglages › IA', () => {
     serve();
     const { container } = await renderApp('/settings/ai');
 
-    expect(await screen.findByRole('switch', { name: "Activer l'assistant pour moi" })).toBeInTheDocument();
+    expect(await screen.findByRole('switch', { name: "Activer l’assistant pour moi" })).toBeInTheDocument();
     expect(screen.getByText(/réglés par un administrateur/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: "Voir l'utilisation" })).toHaveAttribute('href', '/settings/ai/usage');
-    expect(screen.queryByRole('link', { name: "Régler l'IA du foyer" })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: "Voir l’utilisation" })).toHaveAttribute('href', '/settings/ai/usage');
+    expect(screen.queryByRole('link', { name: "Régler l’IA du foyer" })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Workers' })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Modèles' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'IA' })).toHaveAttribute('aria-current', 'page');
@@ -30,7 +30,7 @@ describe('Réglages › IA', () => {
     serve();
     await renderApp('/settings/ai', { capabilities: adminCapabilities });
 
-    expect(await screen.findByRole('link', { name: "Régler l'IA du foyer" })).toHaveAttribute('href', '/admin/ai');
+    expect(await screen.findByRole('link', { name: "Régler l’IA du foyer" })).toHaveAttribute('href', '/admin/ai');
   });
 
   it('turns the assistant on for oneself, after saying what may leave when it can reach the cloud, and sets the preference', async () => {
@@ -50,9 +50,9 @@ describe('Réglages › IA', () => {
     );
     const { user } = await renderApp('/settings/ai');
 
-    await user.click(await screen.findByRole('switch', { name: "Activer l'assistant pour moi" }));
+    await user.click(await screen.findByRole('switch', { name: "Activer l’assistant pour moi" }));
     const confirm = await screen.findByRole('alertdialog');
-    expect(confirm).toHaveTextContent('jamais les éléments privés de l\'autre adulte');
+    expect(confirm).toHaveTextContent('jamais les éléments privés de l’autre adulte');
     expect(enabled).toEqual([]);
     await user.click(within(confirm).getByRole('button', { name: 'Confirmer' }));
     await waitFor(() => expect(enabled).toEqual([{ enabled: true }]));

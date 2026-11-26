@@ -581,6 +581,14 @@ public sealed class NidApp : IAsyncDisposable
         await scope.ServiceProvider.GetRequiredService<ISubscriptionStore>().DeleteInsuranceAsync(subscription, CancellationToken.None); // not found: none to clear
     }
 
+    /// <summary>Unlinks a subscription from its asset straight through the store, for the same reason as <see cref="ClearInsuranceAsync"/>.</summary>
+    public async Task ClearAssetLinkAsync(ItemId subscription)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
+        await scope.ServiceProvider.GetRequiredService<ISubscriptionStore>().SetAssetAsync(subscription, null, CancellationToken.None);
+    }
+
     public async Task<ItemId> NewMonthlyAsync(PersonId owner, decimal price)
     {
         var id = await NewSubscriptionAsync($"monthly-{price}", owner, Visibility.Shared);

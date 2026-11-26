@@ -37,7 +37,7 @@ describe('ChangelogPage', () => {
     serve(LIST);
     const { user } = await renderApp('/changelog');
     expect(await screen.findByRole('heading', { level: 2, name: /Version 0\.5\.0/ })).toBeInTheDocument();
-    const figures = screen.getByText("Version de l'application").closest('dl')!;
+    const figures = screen.getByText("Version de l’application").closest('dl')!;
     expect(figures).toHaveTextContent('0.5.1');
     await waitFor(() => expect(figures).toHaveTextContent('1.2.3'));
     expect(within(screen.getByRole('main')).getAllByRole('heading', { level: 2 }).map((h) => h.id).filter(Boolean)).toEqual(['0.5.0', '0.4.0', '0.3.1']);

@@ -14,7 +14,7 @@ describe('Administration › Foyer', () => {
     server.use(http.get('*/api/v1/admin/household', () => HttpResponse.json(settings)));
     const { container } = await renderApp('/admin/household', { capabilities: adminCapabilities });
 
-    expect(await screen.findByLabelText("Plafond d'adultes")).toHaveValue(2);
+    expect(await screen.findByLabelText("Plafond d’adultes")).toHaveValue(2);
     expect(screen.getByLabelText('Devise de référence')).toHaveValue('EUR');
     expect(screen.getByText(/tous les totaux seront reconvertis/)).toBeInTheDocument();
     await expectNoAxeViolations(container);
@@ -32,7 +32,7 @@ describe('Administration › Foyer', () => {
     );
     const { user } = await renderApp('/admin/household', { capabilities: adminCapabilities });
 
-    const cap = await screen.findByLabelText("Plafond d'adultes");
+    const cap = await screen.findByLabelText("Plafond d’adultes");
     await user.clear(cap);
     await user.type(cap, '4');
     await user.click(screen.getByRole('button', { name: 'Enregistrer' }));

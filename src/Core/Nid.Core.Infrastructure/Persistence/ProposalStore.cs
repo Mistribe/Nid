@@ -96,15 +96,34 @@ public sealed partial class ProposalStore(CoreDbContext db, IClock clock, IEnume
 
     public async Task<IReadOnlyList<StoredProposal>> ListAsync(
         IReadOnlySet<ItemId> targets, PersonId? person, ProposalStatus status, CancellationToken ct, PersonId? viewer = null)
+        => (await Listed(targets, person, status, viewer).ToListAsync(ct)).Select(ToStored).ToList();
+
+    public async Task<ProposalPage> PageAsync(IReadOnlySet<ItemId> targets, PersonId? person, ProposalStatus status, PersonId viewer,
+        string? search, int skip, int? take, CancellationToken ct)
+    {
+        var rows = Listed(targets, person, status, viewer);
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var pattern = LikePattern.Contains(search);
+            rows = rows.Where(r => (r.SourceLabel != null && EF.Functions.ILike(r.SourceLabel, pattern, @""))
+                || db.Items.Any(i => i.Id == r.TargetItemId && EF.Functions.ILike(i.DisplayName, pattern, @"")));
+        }
+        var total = await rows.CountAsync(ct);
+        var paged = rows.Skip(skip);
+        if (take is { } size) paged = paged.Take(size);
+        return new ProposalPage((await paged.ToListAsync(ct)).Select(ToStored).ToList(), total);
+    }
+
+    private IQueryable<ProposalRow> Listed(IReadOnlySet<ItemId> targets, PersonId? person, ProposalStatus status, PersonId? viewer)
     {
         var ids = targets.Select(t => (Guid?)t.Value).ToArray();
         var wire = Wire(status);
         var untargeted = person?.Value;
         var reader = viewer?.Value;
-        return (await db.Proposals.AsNoTracking()
-                .Where(r => (ids.Contains(r.TargetItemId) || (untargeted != null && r.TargetItemId == null && r.ForPersonId == untargeted)) && r.Status == wire)
-                .Where(r => reader == null || r.Status != "pending" || r.CreatedVia != AssistantProposals.Via || r.CreatedByPersonId == reader)
-            .OrderByDescending(r => r.CreatedAt).ThenByDescending(r => r.Id).ToListAsync(ct)).Select(ToStored).ToList();
+        return db.Proposals.AsNoTracking()
+            .Where(r => (ids.Contains(r.TargetItemId) || (untargeted != null && r.TargetItemId == null && r.ForPersonId == untargeted)) && r.Status == wire)
+            .Where(r => reader == null || r.Status != "pending" || r.CreatedVia != AssistantProposals.Via || r.CreatedByPersonId == reader)
+            .OrderByDescending(r => r.CreatedAt).ThenByDescending(r => r.Id);
     }
 
     public async Task<Result<StoredProposal>> DecideAsync(Guid id, uint version, ProposalStatus to, PersonId by,

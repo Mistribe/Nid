@@ -7,7 +7,7 @@ namespace Nid.Assets.Application;
 
 /// <summary>
 /// Issue #186: each visible asset at its latest valuation (its purchase price while none is dated), one <see cref="Holding"/> each, always
-/// <c>other</c> and <c>locked</c>. Since 1 January the valuation change is a gain; an asset first counted this year enters as a purchase
+/// <c>other</c> and <c>locked</c>. A vehicle with a depreciation rule is an <b>estimate</b> (#187): the base worn down to today, its date the base's. Since 1 January the valuation change is a gain; an asset first counted this year enters as a purchase
 /// (<c>Moved</c>), never as a gain. Batched reads: the items and the valuations are read once for all, whatever their number.
 /// </summary>
 public sealed class AssetsNetWorth(IVisibleItems visible, IItemRegistry items, IAssetRecordStore assets, IValuations valuations, IHouseholdCalendar calendar)
@@ -26,6 +26,7 @@ public sealed class AssetsNetWorth(IVisibleItems visible, IItemRegistry items, I
         var holdings = new List<Holding>();
         var count = 0;
         var withoutValue = 0;
+        var stale = 0;
         LocalDate? oldest = null;
 
         foreach (var (record, item, currency, series) in read)
@@ -39,12 +40,19 @@ public sealed class AssetsNetWorth(IVisibleItems visible, IItemRegistry items, I
                 continue;
             }
             Add(values, cur, now.Amount);
-            if (!now.FromPurchase && (oldest is null || now.On < oldest))
-                oldest = now.On; // « values as of » follows valuations, not purchase dates
+            // #778: an old purchase price alone asks for a newer value, as a stale property or envelope does.
+            var isStale = AssetMath.IsStale(record.Details.Kind, now, today);
+            if (isStale)
+                stale++;
+            // An estimate is worth today's date (its base is ValuedOn); « values as of » otherwise follows valuations, not purchase dates.
+            var asOf = now.Estimated ? today : now.On;
+            if ((now.Estimated || !now.FromPurchase) && (oldest is null || asOf < oldest))
+                oldest = asOf;
             holdings.Add(new Holding(
-                record.ItemId, "assets", item.DisplayName, MoneyOf(now.Amount, cur), now.On, false, owners,
+                record.ItemId, "assets", item.DisplayName, MoneyOf(now.Amount, cur), asOf, isStale, owners,
                 [new AllocationSlice(AllocationClasses.Other, AllocationLiquidity.Locked, now.Amount, false)],
-                ValuedOn: now.FromPurchase ? null : now.On));
+                Estimated: now.Estimated,
+                ValuedOn: now.FromPurchase && !now.Estimated ? null : now.On)); // a bare purchase price is no estimate; a depreciated one is, dated by its base
 
             // Worth on 1 January, else (counted since) what it entered at: a purchase is no gain.
             var start = AssetMath.At(record.Details, series, january1)?.Amount ?? AssetMath.FirstCounted(record.Details, series)?.Amount ?? now.Amount;
@@ -53,7 +61,7 @@ public sealed class AssetsNetWorth(IVisibleItems visible, IItemRegistry items, I
             Add(gains, cur, now.Amount - start);
         }
 
-        return Result.Success(new NetWorthPart(count, withoutValue, 0, oldest, values, starts, nets, gains, holdings, 0));
+        return Result.Success(new NetWorthPart(count, withoutValue, stale, oldest, values, starts, nets, gains, holdings, 0));
     }
 
     /// <summary>Nothing to save into: an asset is bought, not paid into.</summary>

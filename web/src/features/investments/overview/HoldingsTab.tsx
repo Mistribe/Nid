@@ -96,9 +96,9 @@ function Figures({ d }: { d: HouseholdHoldings }) {
         tip: t('investments_tips.uc'), value: (
         <>{percent(d.ucSharePct)}<Sub>{floors.length === 1 ? t('investments_holdings.uc_note', { floor: percent(floors[0]!.floorPct) }) : t('investments_holdings.uc_note_plain')}</Sub></>
       ) }]),
-      { label: t('investments_holdings.cost', { year: d.costYear }), value: (
+      { label: t('investments_holdings.cost'), value: (
         <>{d.cost ? `≈ ${formatMoney(d.cost)}` : '—'}
-          <Sub>{d.costPct === null || d.costPct === undefined ? t('investments_holdings.cost_note_plain') : t('investments_holdings.cost_note', { pct: percent(d.costPct) })}</Sub></>
+          <Sub>{d.costPct === null || d.costPct === undefined ? t('investments_holdings.cost_note_plain') : t('investments_holdings.cost_note', { pct: t('investments.pct', { value: rate(d.costPct) }) })}</Sub></>
       ) },
       ...(next ? [{ label: t('investments_holdings.maturity'), value: <>{formatLocalDate(next.maturesOn!, 'short')}<Sub>{next.name}</Sub></> }] : []),
     ]} />
@@ -428,7 +428,9 @@ function WatchCard({ d }: { d: HouseholdHoldings }) {
     <SectionCard title={t('investments_holdings.watch_title')}>
       <GroupedList>
         {d.watch.map((w) => {
-          const code = WATCH.find((c) => c === w.code);
+          const found = WATCH.find((c) => c === w.code);
+          // #728: the server names no holding when several of one statement have unexplained units.
+          const code = found === 'unexplained_units' && !w.holdingId ? 'unexplained_units_many' : found;
           const text = code ? t(`investments_holdings.watch.${code}`, { holding: holding(w.holdingId), date: w.on ? formatLocalDate(w.on, 'short') : '' })
             : t('investments_holdings.watch.other');
           return (

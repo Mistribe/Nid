@@ -49,7 +49,7 @@ describe('ScenariosPage', () => {
 
     const table = await screen.findByRole('table', { name: 'Liste des scénarios' });
     expect(within(table).getAllByRole('columnheader').map((h) => h.textContent))
-      .toEqual(['Nom', 'Type', 'Usage', 'Prix', 'Mensualité', 'Endettement', 'Écart à l\'horizon', 'Propriétaire', 'Actions']);
+      .toEqual(['Nom', 'Type', 'Usage', 'Prix', 'Mensualité', 'Endettement', 'Écart à l’horizon', 'Propriétaire', 'Actions']);
     const items = await rows();
     expect(items).toHaveLength(2);
     expect(items[0]).toHaveTextContent('Studio Lyon');
@@ -164,7 +164,7 @@ describe('ScenariosPage', () => {
     serve([]);
     const { container } = await renderApp('/scenarios');
 
-    expect(await screen.findByText('Aucun scénario pour l\'instant')).toBeInTheDocument();
+    expect(await screen.findByText('Aucun scénario pour l’instant')).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'Nouveau scénario' }).length).toBeGreaterThan(0);
     expectOnePrimary(container);
   });

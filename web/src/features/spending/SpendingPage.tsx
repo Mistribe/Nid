@@ -1,17 +1,15 @@
-import { useNavigate, useSearch } from '@tanstack/react-router';
+import { useNavigate } from '@tanstack/react-router';
 import { lazy, Suspense, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
-import { useBankingStatus } from '@/api/banking';
+import { LINES_TO_CLASSIFY, useBankingStatus } from '@/api/banking';
 import type { SpendingSearch } from '@/app/router';
 import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
 import { PageHeader } from '@/components/page/PageHeader';
 import { Loading, TableSkeleton } from '@/components/page/skeletons';
 import { Badge } from '@/components/ui/badge';
 import type { RootSearch } from '@/lib/search';
-import { todayIso } from '@/lib/today';
 import { ImportStatement } from '../investments/operations/ImportStatement';
-import { SPENDING } from './api';
 import { monthDays, MonthStepper, useMonth } from './MonthStepper';
 import '@/locales/spending';
 
@@ -20,10 +18,12 @@ const SpendingOverview = lazy(() => import('./SpendingOverview').then((m) => ({ 
 const SpendingControls = lazy(() => import('./SpendingOverview').then((m) => ({ default: m.SpendingControls })));
 const OperationsPage = lazy(() => import('@/features/operations/OperationsPage').then((m) => ({ default: m.OperationsPage })));
 const CategoriesTab = lazy(() => import('./CategoriesTab'));
+const ToClassifyTab = lazy(() => import('./ToClassifyTab'));
 
-const TABS = ['overview', 'operations', 'categories'] as const;
+const TABS = ['overview', 'operations', 'to-classify', 'categories'] as const;
 
-/** Dépenses (#423): the overview by category (`/spending`), the bank lines (`?tab=operations`), the categories and their rules (`?tab=categories`). */
+/** Dépenses (#423): the overview by category (`/spending`), the bank lines (`?tab=operations`), the lines to classify with Nid's suggestion
+ * (`?tab=to-classify`), the categories and their rules (`?tab=categories`). */
 export function SpendingPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -46,8 +46,9 @@ export function SpendingPage() {
       <PageHeader title={t('spending.title')} actions={actions} />
       <DetailTabs value={tab} onChange={change} tabs={[
         { id: 'overview', label: t('spending.tabs.overview'), content: lazyTab(<SpendingOverview />) },
-        { id: 'operations', label: t('spending.tabs.operations'), content: lazyTab(<OperationsPage month={dated ? undefined : monthDays(month)} />), badge: toClassify ? (
-          <Badge variant="outline" className="border-transparent bg-status-warning/15 text-status-warning-text"><span aria-hidden="true">{t('spending.to_classify_short', { count: toClassify })}</span><span className="sr-only">{t('spending.to_classify', { count: toClassify })}</span></Badge>
+        { id: 'operations', label: t('spending.tabs.operations'), content: lazyTab(<OperationsPage month={dated ? undefined : monthDays(month)} />) },
+        { id: 'to-classify', label: t('spending.tabs.to_classify'), content: lazyTab(<ToClassifyTab />), badge: toClassify ? (
+          <Badge variant="outline" className="border-transparent bg-status-warning/15 text-status-warning-text"><span aria-hidden="true">{toClassify}</span><span className="sr-only">{t('spending.to_classify', { count: toClassify })}</span></Badge>
         ) : null },
         { id: 'categories', label: t('spending.tabs.categories'), content: lazyTab(<CategoriesTab />) },
       ]} />
@@ -55,14 +56,9 @@ export function SpendingPage() {
   );
 }
 
-/**
- * #426: the current month's lines to classify, for the « Opérations » tab's badge; the overview's own question for that month (the same
- * query, asked once), without loading its chunk.
- */
+/** #719: the À classer tab's own count (its first page, every account, the same query), so the badge and the tab agree. */
 function useToClassify() {
   const { $api } = useApi();
-  const search: RootSearch = useSearch({ strict: false });
   const status = useBankingStatus();
-  const query = { scope: search.scope === 'me' ? 'me' as const : 'household' as const, month: todayIso().slice(0, 7) };
-  return $api.useQuery('get', SPENDING, { params: { query } }, { enabled: status.data?.enabled === true }).data?.uncategorised.count ?? 0;
+  return $api.useQuery('get', LINES_TO_CLASSIFY, { params: { query: { page: 1 } } }, { enabled: status.data?.enabled === true }).data?.total ?? 0;
 }

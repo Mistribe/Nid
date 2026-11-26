@@ -157,7 +157,7 @@ describe('Abonnements › modifications', () => {
 
     const date = within(form).getByLabelText('À partir du');
     await waitFor(() => expect(date).toHaveAttribute('aria-invalid', 'true'));
-    expect(date).toHaveAccessibleDescription(/Aucun tarif n'est en cours à cette date/);
+    expect(date).toHaveAccessibleDescription(/Aucun tarif n’est en cours à cette date/);
   });
 
   it('adds a purchase granting time to this subscription', async () => {

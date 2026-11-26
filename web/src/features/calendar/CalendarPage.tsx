@@ -20,7 +20,7 @@ import { todayIso } from '@/lib/today';
 import type { DashboardEvent } from '@/api/dashboard';
 import { ChargeLink, DayTotals, FigureText, type CalendarCharge } from './amounts';
 import { EventLink } from './EventLink';
-import { AMOUNT_MODULES, CALENDAR_MODULES, moduleLabelKey, type AmountModule, type CalendarModule } from './modules';
+import { AMOUNT_MODULES, CALENDAR_MODULES, moduleLabelKey, storeAmounts, type AmountModule, type CalendarModule } from './modules';
 import { MonthGrid } from './MonthGrid';
 import { daysIn, formatDate, shiftMonth } from './calendarDates';
 import '@/locales/calendar';
@@ -103,9 +103,10 @@ function MonthView({ scope, chosen, month: asked, amounts }: {
   const month = asked && asked > current ? asked : current;
   const from = `${month}-01`;
   const to = `${month}-${daysIn(Number(month.slice(0, 4)), Number(month.slice(5, 7)))}`;
+  // #756: the month is blanked while it is read again (below), so not each time the tab comes back; a visit or a new choice reads it.
   const answer = $api.useQuery('get', CALENDAR_EVENTS, {
     params: { query: { scope, from, to, ...(chosen ? { modules: chosen } : {}), ...(amounts ? { amounts: true } : {}) } },
-  });
+  }, { refetchOnWindowFocus: false });
   const money = amounts ? answer.data?.amounts : undefined;
   // Events and charges under one budget a cell, by day (a stable sort keeps the server's order within one).
   const entries: Entry[] = [
@@ -130,12 +131,15 @@ function MonthView({ scope, chosen, month: asked, amounts }: {
           <ChevronRightIcon aria-hidden="true" />
         </Button>
         <div className="ml-auto">
-          <SwitchField label={t('calendar_page.amounts')} checked={amounts} onCheckedChange={(on) => void navigate({ to: '.', replace: true,
-            resetScroll: false, search: (prev) => ({ ...prev, amounts: on ? 1 : undefined }) })} />
+          <SwitchField label={t('calendar_page.amounts')} checked={amounts} onCheckedChange={(on) => {
+            storeAmounts(on);
+            void navigate({ to: '.', replace: true, resetScroll: false, search: (prev) => ({ ...prev, amounts: on ? 1 : undefined }) });
+          }} />
         </div>
       </div>
       {answer.error ? <ProblemMessage problem={present(toProblem(answer.error))} />
-        : !answer.data ? <Loading label={t('calendar_page.loading')}><Skeleton className="h-96 w-full" /></Loading>
+        // #756: a month cached from an earlier visit is not shown while it is read again: events never pop in under the reader's eyes.
+        : !answer.data || answer.isFetching ? <Loading label={t('calendar_page.loading')}><Skeleton className="h-96 w-full" /></Loading>
         : (
           <>
             {money ? (

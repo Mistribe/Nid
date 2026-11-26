@@ -191,7 +191,9 @@ public sealed partial class BankSyncCollector(
                 var mine = booked.Where(t => string.Equals(t.Currency, account.Currency.Code, StringComparison.OrdinalIgnoreCase))
                     .Select(t => new NewBankTransaction(string.IsNullOrWhiteSpace(t.EntryReference) ? null : t.EntryReference, t.BookedOn, t.ValueOn, t.Amount, account.Currency, t.Label, t.Counterparty, t.Remittance, "api", t.BankCode))
                     .ToList();
-                progress.Transactions += (await stored.AddAsync(account.Id, mine, ct)).Added;
+                // #779: a line a statement file already brought under its own label is that file's line.
+                var probable = await Files.ProbablyKnown.ForAsync(stored, account.Id, mine, "file", ct);
+                progress.Transactions += (await stored.AddAsync(account.Id, [.. mine.Where((_, i) => !probable[i])], ct)).Added;
                 // The oldest part of the window may stay unread: journal only, the connection is fine.
                 if (read.Truncated)
                     progress.FailureCode ??= BankingCodes.TransactionsTruncated;

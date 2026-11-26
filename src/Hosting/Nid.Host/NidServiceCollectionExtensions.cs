@@ -218,6 +218,8 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ICommitmentsContribution, Nid.Subscriptions.Application.SubscriptionsCommitments>();
         services.AddScoped<IExpectedCharges, Nid.Subscriptions.Application.SubscriptionExpectedCharges>();
         services.AddScoped<Nid.Subscriptions.Application.SubscriptionSet>();
+        services.AddScoped<Nid.Subscriptions.Application.AssetLinks>();
+        services.AddScoped<Nid.Subscriptions.Contracts.ISubscriptionsOfItems, Nid.Subscriptions.Application.SubscriptionsOfItems>();
         services.AddScoped<ISubscriptionsReview, Nid.Subscriptions.Application.SubscriptionsReview>();
         services.AddScoped<Nid.Subscriptions.Application.SubscriptionsUpcoming>();
         services.AddScoped<IUpcomingEvents>(sp => sp.GetRequiredService<Nid.Subscriptions.Application.SubscriptionsUpcoming>());
@@ -288,6 +290,7 @@ public static class NidServiceCollectionExtensions
         services.AddSingleton<IUpcomingKinds, Nid.Income.Application.IncomeUpcomingKinds>();
         services.AddScoped<Nid.Platform.Contracts.INotificationSource, Nid.Income.Application.IncomeNotificationSource>();
         services.AddScoped<IExpectedIncome, Nid.Income.Application.IncomeSourcesNext>();
+        services.AddScoped<IProjectedCharges, Nid.Income.Application.IncomeSourcesPayments>();
         services.AddScoped<ITaxContribution, Nid.Income.Application.IncomeSourcesTax>();
         services.AddScoped<IProposalHandler, Nid.Income.Application.PayslipProposal>();
 
@@ -311,6 +314,7 @@ public static class NidServiceCollectionExtensions
         }).AddInterceptors(sp.GetRequiredService<AuditInterceptor>()));
         services.AddScoped<ITransactionParticipant, DbContextParticipant<AssetsDbContext>>();
         services.AddScoped<IAssetRecordStore, AssetRecordStore>();
+        services.AddScoped<Nid.Assets.Contracts.IWritableVehicles, Nid.Assets.Application.WritableVehicles>();
         services.AddScoped<IItemDeletionPart, AssetsDeletionPart>();
 
         services.AddDbContext<Nid.Ai.Infrastructure.Persistence.AiDbContext>((sp, options) => options.UseNpgsql(sp.GetRequiredService<SharedConnection>().Connection, npgsql =>
@@ -415,6 +419,9 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ICategoryRuleStore, CategoryRuleStore>();
         services.AddScoped<ICategoryBudgetStore, CategoryBudgetStore>();
         services.AddScoped<ICategorySuggestionStore, CategorySuggestionStore>();
+        services.AddScoped<IPatternIndexStore, PatternIndexStore>();
+        services.AddScoped<PatternIndexer>();
+        services.AddScoped<CategoryPicks>();
         services.AddScoped<IBankSyncRunLog, SyncRunLog>();
         services.AddScoped<IAccountReadLog, AccountReadLog>();
         services.AddScoped<BankingAccess>();
@@ -458,6 +465,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ITaxContribution, Nid.Childcare.Application.ChildcareTax>();
         services.AddScoped<ICommitmentsContribution, Nid.Childcare.Application.ChildcareCommitments>();
         services.AddScoped<IExpectedCharges, Nid.Childcare.Application.ChildcareCharges>();
+        services.AddScoped<IProjectedCharges, Nid.Childcare.Application.ChildcareProjectedCharges>();
         services.AddScoped<IImportSection, Nid.Childcare.Application.Import.ChildcareImportSection>();
         services.AddScoped<IImportSection, Nid.Childcare.Application.Import.NannyImportSection>();
         services.AddScoped<Nid.Platform.Contracts.INotificationSource, Nid.Childcare.Application.ChildcareNotificationSource>();
@@ -495,6 +503,7 @@ public static class NidServiceCollectionExtensions
         }).AddInterceptors(sp.GetRequiredService<AuditInterceptor>()));
         services.AddScoped<ITransactionParticipant, DbContextParticipant<RealEstateDbContext>>();
         services.AddScoped<ILoanStore, LoanStore>();
+        services.AddScoped<IItemLoans, Nid.RealEstate.Application.ItemLoans>();
         services.AddScoped<IPropertyStore, PropertyStore>();
         services.AddScoped<IItemDeletionPart, RealEstateDeletionPart>();
         services.AddScoped<IIrlStore, IrlStore>();

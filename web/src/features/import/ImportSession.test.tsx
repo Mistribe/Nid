@@ -43,8 +43,8 @@ describe('Import › one session', () => {
     server.use(...fake.handlers);
     const { user, router } = await renderApp(`/import/${SESSION_ID}`);
 
-    expect(await screen.findByRole('heading', { name: "Reprendre l'import" })).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: "Annuler l'import" }));
+    expect(await screen.findByRole('heading', { name: "Reprendre l’import" })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: "Annuler l’import" }));
     await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/import'));
     expect(fake.calls).toEqual(['cancel']);
@@ -66,7 +66,7 @@ describe('Import › sending', () => {
     server.use(...fake.handlers);
     const { user, container } = await renderApp(`/import/${SESSION_ID}`);
 
-    expect(await screen.findByRole('heading', { name: "Reprendre l'import" })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: "Reprendre l’import" })).toBeInTheDocument();
     await expectNoAxeViolations(container);
     await upload(user, nidFile());
 
@@ -118,7 +118,7 @@ describe('Import › sending', () => {
     expect(await screen.findByText('Envoi en pause.')).toBeInTheDocument();
     expect(fake.calls).toEqual(['put persons/0']);
 
-    await user.click(screen.getByRole('button', { name: "Reprendre l'envoi" }));
+    await user.click(screen.getByRole('button', { name: "Reprendre l’envoi" }));
     await waitFor(() => expect(fake.calls).toContain('validate'));
     expect(fake.calls.filter((c) => c.startsWith('put'))).toHaveLength(3);
   });
@@ -166,7 +166,7 @@ describe('Import › sending', () => {
     const { user } = await renderApp(`/import/${SESSION_ID}`);
 
     await upload(user, nidFile());
-    expect(await screen.findByText("Ce fichier n'est pas celui de cet import : un lot a déjà été reçu avec un autre contenu.")).toBeInTheDocument();
+    expect(await screen.findByText("Ce fichier n’est pas celui de cet import : un lot a déjà été reçu avec un autre contenu.")).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Corriger' })).toBeInTheDocument();
     expect(fake.calls).toEqual(['put persons/0']);
   });
@@ -181,7 +181,7 @@ describe('Import › sending', () => {
 
     await upload(user, nidFile());
     await user.click(await screen.findByRole('button', { name: 'Choisir un autre fichier' }));
-    expect(await screen.findByRole('heading', { name: "Reprendre l'import" })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: "Reprendre l’import" })).toBeInTheDocument();
     expect(screen.getByLabelText('Choisir un fichier')).toBeInTheDocument();
     expect(router.state.location.pathname).toBe(`/import/${SESSION_ID}`);
     expect(fake.calls).toEqual(['put persons/0']);
@@ -207,7 +207,7 @@ describe('Import › sending', () => {
     const { user } = await renderApp(`/import/${SESSION_ID}`);
 
     await upload(user, nidFile());
-    expect(await screen.findByText("L'import a changé pendant la validation.")).toBeInTheDocument();
+    expect(await screen.findByText("L’import a changé pendant la validation.")).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Valider de nouveau' }));
     await waitFor(() => expect(fake.calls.filter((c) => c === 'validate')).toHaveLength(2));
   });
@@ -217,7 +217,7 @@ describe('Import › sending', () => {
     server.use(...fake.handlers);
     const { user } = await renderApp(`/import/${SESSION_ID}`);
 
-    expect(await screen.findByRole('heading', { name: "Reprendre l'import" })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: "Reprendre l’import" })).toBeInTheDocument();
     fake.sessions.get(SESSION_ID)!.state = 'expired'; // it expires while the batches are on their way
     await upload(user, nidFile());
     expect(await screen.findByText('Cet import a expiré. Recommencez avec le fichier.')).toBeInTheDocument();
@@ -232,7 +232,7 @@ describe('Import › sending', () => {
 
     await upload(user, nidFile());
     await waitFor(() => expect(fake.calls).toEqual(['put persons/0']));
-    await user.click(screen.getByRole('button', { name: "Annuler l'import" }));
+    await user.click(screen.getByRole('button', { name: "Annuler l’import" }));
     await user.click(await screen.findByRole('button', { name: 'Confirmer' }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/import'));
 
@@ -278,8 +278,8 @@ describe('Import › report, confirmation and commit', () => {
     const { user, container } = await renderApp('/import');
 
     await upload(user, nidFile());
-    await waitFor(() => expect(screen.getByRole('button', { name: "Commencer l'import" })).toBeEnabled());
-    await user.click(screen.getByRole('button', { name: "Commencer l'import" }));
+    await waitFor(() => expect(screen.getByRole('button', { name: "Commencer l’import" })).toBeEnabled());
+    await user.click(screen.getByRole('button', { name: "Commencer l’import" }));
 
     expect(await screen.findByRole('heading', { name: 'Rapport de validation' })).toBeInTheDocument();
     expect(screen.getByRole('row', { name: /Abonnements/ })).toHaveTextContent('1');
@@ -331,7 +331,7 @@ describe('Import › report, confirmation and commit', () => {
     server.use(...fake.handlers);
     const { user, router } = await renderApp(`/import/${SESSION_ID}`);
 
-    expect(await screen.findByText("Des entités existent déjà avec un autre contenu : l'import ne peut pas continuer. Corrigez le fichier.")).toBeInTheDocument();
+    expect(await screen.findByText("Des entités existent déjà avec un autre contenu : l’import ne peut pas continuer. Corrigez le fichier.")).toBeInTheDocument();
     expect(screen.getByText('subscriptions[0]')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Importer' })).not.toBeInTheDocument();
 
@@ -377,7 +377,7 @@ describe('Import › report, confirmation and commit', () => {
     const { user } = await renderApp(`/import/${SESSION_ID}`);
 
     await user.click(await screen.findByRole('button', { name: 'Importer' }));
-    expect(await screen.findByText("L'import n'a pas pu être écrit. Le rapport ci-dessous en donne la raison.")).toBeInTheDocument();
+    expect(await screen.findByText("L’import n’a pas pu être écrit. Le rapport ci-dessous en donne la raison.")).toBeInTheDocument();
     expect(await screen.findByText('The database refused the write.')).toBeInTheDocument();
     expect(screen.getByText('fichier entier')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Importer' })).not.toBeInTheDocument();

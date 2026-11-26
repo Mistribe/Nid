@@ -7,3 +7,11 @@ describe('elision', () => {
     expect(['janvier 2026', 'septembre 2026', 'mai 2026'].map(elision)).toEqual([undefined, undefined, undefined]);
   });
 });
+
+describe('the « de » format', () => {
+  it('elides « de » before a name starting with a vowel (#729)', async () => {
+    const { default: i18n } = await import('@/app/i18n');
+    expect(['Alice', 'Bob', 'Élise'].map((name) => i18n.t('dashboard.projection.retire', { name })))
+      .toEqual(['Retraite d’Alice', 'Retraite de Bob', 'Retraite d’Élise']);
+  });
+});

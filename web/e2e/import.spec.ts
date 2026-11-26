@@ -26,7 +26,7 @@ test('imports a small nid.data file and finds its subscription', async ({ page }
   await expect(page.getByText('Lots à envoyer : 3.')).toBeVisible();
   await expect(page.getByLabel('Alice (moi)')).not.toHaveText('Non associé');
 
-  await page.getByRole('button', { name: "Commencer l'import" }).click();
+  await page.getByRole('button', { name: "Commencer l’import" }).click();
   await expect(page.getByRole('heading', { name: 'Rapport de validation' })).toBeVisible();
   await expect(page.getByRole('row', { name: /Abonnements/ })).toContainText('1');
 
@@ -54,7 +54,7 @@ test('re-imports a renamed subscription with « Remplacer » and finds the new n
     await page.getByLabel('Choisir un fichier').setInputFiles({
       name: 'e2e.nid.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(file(name))),
     });
-    await page.getByRole('button', { name: "Commencer l'import" }).click();
+    await page.getByRole('button', { name: "Commencer l’import" }).click();
   };
 
   await signIn(page, 'alice', '/import');

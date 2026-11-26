@@ -64,12 +64,12 @@ public class PropertyRentalFiguresTests(PostgresFixture fixture) : IClassFixture
         Assert.Equal(JsonValueKind.Null, row.GetProperty("vacancyRate").ValueKind);
 
         // Let since January, nothing received: the warning goes, nine months and 15 days of October are expected, the yields still
-        // wait; the ledger owes October whole.
+        // wait; the ledger owes January to September, October not being over (#716).
         await PostAsync(app, id, "tenancies", new { label = "T3", startsOn = "2025-01-01", rentMonthly = "900" });
         detail = await PropertyAsync(app, id);
         Assert.Equal(["no_valuation"], detail.GetProperty("warnings").EnumerateArray().Select(w => S(w, "code")));
         figures = detail.GetProperty("figures");
-        Assert.Equal(("2025-01-01", "8535.48", "9000.00", "0.0000"),
+        Assert.Equal(("2025-01-01", "8535.48", "8100.00", "0.0000"),
             (S(figures, "rentedSince"), S(figures, "expectedRent"), S(figures, "arrears"), S(figures, "vacancyRate")));
         Assert.Equal(JsonValueKind.Null, figures.GetProperty("grossYield").ValueKind);
     }

@@ -85,6 +85,9 @@ public sealed record StoredLoan(
     /// <summary>#180: the SCPI envelope it finances instead of a property; never both.</summary>
     public ItemId? EnvelopeId { get; init; }
 
+    /// <summary>#188: the asset (« Autres biens ») it finances instead of a property or an SCPI; never two of them.</summary>
+    public ItemId? AssetId { get; init; }
+
     /// <summary>Spec 3F2 §2: the schedule its readers read; the bank's only with a stored table.</summary>
     public ScheduleSource Source { get; init; }
 

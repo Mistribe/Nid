@@ -26,7 +26,7 @@ function hold() {
 }
 
 /** The contents table, one « name : count » per row. */
-const contents = async () => within(await screen.findByRole('table', { name: "Contenu de l'export" }))
+const contents = async () => within(await screen.findByRole('table', { name: "Contenu de l’export" }))
   .getAllByRole('row').slice(1).map((row) => within(row).getAllByRole('cell').map((cell) => cell.textContent).join(' : '));
 
 // Lazy chunks load cold on the first render; warm them so no findBy races its 1 s default.
@@ -43,7 +43,7 @@ describe('Export', () => {
     expect(await contents()).toEqual(['Personnes : 2', 'Abonnements : 3']);
     // The step's control is the header's primary, not a button under the list.
     expect(within(document.querySelector('[data-page-actions]') as HTMLElement).getByRole('button', { name: 'Exporter' })).toBeInTheDocument();
-    expect(screen.getByText(/Les éléments privés de l'autre adulte n'y sont pas/)).toBeInTheDocument();
+    expect(screen.getByText(/Les éléments privés de l’autre adulte n’y sont pas/)).toBeInTheDocument();
     await expectNoAxeViolations(container);
   });
 
@@ -97,7 +97,7 @@ describe('Export', () => {
     const { container, user } = await renderApp('/export');
 
     await user.click(await screen.findByRole('button', { name: 'Exporter' }));
-    const bar = await screen.findByRole('progressbar', { name: "Progression de l'export" });
+    const bar = await screen.findByRole('progressbar', { name: "Progression de l’export" });
     await waitFor(() => expect(bar).toHaveAttribute('aria-valuenow', '4'));
     expect(bar).toHaveAttribute('aria-valuemax', '5');
     expect(screen.getByText('Reçus : 4 sur 5')).toBeInTheDocument();
@@ -139,7 +139,7 @@ describe('Export', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Exporter' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent("Vos données ont changé pendant l'export : rien n'a été téléchargé.");
+    expect(await screen.findByRole('alert')).toHaveTextContent("Vos données ont changé pendant l’export : rien n’a été téléchargé.");
     expect(downloadBlob).not.toHaveBeenCalled();
     await expectNoAxeViolations(container);
 
@@ -200,7 +200,7 @@ describe('Export', () => {
     server.use(...fakeExportServer({ persons: [[]], subscriptions: [[]] }).handlers);
     const { user } = await renderApp('/export');
 
-    expect(await screen.findByText("Rien à exporter pour l'instant : le fichier sera vide.")).toBeInTheDocument();
+    expect(await screen.findByText("Rien à exporter pour l’instant : le fichier sera vide.")).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Exporter' }));
     expect(await screen.findByText('Export terminé : 0 élément.')).toBeInTheDocument();
   });

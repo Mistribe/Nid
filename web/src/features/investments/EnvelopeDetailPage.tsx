@@ -202,6 +202,8 @@ export function EnvelopeDetailPage() {
   const supports = !AVAILABLE_KINDS.includes(detail.kind);
   const shown = (tab === 'settings' && !writable) || (tab === 'operations' && !operations) || (tab === 'holdings' && !supports) ? 'overview' : tab;
   const milestone = MILESTONES.find((m) => m === detail.milestone?.code);
+  // #374, #776: an account that is no investment (a value, no gain) shows its balance and its values, never a performance nor a tax on sale.
+  const balanceOnly = !!figures.value && !figures.gain;
   // « Impôt si vente aujourd'hui » lives in the overview tab: open it, then bring the section into view once rendered.
   const showSaleTax = () => {
     setTab('overview');
@@ -232,8 +234,7 @@ export function EnvelopeDetailPage() {
             { label: figures.asOf ? t('envelope.value_at', { date: formatLocalDate(figures.asOf, 'short') }) : t('envelope.value'),
               value: figures.value ? <Money value={figures.value} tabular /> : noValue,
               hint: figures.value && figures.staleDays != null ? <StaleBadge days={figures.staleDays} /> : null },
-            // #374: an account that is no investment (a value, no gain) shows its balance, not what was paid in nor a gain.
-            ...(figures.value && !figures.gain ? [] : [
+            ...(balanceOnly ? [] : [
               { label: t('envelope.net_contributions'), value: figures.netContributions ? <Money value={figures.netContributions} tabular /> : absent },
               // #183: an employee plan's paid-in, split between the employee and the employer (the server's figures).
               ...(figures.ownContributions && figures.employerContributions ? [
@@ -247,7 +248,7 @@ export function EnvelopeDetailPage() {
             ]),
             ...(figures.annualReturnPct != null ? [{ label: t('envelope.annual_return'), value: <AnnualReturn value={figures.annualReturnPct} /> }] : []),
             ...realReturnItem(t, detail.realReturn),
-            ...(sinceJanuary.data?.performance ? [{ label: t('envelope.since_january'), value: <Direction amount={sinceJanuary.data.performance} /> }] : []),
+            ...(!balanceOnly && sinceJanuary.data?.performance ? [{ label: t('envelope.since_january'), value: <Direction amount={sinceJanuary.data.performance} /> }] : []),
             ...(holdings.data?.estimate?.value && holdings.data.estimate.asOf ? [{
               label: t('holding_prices.estimate_at', { date: formatLocalDate(holdings.data.estimate.asOf, 'short') }),
               value: <Money value={holdings.data.estimate.value} tabular />,
@@ -365,13 +366,15 @@ export function EnvelopeDetailPage() {
                   </Table>
                   {values.length > 3 ? <Button type="button" variant="link" className="h-auto p-0" onClick={() => setTab('values')}>{t('envelope.see_all_values')}</Button> : null}
                 </Section>
-                <Section title={t('envelope.period.title')}>
-                  <PeriodPerformance envelopeId={detail.id} />
-                </Section>
+                {balanceOnly ? null : (
+                  <Section title={t('envelope.period.title')}>
+                    <PeriodPerformance envelopeId={detail.id} />
+                  </Section>
+                )}
               </div>
               {detail.kind === 'employee_savings' ? <AvailabilitySection envelope={detail} writable={writable} /> : null}
               {detail.kind === 'scpi' && capabilities.modules.includes('realestate') ? <ScpiLoans envelopeId={detail.id} /> : null}
-              <SaleTaxSection id={SALE_TAX} item={detail.id} canWrite={detail.canWrite} />
+              {balanceOnly ? null : <SaleTaxSection id={SALE_TAX} item={detail.id} canWrite={detail.canWrite} />}
             </>
           ),
         },

@@ -184,10 +184,10 @@ describe('TaxPage', () => {
     const { user } = await renderApp('/tax?tab=profile');
 
     await user.click(await screen.findByRole('button', { name: /Revenus exonérés \(heures supplémentaires/ }));
-    await user.type(screen.getByLabelText('Revenus exonérés de Alice'), 'abc');
+    await user.type(screen.getByLabelText('Revenus exonérés d’Alice'), 'abc');
     await user.click(screen.getByRole('button', { name: 'Enregistrer le profil' }));
 
-    expect(screen.getByLabelText('Revenus exonérés de Alice')).toHaveFocus();
+    expect(screen.getByLabelText('Revenus exonérés d’Alice')).toHaveFocus();
     expect(sent).toEqual([]);
   });
 
@@ -239,13 +239,13 @@ describe('TaxPage', () => {
     const { user } = await renderApp('/tax?tab=profile&year=2025');
 
     await screen.findByLabelText('Emploi à domicile');
-    expect(screen.queryByLabelText('Revenus exonérés de Alice')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Revenus exonérés d’Alice')).not.toBeInTheDocument();
     await pickYear(user, '2026');
-    expect(await screen.findByLabelText('Revenus exonérés de Alice')).toBeInTheDocument();
+    expect(await screen.findByLabelText('Revenus exonérés d’Alice')).toBeInTheDocument();
     await pickYear(user, '2025');
 
     await screen.findByLabelText('Emploi à domicile');
-    expect(screen.queryByLabelText('Revenus exonérés de Alice')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Revenus exonérés d’Alice')).not.toBeInTheDocument();
   });
 
   describe('profile fields a notice supplies', () => {
@@ -362,9 +362,9 @@ describe('TaxPage', () => {
     expect(screen.queryByRole('textbox', { name: 'Plafonds non utilisés Alice' })).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: '+ Saisir les plafonds non utilisés' }));
     await user.type(screen.getByRole('textbox', { name: 'Plafonds non utilisés Alice' }), '4000');
-    expect(screen.queryByLabelText('Revenus exonérés de Alice')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Revenus exonérés d’Alice')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /Revenus exonérés \(heures supplémentaires/ }));
-    await user.type(screen.getByLabelText('Revenus exonérés de Alice'), '2400,50');
+    await user.type(screen.getByLabelText('Revenus exonérés d’Alice'), '2400,50');
     expect(screen.getByText('4 modifications non enregistrées')).toBeInTheDocument();
     // Beside the tab list, outside the form it submits.
     expect(within(screen.getByRole('form', { name: 'Profil fiscal' })).queryByRole('button', { name: 'Enregistrer le profil' })).not.toBeInTheDocument();

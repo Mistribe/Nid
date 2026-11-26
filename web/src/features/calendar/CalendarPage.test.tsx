@@ -22,16 +22,20 @@ const eur = (amount: string) => ({ amount, currency: 'EUR' });
 const total = (amount: string | null, missingCurrency: string | null = null) => ({ perCurrency: [], total: amount ? eur(amount) : null, missingCurrency });
 function charge(over: Partial<CalendarCharge>): CalendarCharge {
   return { on: '2026-11-15', module: 'loans', id: '00000000-0000-7000-8000-0000000000e1', name: 'Prêt maison', kind: 'loan_instalment',
-    amount: eur('1200.00'), converted: eur('1200.00'), missingCurrency: null, credit: false, ...over };
+    amount: eur('1200.00'), converted: eur('1200.00'), missingCurrency: null, credit: false, estimated: false, ...over };
 }
 
-/** Invented figures: a loan's instalment on the 15th, two subscriptions and a rent on the 1st, a property's tax on the 20th. */
+/**
+ * Invented figures: a loan's instalment on the 15th, two subscriptions and a rent on the 1st, a property's tax on the 20th, a salary on the 28th,
+ * a validated childcare month on the 5th and an estimated one on the 25th.
+ */
 const NOVEMBER: CalendarAmounts = {
-  currency: 'EUR', out: total('2450.00'), in: total('800.00'), balance: total('-1650.00'),
+  currency: 'EUR', out: total('2450.00'), in: total('3300.00'), balance: total('850.00'),
   days: [
     { on: '2026-11-01', out: total('50.00'), in: total('800.00'), heavy: true },
     { on: '2026-11-15', out: total('1200.00'), in: null, heavy: true },
     { on: '2026-11-20', out: total(null, 'USD'), in: null, heavy: false },
+    { on: '2026-11-28', out: null, in: total('2500.00'), heavy: false },
   ],
   charges: [
     charge({ on: '2026-11-01', module: 'subscriptions', id: '00000000-0000-7000-8000-0000000000e2', name: 'Box internet', kind: 'subscription', amount: eur('30.00') }),
@@ -40,6 +44,9 @@ const NOVEMBER: CalendarAmounts = {
     charge({}),
     charge({ on: '2026-11-20', module: 'properties', id: '00000000-0000-7000-8000-0000000000e4', name: 'Studio', kind: 'property_cost',
       amount: { amount: '1200.00', currency: 'USD' }, converted: null, missingCurrency: 'USD' }),
+    charge({ on: '2026-11-28', module: 'income', id: '00000000-0000-7000-8000-0000000000e5', name: 'Salaire Alice', kind: 'income', amount: eur('2500.00'), credit: true }),
+    charge({ on: '2026-11-05', module: 'childcare', id: '00000000-0000-7000-8000-0000000000e6', name: 'Nounou Léa', kind: 'childcare', amount: eur('600.00') }),
+    charge({ on: '2026-11-25', module: 'childcare', id: '00000000-0000-7000-8000-0000000000e7', name: 'Crèche Léa', kind: 'childcare', amount: eur('400.00'), estimated: true }),
   ],
 };
 const grid = () => screen.findByRole('group', { name: 'Calendrier du mois' });
@@ -98,6 +105,36 @@ describe('Calendrier', () => {
     expect(screen.getByRole('button', { name: 'Mois précédent' })).toBeEnabled();
   });
 
+  it('shows the module checkboxes at once and the month only once its answer is in, never a list read again (#756)', async () => {
+    let release = () => {};
+    let asked = 0;
+    let events = [event({ on: '2026-11-03', name: 'Amazon Prime' })];
+    server.use(http.get('*/api/v1/calendar', async () => {
+      asked += 1;
+      await new Promise<void>((resolve) => { release = resolve; });
+      return HttpResponse.json({ from: '2026-11-01', to: '2026-11-30', events, amounts: null });
+    }));
+    const { queryClient } = await renderApp('/calendar?amounts=1');
+
+    // Every checkbox from the first render, childcare's too, while the month is still being read.
+    expect(await screen.findByRole('checkbox', { name: 'Abonnements' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Garde' })).toBeChecked();
+    expect(screen.getByRole('status', { name: 'Chargement du calendrier' })).toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Calendrier du mois' })).not.toBeInTheDocument();
+    await waitFor(() => expect(asked).toBe(1));
+    release();
+    expect(within(await grid()).getAllByRole('link')).toHaveLength(1);
+
+    // Read again (another tab's change, a write elsewhere): the month it had is not shown meanwhile.
+    events = [...events, event({ on: '2026-11-20', name: 'Musique' })];
+    void queryClient.invalidateQueries();
+    await waitFor(() => expect(asked).toBe(2));
+    expect(screen.queryByRole('group', { name: 'Calendrier du mois' })).not.toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'Chargement du calendrier' })).toBeInTheDocument();
+    release();
+    await waitFor(async () => expect(within(await grid()).getAllByRole('link')).toHaveLength(2));
+  });
+
   it('keeps the last module checked', async () => {
     serve();
     await renderApp('/calendar?modules=tax,unknown');
@@ -147,6 +184,48 @@ describe('Calendrier', () => {
     expect(await screen.findByText('Aucune échéance ponctuelle sur cet horizon pour ces modules.')).toBeInTheDocument();
   });
 
+  it('remembers the amounts choice on this device, an explicit address winning (#766)', async () => {
+    const seen = serve([], NOVEMBER);
+    const { user, router } = await renderApp('/calendar');
+
+    await user.click(await screen.findByRole('switch', { name: 'Montants' }));
+    expect(localStorage.getItem('nid.calendar.amounts')).toBe('1');
+    await user.click(screen.getByRole('switch', { name: 'Montants' }));
+    expect(localStorage.getItem('nid.calendar.amounts')).toBe('0');
+    await waitFor(() => expect(router.state.location.search).toEqual({}));
+    expect(screen.getByRole('switch', { name: 'Montants' })).not.toBeChecked();
+    expect(seen.some((q) => q.get('amounts') === 'true')).toBe(true);
+  });
+
+  it('opens with the amounts on when they were last on', async () => {
+    localStorage.setItem('nid.calendar.amounts', '1');
+    const seen = serve([], NOVEMBER);
+    await renderApp('/calendar');
+
+    expect(await screen.findByRole('switch', { name: 'Montants' })).toBeChecked();
+    await waitFor(() => expect(seen.at(-1)?.get('amounts')).toBe('true'));
+  });
+
+  it('opens with the amounts off when the address says so, whatever was last chosen', async () => {
+    localStorage.setItem('nid.calendar.amounts', '1');
+    const seen = serve([], NOVEMBER);
+    await renderApp('/calendar?amounts=0');
+
+    expect(await screen.findByRole('switch', { name: 'Montants' })).not.toBeChecked();
+    await waitFor(() => expect(seen.at(-1)?.toString()).toBe('scope=household&from=2026-11-01&to=2026-11-30'));
+  });
+
+  it('opens with the amounts off when storage is refused', async () => {
+    const refused = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new DOMException('refused', 'SecurityError'); });
+    try {
+      serve([], NOVEMBER);
+      await renderApp('/calendar');
+      expect(await screen.findByRole('switch', { name: 'Montants' })).not.toBeChecked();
+    } finally {
+      refused.mockRestore();
+    }
+  });
+
   it('shows the money of the month with its amounts on: the totals, each day out and in, the heavy days and every charge', async () => {
     const seen = serve([event({ on: '2026-11-03', name: 'Amazon Prime' })], NOVEMBER);
     const { user, router, container } = await renderApp('/calendar');
@@ -164,8 +243,8 @@ describe('Calendrier', () => {
 
     const header = (await screen.findByText('Sorties prévues')).closest('dl')!;
     expect(header).toHaveTextContent(/Sorties prévues2\s450,00\s€/);
-    expect(header).toHaveTextContent(/Entrées prévues800,00\s€/);
-    expect(header).toHaveTextContent(/Solde du mois.*-1\s650,00\s€/);
+    expect(header).toHaveTextContent(/Entrées prévues3\s300,00\s€/);
+    expect(header).toHaveTextContent(/Solde du mois.*850,00\s€/);
 
     // The cells: the day's totals, the heavy days marked; a missing rate reads « Inconnu ».
     const first = within(await grid()).getByRole('group', { name: 'dimanche 1 novembre' });
@@ -180,7 +259,15 @@ describe('Calendrier', () => {
     const list = screen.getByRole('list', { name: 'Échéances jour par jour' });
     expect(within(list).getByRole('link', { name: /^Loyer.*Studio/ })).toHaveTextContent(/\+800,00\s€/);
     expect(within(list).getByRole('link', { name: /^Charge du bien.*Studio/ })).toHaveTextContent(/−1\s200,00\s\$US/);
-    expect(within(list).getAllByRole('link')).toHaveLength(6);
+    // #714: a salary is money in on its payment day, linked to its source.
+    expect(within(list).getByRole('link', { name: /^Versement.*Salaire Alice/ })).toHaveTextContent(/\+2\s500,00\s€/);
+    expect(within(list).getByRole('link', { name: /^Versement.*Salaire Alice/ })).toHaveAttribute('href', '/income/00000000-0000-7000-8000-0000000000e5');
+    // #755: a childcare month not validated yet reads as an estimate, how it is dated and priced in an InfoTip; a validated one does not.
+    expect(within(list).getByRole('link', { name: /^Pajemploi du mois précédent.*\(estimé\).*Crèche Léa/ })).toHaveTextContent(/−400,00\s€/);
+    expect(within(list).getByRole('link', { name: /Nounou Léa/ })).not.toHaveTextContent('estimé');
+    expect(within(list).getAllByRole('button', { name: /estimé/ })).toHaveLength(1);
+    expect(within(await grid()).getByRole('link', { name: /^Crèche Léa.*\(estimé\)$/ })).toBeInTheDocument();
+    expect(within(list).getAllByRole('link')).toHaveLength(9);
     await expectNoAxeViolations(container);
 
     // Childcare is a module like the others then.

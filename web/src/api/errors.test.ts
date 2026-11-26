@@ -14,6 +14,9 @@ describe('present', () => {
     expect(present({ status: 422, code: 'core.preference_invalid', detail: 'A mode is system, light or dark.' }).detail)
       .toBe('A mode is system, light or dark.'));
 
+  it('says a demo refusal in its own words, without the server sentence', () =>
+    expect(present({ status: 403, code: 'demo.unavailable', detail: 'The demo does not…' })).toEqual({ kind: 'demo', requestId: undefined }));
+
   it('carries the request id for support', () =>
     expect(present({ status: 500, traceId: '00-abc-01' }).requestId).toBe('00-abc-01'));
 });

@@ -12,6 +12,8 @@ public class OverviewEndpointTests(PostgresFixture fixture) : IClassFixture<Post
     public sealed record Overview(
         string Currency, Money? MonthlyAmortized, Money? AnnualAmortized, int ActiveCount, List<MonthRow> Months, List<PersonShare> ByPerson);
     public sealed record MonthRow(string Month, Money? Recurring, Money? LongCycle);
+    public sealed record CommitmentSource(string Source, Money? Amortized);
+    public sealed record Dashboard(List<CommitmentSource> CommitmentSources);
 
     private static decimal Value(Money? m) => decimal.Parse(Assert.IsType<Money>(m).Amount, CultureInfo.InvariantCulture);
 
@@ -47,10 +49,45 @@ public class OverviewEndpointTests(PostgresFixture fixture) : IClassFixture<Post
 
         var overview = await app.GetAsync<Overview>(app.AdultA, "/api/v1/subscriptions/overview?scope=me");
 
-        Assert.InRange(Value(overview.MonthlyAmortized), 19.5m, 20.5m); // amortized per day: the scale of the month moves it
+        Assert.Equal(20.00m, Value(overview.MonthlyAmortized)); // #711: a twelfth of the year's 240.00
         Assert.Equal(2, overview.ActiveCount);
         Assert.Equal(12, overview.Months.Count);
         Assert.Contains(overview.ByPerson, p => p.PersonId == app.AdultA.Value);
+    }
+
+    [Fact]
+    public async Task A_month_is_a_twelfth_of_the_year_and_the_twelve_months_add_up_to_it()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        // A free trial until 2025-11-15, then 12.00 a month: 11 charges by 2026-09-15.
+        var trial = await app.NewSubscriptionAsync("trial", app.AdultA, Visibility.Shared);
+        (await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/subscriptions/{trial.Value}/phases", new
+        {
+            startsOn = "2025-10-15", endsOn = "2025-11-15",
+            price = new { amount = "0", currency = "EUR" },
+            every = new { count = 1, unit = "month" },
+            payer = new { type = "household" },
+        })).EnsureSuccessStatusCode();
+        await PhaseAsync(app, trial, "2025-11-15", "12.00", "month");
+        var yearly = await app.NewSubscriptionAsync("yearly", app.AdultA, Visibility.Shared);
+        await PhaseAsync(app, yearly, "2025-01-01", "120.00", "year");
+
+        var overview = await app.GetAsync<Overview>(app.AdultA, "/api/v1/subscriptions/overview?scope=me");
+        Assert.Equal(252.00m, Value(overview.AnnualAmortized));
+        Assert.Equal(21.00m, Value(overview.MonthlyAmortized));
+        Assert.Equal("2025-10", overview.Months[0].Month);
+        Assert.Equal(252.00m, overview.Months.Sum(m => (m.Recurring is null ? 0m : Value(m.Recurring)) + (m.LongCycle is null ? 0m : Value(m.LongCycle))));
+
+        // The list's rows and totals on the same basis.
+        var list = await app.GetAsync<AnnualCostTests.ListResponse>(app.AdultA, "/api/v1/subscriptions?scope=me");
+        var row = list.Items.Single(i => i.Id == trial.Value);
+        static decimal Of(AnnualCostTests.Money? m) => decimal.Parse(Assert.IsType<AnnualCostTests.Money>(m).Amount, CultureInfo.InvariantCulture);
+        Assert.Equal((132.00m, 11.00m), (Of(row.AnnualCostConverted), Of(row.MonthlyCostConverted)));
+        Assert.Equal((252.00m, 21.00m), (Of(list.HouseholdAnnualCostConverted), Of(list.HouseholdMonthlyCostConverted)));
+
+        // #782: Accueil's « Abonnements » is the same « Par mois ».
+        var dashboard = await app.GetAsync<Dashboard>(app.AdultA, "/api/v1/dashboard?scope=me");
+        Assert.Equal(21.00m, Value(dashboard.CommitmentSources.Single(c => c.Source == CommitmentSources.Subscriptions).Amortized));
     }
 
     [Fact]
@@ -87,8 +124,9 @@ public class OverviewEndpointTests(PostgresFixture fixture) : IClassFixture<Post
 
         var overview = await app.GetAsync<Overview>(app.AdultA, "/api/v1/subscriptions/overview?scope=me");
 
+        // #711: this month and the 11 after.
         var last = overview.Months[11];
-        Assert.Equal("2026-10", last.Month);
+        Assert.Equal("2026-09", last.Month);
         Assert.True(Value(last.Recurring) > 0m);
     }
 }

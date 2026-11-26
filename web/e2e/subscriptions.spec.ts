@@ -19,7 +19,7 @@ test('alice adds a recurring subscription and sees its cost; bob cannot reach he
   await fillDate(alice, 'Début', '2025-01-01');
   await alice.getByLabel('Montant', { exact: true }).fill('7,49');
   await alice.getByRole('button', { name: 'Continuer' }).click();
-  await alice.getByRole('button', { name: "Ajouter l'abonnement" }).click();
+  await alice.getByRole('button', { name: "Ajouter l’abonnement" }).click();
 
   await expect(alice.getByRole('heading', { level: 1, name })).toBeVisible();
   const detailUrl = new URL(alice.url()).pathname;
@@ -48,7 +48,7 @@ test('alice records a free trial followed by a monthly price', async ({ browser 
   await expect(alice.getByRole('radio', { name: 'Un abonnement récurrent' })).toBeChecked();
   await alice.getByLabel('Montant', { exact: true }).fill('9,99');
   await alice.getByRole('button', { name: 'Continuer' }).click();
-  await alice.getByRole('button', { name: "Ajouter l'abonnement" }).click();
+  await alice.getByRole('button', { name: "Ajouter l’abonnement" }).click();
 
   await expect(alice.getByRole('heading', { level: 1, name })).toBeVisible();
   await expect(alice.getByText('Essai', { exact: false }).first()).toBeVisible(); // the coverage band's legend
@@ -79,7 +79,7 @@ test('alice creates her own provider from the wizard, then finds the subscriptio
   await fillDate(page, 'Début', '2025-01-01');
   await page.getByLabel('Montant', { exact: true }).fill('4,99');
   await page.getByRole('button', { name: 'Continuer' }).click();
-  await page.getByRole('button', { name: "Ajouter l'abonnement" }).click();
+  await page.getByRole('button', { name: "Ajouter l’abonnement" }).click();
   await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
 
   await page.goto('/subscriptions?tab=list&group=none');
@@ -100,7 +100,7 @@ test('alice opens the calendar from the overview and reaches a subscription from
   await fillDate(alice, 'Début', '2025-01-01');
   await alice.getByLabel('Montant', { exact: true }).fill('4,32');
   await alice.getByRole('button', { name: 'Continuer' }).click();
-  await alice.getByRole('button', { name: "Ajouter l'abonnement" }).click();
+  await alice.getByRole('button', { name: "Ajouter l’abonnement" }).click();
   await expect(alice.getByRole('heading', { level: 1, name })).toBeVisible();
 
   await alice.goto('/subscriptions?tab=analysis');

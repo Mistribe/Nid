@@ -1,12 +1,15 @@
 import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { useSession } from '@/app/Providers';
+import { InfoTip } from '@/components/InfoTip';
 import { formatMoney } from '@/components/Money';
 import type { DashboardView } from '@/api/dashboard';
 import { percent } from '@/lib/format';
 import { Value } from '../KeyFigures';
 
 const SOURCE_KEYS = ['subscriptions', 'loans', 'property_costs', 'tax', 'childcare'] as const;
+/** #723, #782: a figure that has a twin elsewhere names its basis and where the same figure is. */
+const TIPS = { subscriptions: 'dashboard.subscriptions_tip', childcare: 'dashboard.childcare_tip' } as const;
 
 /** Spec §4.2: what the month's commitments are made of, as the server split them. */
 export function CommitmentsPanel({ d }: { d: DashboardView }) {
@@ -27,6 +30,7 @@ export function CommitmentsPanel({ d }: { d: DashboardView }) {
           return key && s.amortized ? [
             <li key={key} className="tabular-nums">
               {t(`dashboard.commitment_source.${key}`, { amount: formatMoney(s.amortized) })}{s.estimated ? ` ${t('dashboard.estimated')}` : ''}
+              {key === 'subscriptions' || key === 'childcare' ? <InfoTip label={t(`dashboard.commitment_name.${key}`)}>{t(TIPS[key])}</InfoTip> : null}
             </li>,
           ] : [];
         })}
@@ -34,6 +38,7 @@ export function CommitmentsPanel({ d }: { d: DashboardView }) {
       <div className="flex flex-wrap gap-4 text-sm">
         {has('subscriptions') ? <Link to="/subscriptions" className="underline">{t('dashboard.see_subscriptions')}</Link> : null}
         {has('realestate') ? <Link to="/loans" className="underline">{t('dashboard.see_loans')}</Link> : null}
+        {has('childcare') && d.commitmentSources.some((s) => s.source === 'childcare' && s.amortized) ? <Link to="/childcare" className="underline">{t('dashboard.see_childcare')}</Link> : null}
       </div>
     </div>
   );

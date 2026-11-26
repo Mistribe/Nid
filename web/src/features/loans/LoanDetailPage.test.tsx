@@ -50,6 +50,18 @@ describe('LoanDetailPage', () => {
     await waitFor(() => expectTrailBack('Crédits', '/loans'));
   });
 
+  it('measures the capital repaid against the principal and the interest a total deferral capitalised (#709)', async () => {
+    const base = loanDetail();
+    serve(loanDetail({ figures: { ...base.figures, principalRepaid: '1000.00', capitalToRepay: '205000.00', capitalisedInterest: '5000.00' } }),
+      schedule({ totalPrincipal: '205000.00', capitalisedInterest: '5000.00' }));
+    await renderApp(`/loans/${LOAN}`);
+    await heading();
+    const spaced = (text: string) => text.replace(/\s/g, ' ');
+    expect(screen.getByRole('progressbar', {
+      name: (name) => spaced(name) === '1 000,00 € remboursés sur 205 000,00 €, dont 5 000,00 € d’intérêts capitalisés pendant le différé',
+    })).toBeInTheDocument();
+  });
+
   it('opens the remaining balance in the explorer', async () => {
     serve();
     const { user, router } = await renderApp(`/loans/${LOAN}`);

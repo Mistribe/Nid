@@ -63,9 +63,15 @@ public static class RentLedger
 
     private static decimal Cash(IReadOnlyList<Flow> flows, LocalDate d) => flows.Where(f => IsCash(f) && f.OccurredOn <= d).Sum(f => f.Amount.Amount);
 
-    /// <summary>The ledger's total due less all its cash at d: negative is a credit. <c>RentalFigures.Arrears</c>.</summary>
+    /// <summary>
+    /// <c>RentalFigures.Arrears</c>: the dues of the months over by d less all the cash to d — the current month's rent, which the
+    /// routine records once the month ends, is not owed yet (#716). Negative is a credit: cash beyond the current month's due too.
+    /// </summary>
     public static decimal Arrears(IReadOnlyList<Tenancy> tenancies, IReadOnlyList<Flow> flows, LocalDate d)
-        => Started(tenancies, flows, d).Sum(t => PropertyMath.Expected(t, Tracked(t, flows, d), EndOfMonth(d))) - Cash(flows, d);
+    {
+        var balance = Started(tenancies, flows, d).Sum(t => PropertyMath.Expected(t, Tracked(t, flows, d), EndOfMonth(d))) - Cash(flows, d);
+        return balance < 0m ? balance : Math.Max(0m, ArrearsDueBy(tenancies, flows, d, 0));
+    }
 
     /// <summary>
     /// The <c>rent_arrears</c> watch: the dues of the months that ended more than <paramref name="graceDays"/> days before d, less all the
@@ -183,13 +189,17 @@ public static class RentArrears
     /// <summary>The watch's grace, shared with <see cref="RentLedger.ArrearsDueBy"/>.</summary>
     public const int GraceDays = 10;
 
-    /// <summary>By month, then by tenant: a changeover month both tenants owe is two rows, each of its own days.</summary>
+    /// <summary>
+    /// By month, then by tenant: a changeover month both tenants owe is two rows, each of its own days. Only the months over by
+    /// today, as <see cref="RentLedger.Arrears"/> owes them (#716): the current month is not unpaid yet.
+    /// </summary>
     public static IReadOnlyList<ArrearsMonth> Of(IReadOnlyList<(Guid Id, Guid? RevisedFrom, Tenancy Tenancy)> tenancies, IReadOnlyList<Flow> flows, LocalDate today)
     {
         var graced = today.PlusDays(-GraceDays);
         var firstNotOverdue = new LocalDate(graced.Year, graced.Month, 1); // the month ArrearsDueBy stops before
+        var current = new LocalDate(today.Year, today.Month, 1);
         return RentLedger.Accounts(tenancies, flows)
-            .SelectMany(a => RentLedger.Months(a.Tenancies, a.Cash, today).Where(m => m.Remaining > 0)
+            .SelectMany(a => RentLedger.Months(a.Tenancies, a.Cash, today).Where(m => m.Remaining > 0 && m.Month < current)
                 .Select(m => new ArrearsMonth(m.Month, m.Due, m.Imputed, m.Remaining, m.Month < firstNotOverdue, a.Chain)))
             .OrderBy(m => m.Month) // stable: the accounts' order within a month
             .ToList();

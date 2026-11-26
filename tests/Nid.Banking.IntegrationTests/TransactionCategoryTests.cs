@@ -102,6 +102,26 @@ public class TransactionCategoryTests(PostgresFixture fixture) : IClassFixture<P
     }
 
     [Fact]
+    public async Task Same_label_lists_the_other_lines_nothing_classified_on_the_accounts_the_reader_writes()
+    {
+        await using var s = await StartAsync(fixture);
+        var app = s.App;
+        var line = await AddAsync(app, s.Courant, "a", -12.99m);
+        var twin = await AddAsync(app, s.Courant, "b", -12.99m);
+        var saved = await AddAsync(app, s.Livret, "c", -12.99m);
+        await AddAsync(app, s.Courant, "d", -9.99m, "PRLV SEPA MUSIQUE 123");
+        // Classified by hand, a category or « Sans catégorie »: never offered again.
+        await OkAsync(await PutAsync(app, app.AdultA, await AddAsync(app, s.Courant, "e", -12.99m), Seed("leisure.subscriptions")));
+        await OkAsync(await PutAsync(app, app.AdultA, await AddAsync(app, s.Courant, "f", -12.99m), null));
+
+        static Guid[] Ids(string body) => [.. JsonDocument.Parse(body).RootElement.EnumerateArray().Select(e => e.GetGuid()).Order()];
+        var url = $"{BankingApi.Root}/transactions/{line}/same-label";
+        Assert.Equal(new[] { twin, saved }.Order(), Ids(await app.GetRawAsync(app.AdultA, url)));
+        // B reads « Courant A » but writes no account: nothing to classify.
+        Assert.Empty(Ids(await app.GetRawAsync(app.AdultB, url)));
+    }
+
+    [Fact]
     public async Task Null_category_by_hand_means_none_and_is_kept()
     {
         await using var s = await StartAsync(fixture);

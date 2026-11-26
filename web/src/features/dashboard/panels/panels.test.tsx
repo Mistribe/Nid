@@ -270,7 +270,11 @@ describe('key figure panels', () => {
   it('an estimated childcare source says so', async () => {
     serve(dashboard({ commitmentSources: [{ ...commitment('childcare', '660.47'), estimated: true }] }));
     await renderApp('/dashboard?panel=commitments');
-    expect(await dialog('Engagements / mois')).toHaveTextContent('Garde 660,47 € (estimation)');
+    const panel = await dialog('Engagements / mois');
+    expect(panel).toHaveTextContent('Garde, coût net du mois 660,47 € (estimation)');
+    // #723: it says what it is and where the same figure is.
+    expect(within(panel).getByRole('button', { name: 'À propos : Garde' })).toBeInTheDocument();
+    expect(within(panel).getByRole('link', { name: 'Voir la garde' })).toHaveAttribute('href', '/childcare');
   });
 
   it('lists the commitment sources with links to subscriptions and loans', async () => {
@@ -281,6 +285,8 @@ describe('key figure panels', () => {
 
     const panel = await dialog('Engagements / mois');
     expect(panel).toHaveTextContent('Abonnements 250,56 €');
+    // #782: the figure is Abonnements' « Par mois », and says so.
+    expect(within(panel).getByRole('button', { name: 'À propos : Abonnements' })).toBeInTheDocument();
     expect(panel).toHaveTextContent('Crédits 800,00 €');
     expect(panel).toHaveTextContent('Charges des biens 90,00 €');
     expect(panel).toHaveTextContent('10 % des revenus');

@@ -154,6 +154,17 @@ describe('EnvelopeDetailPage', () => {
     expect(block).not.toHaveTextContent('par an');
   });
 
+  it('shows a checking account no performance since January or over a period, and no tax on sale (#776)', async () => {
+    serve(detail({ kind: 'checking', figures: figures({ netContributions: eur('0.0000'), gain: null, gainPct: null, annualReturnPct: null, gainAfterFees: null }) }));
+    server.use(http.get('*/api/v1/investments/envelopes/:id/performance', () => HttpResponse.json({ from: '2025-01-01', to: '2025-10-18', performance: eur('1500.0000') })));
+    await renderApp(`/investments/${PEA}`);
+
+    expect(await screen.findByRole('heading', { name: 'Dernières valeurs' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Valeur et gain' })).not.toHaveTextContent('Depuis janvier');
+    expect(screen.queryByRole('heading', { name: 'Performance d’une période' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Impôt si vente aujourd’hui' })).toBeNull();
+  });
+
   it('shows what was paid in or out since the last value, and fees and income only when there are any', async () => {
     serve(detail({ figures: figures({ contributionsSince: eur('700.0000'), withdrawalsSince: eur('50.0000'), fees: eur('120.0000'), gainAfterFees: eur('2880.0000') }) }));
     await renderApp(`/investments/${PEA}`);

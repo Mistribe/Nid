@@ -49,8 +49,10 @@ public sealed class RealEstatePropertyIncome(IVisibleItems visible, IItemRegistr
                 months.Add(PropertyMath.IncomeIn(month, flowLists![property.ItemId], tenancies));
             // SeriesManyAsync keeps as_of order.
             var valueAt = valueDates.Distinct().ToDictionary(d => d, d => (decimal?)values![property.ItemId].LastOrDefault(v => v.AsOf <= d)?.Value.Amount);
+            var letToday = tenancies.Any(t => PropertyMath.Covers(t, today));
             sources.Add(new PropertyIncomeSource(property.ItemId, item.DisplayName, LoanReading.CurrencyOf(item), item.ArchivedAt is not null,
-                months, valueAt, tenancies.Any(t => PropertyMath.Covers(t, today))));
+                months, valueAt, letToday, item.OwnerViews(),
+                letToday ? PropertyMath.MonthlyRentAt(tenancies, today) - PropertyCostCommitments.MonthlyCosts(property, today) : null));
         }
         return Result.Success<IReadOnlyList<PropertyIncomeSource>>(sources);
     }

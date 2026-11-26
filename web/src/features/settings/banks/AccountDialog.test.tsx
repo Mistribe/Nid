@@ -85,7 +85,7 @@ describe('the account dialog', () => {
     const identity = within(dialog).getByRole('region', { name: 'Ce que la banque en dit' });
     for (const text of ['•••• 4321', 'MME ALICE MARTIN', 'Visa Classic', 'Carte, débit différé']) expect(within(identity).getByText(text)).toBeInTheDocument();
     expect(await within(dialog).findByText('CB BOULANGERIE')).toBeInTheDocument();
-    expect(await within(dialog).findByText("Suggéré d'après ses opérations : vérifiez avant d'enregistrer.")).toBeInTheDocument();
+    expect(await within(dialog).findByText("Suggéré d’après ses opérations : vérifiez avant d’enregistrer.")).toBeInTheDocument();
     expect(within(dialog).getByRole('combobox', { name: 'Carte rattachée à' })).toHaveTextContent('Compte courant');
     await expectNoAxeViolations(container);
     await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
@@ -101,7 +101,7 @@ describe('the account dialog', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Régler Carte' });
     const identity = within(dialog).getByRole('region', { name: 'Ce que la banque en dit' });
     expect(within(identity).getAllByRole('term').map((term) => term.textContent)).toEqual(['Type']);
-    expect(await within(dialog).findByText("Aucune opération lue pour l'instant.")).toBeInTheDocument();
+    expect(await within(dialog).findByText("Aucune opération lue pour l’instant.")).toBeInTheDocument();
     expect(within(dialog).getByRole('combobox', { name: 'Carte rattachée à' })).toHaveTextContent('Aucun');
   });
 
@@ -296,7 +296,7 @@ describe('the account dialog', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Régler Compte courant' });
     await pick(user, 'Enveloppe', 'Créer une enveloppe');
     const step = within(dialog).getByRole('form', { name: 'Créer une enveloppe' });
-    expect(within(step).getByRole('textbox', { name: 'Nom de l\'enveloppe' })).toHaveValue('BNP Paribas Compte courant');
+    expect(within(step).getByRole('textbox', { name: 'Nom de l’enveloppe' })).toHaveValue('BNP Paribas Compte courant');
     expect(within(step).getByRole('radio', { name: 'Compte courant' })).toBeChecked();
     expect(within(step).getByRole('radio', { name: 'À moi' })).toBeChecked();
     expect(step).toHaveTextContent('En EUR, comme le compte, et reliée à lui.');
@@ -328,7 +328,7 @@ describe('the account dialog', () => {
     await pick(user, 'Enveloppe', 'Créer une enveloppe');
     const step = within(dialog).getByRole('form', { name: 'Créer une enveloppe' });
     await user.click(within(step).getByRole('radio', { name: 'Compte de Léo' }));
-    expect(step).toHaveTextContent('L\'enveloppe est à Léo et partagée');
+    expect(step).toHaveTextContent('L’enveloppe est à Léo et partagée');
     await user.click(within(step).getByRole('button', { name: 'Créer et relier' }));
 
     await waitFor(() => expect(sent).toEqual([{ displayName: 'BNP Paribas Compte courant', kind: 'checking', visibility: 'shared', dependentId: householdPersons[2]!.id }]));
@@ -401,6 +401,16 @@ describe('the account dialog', () => {
     await waitFor(() => expect(sent).toEqual([{ id: CHECKING, body: { ignored: true } }]));
   });
 
+  it('says an attached card counts with its account, followed or not (#780)', async () => {
+    serveBanks([connection({ accounts: [account(), account({ id: CARD, name: 'Visa Premier', ibanMasked: null, kind: 'card', cardOfAccountId: CHECKING })] })], envelopes);
+    const { user } = await renderApp('/settings/banks');
+
+    await user.click((await screen.findAllByRole('button', { name: 'Régler Visa Premier' }))[0]!);
+    const dialog = await screen.findByRole('dialog', { name: 'Régler Visa Premier' });
+    expect(within(dialog).getByRole('switch', { name: 'Ne pas suivre ce compte' }))
+      .toHaveAccessibleDescription('Une carte rattachée compte avec son compte : ses achats restent dans les dépenses tant que son compte est suivi.');
+  });
+
   it('clears the envelope of an account associated with one', async () => {
     serveBanks([connection({ accounts: [connection().accounts[0]!].map((a) => ({ ...a, envelopeId: JOINT })) })], envelopes);
     const sent = patches();
@@ -442,6 +452,6 @@ describe('the account dialog', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
 
     await waitFor(() => expect(within(dialog).getByRole('combobox', { name: 'Enveloppe' }))
-      .toHaveAccessibleDescription('La devise du compte et celle de l\'enveloppe diffèrent.'));
+      .toHaveAccessibleDescription('La devise du compte et celle de l’enveloppe diffèrent.'));
   });
 });

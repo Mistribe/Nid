@@ -14,7 +14,7 @@ export const dashboard = (over: Partial<DashboardView> = {}): DashboardView => (
   change: figure('1000.00'), changeContributions: figure('1000.00'), changePct: 9.1,
   envelopeSplit: [], people: [], peopleMissingCurrency: null, upcoming: [], todo: [], envelopesWithoutStart: 0,
   commitmentSources: [{ source: 'subscriptions', amortized: eur('250.56'), estimated: false }], allocation: null,
-  everydaySpending: null, left: null, spendingSlices: [],
+  everydaySpending: null, left: null, spendingSlices: [], unattachedCards: [],
   ...over,
 });
 

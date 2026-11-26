@@ -48,7 +48,7 @@ public sealed partial class AssetsImportSection(
 
     public string Module => "assets";
     public IReadOnlyList<string> Sections => [Section];
-    public int Order => 45; // after real estate, before the Core's facts (90)
+    public int Order => 5; // after the persons, before the subscriptions that link to an asset (#648) and the Core's facts (90)
 
     public IReadOnlyList<ImportIssue> ValidateBatch(string section, JsonElement entities, int firstIndex)
     {
@@ -247,6 +247,12 @@ public sealed partial class AssetsImportSection(
                 Note = d.Note,
                 WeightGrams = d.WeightGrams,
                 Fineness = d.Fineness,
+                RegisteredOn = d.RegisteredOn is { } reg ? LocalDatePattern.Iso.Format(reg) : null,
+                MileageKm = d.MileageKm,
+                MileageOn = d.MileageOn is { } kmOn ? LocalDatePattern.Iso.Format(kmOn) : null,
+                FiscalHp = d.FiscalHp,
+                Energy = d.Energy,
+                DepreciationRate = d.DepreciationRate,
                 Visibility = head.Visibility == Visibility.Private ? "private" : "shared",
                 ShareLevel = ImportSectionKit.ShareLevelText(head),
                 Ownership = head.Owners
@@ -259,6 +265,17 @@ public sealed partial class AssetsImportSection(
         {
             [Section] = records.Select(r => JsonSerializer.SerializeToElement(r, AssetsFileJson.Records.AssetImportRecord)).ToList(),
         };
+    }
+
+    private static LocalDate? OptionalDate(string? text, string path, List<ImportIssue> issues, ref bool ok)
+    {
+        if (text is null)
+            return null;
+        var date = LocalDatePattern.Iso.Parse(text);
+        if (date.Success)
+            return date.Value;
+        ok = Invalid(issues, path, "A date is written YYYY-MM-DD.");
+        return null;
     }
 
     private bool Owners(Parsed parsed, string path, List<ImportIssue> issues)
@@ -305,7 +322,10 @@ public sealed partial class AssetsImportSection(
                 ok = Invalid(issues, path + ".purchased_on", "A date is written YYYY-MM-DD.");
         }
 
-        var details = new AssetDetails(r.Kind, r.PurchasePrice, purchasedOn, r.Note, r.WeightGrams, r.Fineness);
+        var registeredOn = OptionalDate(r.RegisteredOn, path + ".registered_on", issues, ref ok);
+        var mileageOn = OptionalDate(r.MileageOn, path + ".mileage_on", issues, ref ok);
+        var details = new AssetDetails(r.Kind, r.PurchasePrice, purchasedOn, r.Note, r.WeightGrams, r.Fineness,
+            registeredOn, r.MileageKm, mileageOn, r.FiscalHp, r.Energy, r.DepreciationRate);
         var failure = AssetCheck.Name(r.Name, r.Note) ?? AssetRules.Check(details, today);
         if (failure is not null)
         {

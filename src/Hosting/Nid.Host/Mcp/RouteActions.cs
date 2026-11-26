@@ -120,19 +120,31 @@ public static class RouteActions
         // Other assets: a vehicle, a precious metal, a work of art, a collectible.
         new("create_asset", "POST", "/api/v1/assets/", typeof(Nid.Host.Api.AssetEndpoints.CreateAssetBody),
             "Create an asset (vehicle, precious_metal, art, collectible, other). A value is required: purchasePrice with purchasedOn, "
-            + "or currentValue; invent nothing, leave out what the household did not state. " + Owners + Amounts),
+            + "or currentValue; invent nothing, leave out what the household did not state. A leased vehicle (LOA, LLD) is a contract, not an asset: "
+            + "propose a subscription instead. Vehicle-only fields: registeredOn, mileageKm with mileageOn, fiscalHp, energy, depreciationRate (the yearly loss of value in %, above 0 and below 100; the value is then estimated from the latest valuation or the price) ("
+            + string.Join(", ", Nid.Assets.Contracts.AssetEnergies.All) + "). " + Owners + Amounts),
         new("update_asset", "PUT", "/api/v1/assets/{id:guid}", typeof(Nid.Host.Api.AssetEndpoints.EditAssetBody),
-            "Edit an asset: every field is replaced, so send them all. " + Ids + Versioned + Amounts, Destructive: true),
+            "Edit an asset: every field is replaced, so send them all. A leased vehicle (LOA, LLD) is not an asset: it belongs in a subscription. "
+            + "Vehicle-only fields (vehicle kind only): registeredOn, mileageKm with mileageOn, fiscalHp, energy, depreciationRate (the yearly loss of value in %, above 0 and below 100; the value is then estimated from the latest valuation or the price) ("
+            + string.Join(", ", Nid.Assets.Contracts.AssetEnergies.All) + "). " + Ids + Versioned + Amounts, Destructive: true),
         new("add_asset_valuation", "POST", "/api/v1/assets/{id:guid}/valuations", typeof(Nid.Host.Api.AssetEndpoints.AssetValuationBody),
             "Record an asset's estimated value on a date. " + Ids + Amounts),
+        new("add_asset_cost", "POST", "/api/v1/assets/{id:guid}/costs", typeof(Nid.Host.Api.AssetEndpoints.AssetCostBody),
+            "Record a running cost of a vehicle (a service, a repair, tyres), an expense dated today or before, category one of "
+            + string.Join(", ", Nid.Assets.Contracts.AssetCostCategories.All) + ". Only a vehicle takes costs. documentId (list_documents) is its invoice. "
+            + "Check list_asset_costs first: invent nothing, record each cost once. " + Ids + Amounts),
+        new("correct_asset_cost", "PUT", "/api/v1/assets/{id:guid}/costs/{flowId:guid}", typeof(Nid.Host.Api.AssetEndpoints.AssetCostBody),
+            "Correct a vehicle's running cost. " + Ids + Amounts, Destructive: true),
+        new("delete_asset_cost", "DELETE", "/api/v1/assets/{id:guid}/costs/{flowId:guid}", null,
+            "Remove a vehicle's running cost. " + Ids, Destructive: true),
 
         // Real estate: loans.
         new("create_loan", "POST", "/api/v1/realestate/loans", typeof(CreateLoanBody),
             "Create a loan with its contract, linked to an existing property when propertyId is given (propose the property first, "
-            + "then the loan once it is approved), or to an SCPI envelope (kind 'scpi') when envelopeId is given, never both. Once approved, propose_amortization can attach the bank's table. " + Owners + Amounts),
+            + "then the loan once it is approved), or to an SCPI envelope (kind 'scpi') when envelopeId is given, or to an asset (« Autres biens », an id from list_assets) when assetId is given: a loan finances one item, never two. Once approved, propose_amortization can attach the bank's table. " + Owners + Amounts),
         new("edit_loan", "PATCH", "/api/v1/realestate/loans/{id:guid}", typeof(EditLoanBody),
             "Edit a loan's details; only the fields given change. envelopeId links an SCPI envelope instead of a property: send "
-            + "clearProperty with it when the loan finances a property. " + Ids),
+            + "clearProperty with it when the loan finances a property. assetId links an asset (an id from list_assets) the same way; a loan finances one item (property, SCPI or asset), so moving between kinds sends the new id with the clear* flag of the old one (clearProperty, clearEnvelope, clearAsset). " + Ids),
         new("replace_loan_contract", "PUT", "/api/v1/realestate/loans/{id:guid}/contract", typeof(LoanContractBody),
             "Replace a loan's contract (amount, rate, phases, insurance). " + Ids + Versioned + Amounts, Destructive: true),
         new("add_loan_fee", "POST", "/api/v1/realestate/loans/{id:guid}/fees", typeof(LoanFeeBody),
@@ -347,6 +359,10 @@ public static class RouteActions
             + "keepProperty=true (without propertyId, else refused) leaves the stored property link as it is, for a writer who cannot read it; "
             + "unless you are setting the link or deliberately removing it, always send keepProperty: true, because omitting it removes any "
             + "link, seen or not. " + Ids),
+        new("set_subscription_asset", "PUT", "/api/v1/subscriptions/{id:guid}/asset", typeof(AssetLinkBody),
+            "Link a subscription (an insurance, a service contract) to an asset of « Autres biens », or unlink it with assetId null. "
+            + "A subscription has at most one asset; an asset any number of subscriptions. It replaces the stored link; it is refused "
+            + "(subscriptions.asset_hidden) when the stored link is to an asset the caller cannot see, which is never replaced or removed. " + Ids),
         new("add_subscription_phase", "POST", "/api/v1/subscriptions/{id:guid}/phases", typeof(PhaseBody),
             "Add a billing period to a subscription. " + Ids + Amounts),
         new("end_subscription_phase", "PATCH", "/api/v1/subscriptions/{id:guid}/phases/{phaseId:guid}", typeof(ClosePhaseBody),

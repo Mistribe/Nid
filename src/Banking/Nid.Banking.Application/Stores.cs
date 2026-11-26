@@ -249,11 +249,12 @@ public interface ITransactionStore
     /// <summary>
     /// The accounts' transactions, newest booked first, within [<paramref name="from"/>, <paramref name="to"/>] when given; <paramref name="state"/> is a
     /// <c>link_state</c> wire value, null for all. With <paramref name="readable"/> (D19), an internal line whose counterpart account is not in it
-    /// counts as <c>linked</c>. <paramref name="uncategorised"/> keeps the lines with no category, no category source and a state other than <c>ignored</c>.
+    /// counts as <c>linked</c>. <paramref name="uncategorised"/> keeps the lines with no category, no category source and a state other than <c>ignored</c>;
+    /// <paramref name="normalizedLabel"/> those of that normalised label (#721).
     /// </summary>
     Task<IReadOnlyList<BankTransaction>> ListAsync(
         IReadOnlyList<Guid> accounts, LocalDate? from, LocalDate? to, int skip, int take, CancellationToken ct, string? state = null,
-        IReadOnlyList<Guid>? readable = null, bool uncategorised = false);
+        IReadOnlyList<Guid>? readable = null, bool uncategorised = false, string? normalizedLabel = null);
 
     /// <summary>The lines the reconciliation job has not looked at yet, oldest booked first; null accounts = all.</summary>
     Task<IReadOnlyList<BankTransaction>> UnreconciledAsync(IReadOnlyCollection<Guid>? accounts, CancellationToken ct);
@@ -332,6 +333,9 @@ public interface ILinkStore
     Task<IReadOnlyList<(BankLink Link, BankTransaction Line)>> ForItemsAsync(IReadOnlyCollection<ItemId> items, CancellationToken ct);
 
     Task<IReadOnlyList<(BankLink Link, BankTransaction Line)>> OutcomeSinceAsync(LinkOutcome outcome, LocalDate since, CancellationToken ct);
+
+    /// <summary>The account each of these card lines' echo is on (#416), for the card lines an echo was linked to.</summary>
+    Task<IReadOnlyDictionary<Guid, Guid>> EchoAccountsAsync(IReadOnlyCollection<Guid> cardLines, CancellationToken ct);
 
     /// <summary>
     /// Upserts the link and sets the line's <c>link_state</c> (linked or internal) in one transaction; with a <paramref name="categoryKey"/>,

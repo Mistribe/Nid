@@ -115,7 +115,7 @@ describe('an envelope\'s settings', () => {
     const { unmount } = await renderApp(`/investments/${PEA}?tab=settings`);
     const pea = await openForm();
     expect(pea.getByLabelText('Date d’ouverture')).toBeInTheDocument();
-    expect(pea.getByText("Pour un PEA ou une assurance-vie transférés, la date d’ouverture du contrat d'origine : elle compte pour la fiscalité.")).toBeInTheDocument();
+    expect(pea.getByText("Pour un PEA ou une assurance-vie transférés, la date d’ouverture du contrat d’origine : elle compte pour la fiscalité.")).toBeInTheDocument();
     expect(pea.queryByLabelText('Primes versées avant le 27/09/2017')).not.toBeInTheDocument();
     unmount();
 

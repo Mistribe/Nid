@@ -246,7 +246,7 @@ public static class BankingEndpoints
             .Returns<IReadOnlyList<ExpectedChargeView>>();
 
         api.MapPost("/transactions/{id:guid}/link", async (Guid id, LinkBody body, IInvoker invoker, CancellationToken ct)
-            => (await invoker.InvokeAsync(new LinkTransactionCommand(id, body.Module ?? "", body.ItemId ?? Guid.Empty, body.Key), ct)).ToHttp(line => line))
+            => (await invoker.InvokeAsync(new LinkTransactionCommand(id, body.Module ?? "", body.ItemId ?? Guid.Empty, body.Key, body.Category), ct)).ToHttp(line => line))
             .Returns<BankTransactionView>();
 
         api.MapPost("/transactions/{id:guid}/unlink", async (Guid id, IInvoker invoker, CancellationToken ct)
@@ -260,6 +260,11 @@ public static class BankingEndpoints
         api.MapPut("/transactions/{id:guid}/category", async (Guid id, LineCategoryBody body, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new SetTransactionCategoryCommand(id, body.CategoryId), ct)).ToHttp(line => line))
             .Returns<BankTransactionView>();
+
+        // #721: the other lines of the same label nothing classified yet, which the category dialog offers to classify with it.
+        api.MapGet("/transactions/{id:guid}/same-label", async (Guid id, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new SameLabelLinesQuery(id), ct)).ToHttp(ids => ids))
+            .Returns<IReadOnlyList<Guid>>();
 
         // #426: one category for the lines selected in « Opérations »; each line refused as it would be alone is listed, not fatal.
         api.MapPost("/transactions/category", async (LinesCategoryBody body, IInvoker invoker, CancellationToken ct)
@@ -359,6 +364,11 @@ public static class BankingEndpoints
         api.MapGet("/category-suggestions", async (int? page, IInvoker invoker, CancellationToken ct)
                 => (await invoker.InvokeAsync(new ListCategorySuggestionsQuery(page ?? 1), ct)).ToHttp(suggestions => suggestions))
             .Returns<CategorySuggestionPage>();
+
+        // « À classer »: the lines to classify on the accounts the person writes, each with the category Nid suggests, paged by the server.
+        api.MapGet("/lines-to-classify", async (Guid? account, int? page, IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new ListLinesToClassifyQuery(account, page ?? 1), ct)).ToHttp(lines => lines))
+            .Returns<LinesToClassifyPage>();
 
         api.MapGet("/category-suggestions/dismissals", async (IInvoker invoker, CancellationToken ct)
                 => (await invoker.InvokeAsync(new ListSuggestionDismissalsQuery(), ct)).ToHttp(dismissals => dismissals))
@@ -503,9 +513,12 @@ public static class BankingEndpoints
         Guid? EnvelopeId, bool? ClearEnvelope, Guid? CardOfAccountId, bool? ClearCard, bool? AutoApplyBalance, bool? Ignored, string? Name = null,
         bool? ClearName = null, int? MinPayments = null, bool? ClearMinPayments = null, bool? CountWithdrawals = null);
 
-    /// <summary>A charge of <c>itemId</c> (a subscription, a loan, a property); <c>key</c> names one, else the nearest is taken.</summary>
+    /// <summary>
+    /// A charge of <c>itemId</c> (a subscription, a loan, a property); <c>key</c> names one, else the nearest is taken. For a vehicle (<c>assets</c>),
+    /// <c>category</c> is the running cost's the line records (<c>other</c> when left out); any other module ignores it.
+    /// </summary>
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
-    public sealed record LinkBody(string? Module, Guid? ItemId, string? Key);
+    public sealed record LinkBody(string? Module, Guid? ItemId, string? Key, string? Category = null);
 
     /// <summary>A line's category chosen by hand; an absent or null <c>categoryId</c> is « Sans catégorie », chosen by hand all the same.</summary>
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]

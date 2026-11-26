@@ -74,7 +74,7 @@ describe('LoginPage', () => {
     await user.type(await screen.findByLabelText('Code'), '123456');
     await expectNoAxeViolations(container);
     await user.click(screen.getByRole('button', { name: 'Valider' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent("Ce code n'est pas le bon");
+    expect(await screen.findByRole('alert')).toHaveTextContent("Ce code n’est pas le bon");
 
     await user.click(screen.getByRole('button', { name: 'Utiliser un code de secours' }));
     await user.type(await screen.findByLabelText('Code de secours'), 'ABCD-EFGH-JKMN-PQRS');
@@ -118,7 +118,7 @@ describe('LoginPage', () => {
     server.use(preSession({ methods: ['password', 'oidc'], setupRequired: true }));
     render(<LoginPage returnUrl="/subscriptions" login={null} location={{ assign: vi.fn() }} />);
 
-    expect(await screen.findByRole('link', { name: "Se connecter avec le fournisseur d'identité" }))
+    expect(await screen.findByRole('link', { name: "Se connecter avec le fournisseur d’identité" }))
       .toHaveAttribute('href', '/auth/login/oidc?returnUrl=%2Fsubscriptions');
     expect(screen.getByRole('status')).toHaveTextContent('docker compose logs nid');
   });

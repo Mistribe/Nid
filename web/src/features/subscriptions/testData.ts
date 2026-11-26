@@ -46,7 +46,7 @@ export function detail(over: Partial<Detail> = {}): Detail {
       kind: 'gift', allocatedAmount: null,
       grants: [{ subscriptionId: SUB, duration: { count: 3, unit: 'month' }, source: 'gift', startsOn: null }], note: null,
     }],
-    canWrite: true,
+    canWrite: true, assetHidden: false,
     contractTerms: null,
     cancellation: { status: 'none' },
     ...over,
@@ -57,12 +57,12 @@ export const summary = (over: Partial<Summary>): Summary => ({
   id: '0192f0aa-0000-7000-8000-000000000001', displayName: 'Netflix', provider: null, autoRenew: true,
   expiresOn: null, nextChargeOn: '2025-11-01', nextChargeAmount: eur('13.49'),
   cashCost: [eur('13.49')], amortizedCost: [eur('13.49')], cashCostConverted: null, amortizedCostConverted: eur('13.49'),
-  annualCostConverted: eur('161.88'), convertedIsEstimate: false, billedMonthly: true, freeDays: 0, findings: [], owners: [], ...over,
+  annualCostConverted: eur('161.88'), monthlyCostConverted: eur('13.49'), convertedIsEstimate: false, billedMonthly: true, freeDays: 0, findings: [], owners: [], ...over,
 });
 
 export const list = (items: Summary[], over: Partial<ListResponse> = {}): ListResponse => ({
   items, householdCashCost: [eur('20.98')], householdAmortizedCost: [eur('20.98')],
-  householdCashCostConverted: null, householdAmortizedCostConverted: eur('20.98'), householdAnnualCostConverted: eur('251.76'),
+  householdCashCostConverted: null, householdAmortizedCostConverted: eur('20.98'), householdAnnualCostConverted: eur('251.76'), householdMonthlyCostConverted: eur('20.98'),
   householdConvertedIsEstimate: false,
   sharedPurchaseIds: [], groups: [], findings: [], ...over,
 });

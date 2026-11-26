@@ -34,9 +34,14 @@ const refusal = (code: string, path: string) => HttpResponse.json(
   { status: 422, code, detail: 'Refused.', errors: [{ path, code, message: 'Refused.' }] }, { status: 422 });
 
 /** Banking on, two accounts (the card only read), the categories and the rules; every write as `[method, rule id, body]`. */
-function serve() {
+function serve(past = 0) {
   const writes: [string, unknown, unknown][] = [];
   server.use(
+    // A rule not yet created: `past` lines it would classify, one classified by hand it leaves.
+    http.post('*/api/v1/banking/category-rules/preview', () => HttpResponse.json({
+      total: past, items: past > 0 ? [line('t1', 'CARREFOUR CITY', '-42.10')] : [], tooBroad: false,
+      conflicts: [{ reason: 'hand', rulePattern: null, categoryId: 'leisure', categoryName: 'Loisirs', lines: 1 }],
+    })),
     http.get('*/api/v1/banking/status', () => HttpResponse.json({ enabled: true, configured: false })),
     http.get('*/api/v1/banking/accounts', () => HttpResponse.json([account(), account({ id: CARD, name: 'Visa', canWrite: false })])),
     http.get('*/api/v1/banking/categories', () => HttpResponse.json(categories)),
@@ -87,7 +92,7 @@ describe('Dépenses › Catégories › Règles de catégorie', () => {
     expect(rows[0]).toHaveTextContent('Tous les comptes');
     expect(rows[0]).toHaveTextContent('Courses');
     expect(rows[0]).toHaveTextContent('12');
-    expect(rows[1]).toHaveTextContent('Débits · dès 10,00 · jusqu\'à 50,00');
+    expect(rows[1]).toHaveTextContent('Débits · dès 10,00 · jusqu’à 50,00');
     expect(rows[1]).toHaveTextContent('Compte joint');
     expect(rows[1]).toHaveTextContent('Jamais');
     await expectNoAxeViolations(container);
@@ -117,6 +122,23 @@ describe('Dépenses › Catégories › Règles de catégorie', () => {
     await waitFor(() => expect(writes).toEqual([['POST', null,
       { pattern: 'Carrefour', categoryId: 'groceries', accountId: CHECKING, direction: 'debit', minAmount: '10.5', maxAmount: null }]]));
     expect(await screen.findByText('Règle créée.')).toBeInTheDocument();
+  });
+
+  it('says how many past lines a new rule would classify, and classifies them as it is created (#721)', async () => {
+    const writes = serve(3);
+    const { user } = await open();
+
+    await user.click(screen.getByRole('button', { name: 'Nouvelle règle' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Nouvelle règle' });
+    await user.type(within(dialog).getByRole('textbox', { name: 'Motif' }), 'Carrefour');
+    await pick(user, 'Catégorie', 'Alimentation › Courses');
+    expect(await within(dialog).findByText('3 opérations passées passeraient en Alimentation › Courses.')).toBeInTheDocument();
+    expect(within(dialog).getByText('1 classée à la main en Loisirs')).toBeInTheDocument();
+    expect(within(dialog).getByRole('checkbox', { name: 'Appliquer aussi aux 3 opérations passées' })).toBeChecked();
+    await user.click(within(dialog).getByRole('button', { name: 'Créer la règle' }));
+
+    await waitFor(() => expect(writes.map((w) => w[0] + (w[1] ? ` ${w[1] as string}` : ''))).toEqual(['POST', 'APPLY r3']));
+    expect(await screen.findByText('Règle créée, et 51 opérations passées classées.')).toBeInTheDocument();
   });
 
   it('shows a refused pattern under its field', async () => {
@@ -193,7 +215,7 @@ describe('Dépenses › Catégories › Règles de catégorie', () => {
     const row = within(screen.getByRole('table', { name: 'Règles de catégorie' })).getAllByRole('row')[1]!;
     expect(row).toHaveTextContent('Courses (archivée)');
     await user.hover(within(row).getByRole('button', { name: 'À propos : Courses' }));
-    expect((await screen.findAllByText('Cette règle ne s\'applique plus : sa catégorie est archivée.')).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText('Cette règle ne s’applique plus : sa catégorie est archivée.')).length).toBeGreaterThan(0);
   });
 
   it('previews the past lines, then applies the rule to them', async () => {

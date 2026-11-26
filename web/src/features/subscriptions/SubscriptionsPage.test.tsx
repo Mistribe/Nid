@@ -12,7 +12,7 @@ import { expectOnePrimary } from '@/test/headerActions';
 const two = list([
   summary({}),
   summary({ id: '0192f0aa-0000-7000-8000-000000000002', displayName: 'Ancien VPN', nextChargeOn: null, nextChargeAmount: null,
-    expiresOn: '2025-01-01', cashCost: [eur('7.49')], amortizedCost: [eur('7.49')], amortizedCostConverted: eur('7.49'),
+    expiresOn: '2025-01-01', cashCost: [eur('7.49')], amortizedCost: [eur('7.49')], monthlyCostConverted: eur('7.49'),
     findings: [{ code: 'subscriptions.gap', message: 'Un trou de couverture existe.', reference: null }] }),
 ]);
 
@@ -59,6 +59,9 @@ describe('Abonnements › liste', () => {
     const totals = screen.getByText('251,76 €').closest('dl')!;
     expect(within(totals).getByText('Par mois')).toBeInTheDocument();
     expect(within(totals).getByText('Par an')).toBeInTheDocument();
+    // #711: each says its basis, the next 12 months.
+    expect(within(totals).getByRole('button', { name: 'À propos : Par mois' })).toBeInTheDocument();
+    expect(within(totals).getByRole('button', { name: 'À propos : Par an' })).toBeInTheDocument();
     expect(within(totals).getByText('Décaissé du mois')).toBeInTheDocument();
     expect(within(totals).getByText('18,50 €')).toBeInTheDocument();
     expect(screen.queryByText(/compte une seule fois/)).not.toBeInTheDocument();
@@ -228,8 +231,8 @@ const api = summary({ id: '0192f0aa-0000-7000-8000-0000000000c2', displayName: '
 const netflix = summary({});
 const group = (key: string, items: Summary[], over: Partial<ListResponse['groups'][number]> = {}) => ({
   key, name: key, itemIds: items.map((i) => i.id),
-  items: items.map((i) => ({ id: i.id, amortizedCostConverted: i.amortizedCostConverted, annualCostConverted: i.annualCostConverted })),
-  amortizedCostConverted: eur('40.00'), annualCostConverted: eur('480.00'),
+  items: items.map((i) => ({ id: i.id, monthlyCostConverted: i.monthlyCostConverted, annualCostConverted: i.annualCostConverted })),
+  monthlyCostConverted: eur('40.00'), annualCostConverted: eur('480.00'),
   convertedIsEstimate: false, spentPartial: false, ...over,
 });
 const grouped = list([claude, api, netflix], { groups: [group('Anthropic', [claude, api]), group('Netflix', [netflix])] });
@@ -319,8 +322,8 @@ describe('Abonnements › liste groupée', () => {
     server.use(http.get('*/api/v1/core/persons', () => HttpResponse.json([
       { id: alice, kind: 'adult', displayName: 'Alice', email: null }, { id: bob, kind: 'adult', displayName: 'Bob', email: null }])));
     serve(list([claude, api, netflix], { groups: [
-      group(alice, [claude, api], { name: null }), group(bob, [netflix], { name: null, amortizedCostConverted: eur('6.75'),
-        items: [{ id: netflix.id, amortizedCostConverted: eur('6.75'), annualCostConverted: eur('81.00') }] })] }));
+      group(alice, [claude, api], { name: null }), group(bob, [netflix], { name: null, monthlyCostConverted: eur('6.75'),
+        items: [{ id: netflix.id, monthlyCostConverted: eur('6.75'), annualCostConverted: eur('81.00') }] })] }));
     await renderApp('/subscriptions?tab=list&group=person');
 
     const shown = await rows();
@@ -333,9 +336,9 @@ describe('Abonnements › liste groupée', () => {
   it('shows each share of a person on the subscriptions under a person group, under a Personne column', async () => {
     const alice = '0192f0aa-0000-7000-8000-0000000000a1';
     server.use(http.get('*/api/v1/core/persons', () => HttpResponse.json([{ id: alice, kind: 'adult', displayName: 'Alice', email: null }])));
-    serve(list([claude, api], { groups: [group(alice, [claude, api], { name: null, amortizedCostConverted: eur('9.00'), items: [
-      { id: claude.id, amortizedCostConverted: eur('6.745'), annualCostConverted: eur('80.94') },
-      { id: api.id, amortizedCostConverted: eur('2.25'), annualCostConverted: eur('27.00') }] })] }));
+    serve(list([claude, api], { groups: [group(alice, [claude, api], { name: null, monthlyCostConverted: eur('9.00'), items: [
+      { id: claude.id, monthlyCostConverted: eur('6.745'), annualCostConverted: eur('80.94') },
+      { id: api.id, monthlyCostConverted: eur('2.25'), annualCostConverted: eur('27.00') }] })] }));
     const { user } = await renderApp('/subscriptions?tab=list&group=person');
 
     const table = await screen.findByRole('table', { name: 'Liste des abonnements' });
@@ -362,7 +365,7 @@ describe('Abonnements › liste groupée', () => {
     await renderApp('/subscriptions?tab=list');
 
     expect(await screen.findByText('Aucun abonnement ne correspond à ces filtres.')).toBeInTheDocument();
-    expect(screen.queryByText('Aucun abonnement pour l\'instant')).not.toBeInTheDocument();
+    expect(screen.queryByText('Aucun abonnement pour l’instant')).not.toBeInTheDocument();
   });
 
   it('No_match_is_not_the_first_subscription_invite', async () => {
@@ -370,7 +373,7 @@ describe('Abonnements › liste groupée', () => {
     await renderApp('/subscriptions?tab=list&q=zzz');
 
     expect(await screen.findByText('Aucun abonnement ne correspond à ces filtres.')).toBeInTheDocument();
-    expect(screen.queryByText('Aucun abonnement pour l\'instant')).not.toBeInTheDocument();
+    expect(screen.queryByText('Aucun abonnement pour l’instant')).not.toBeInTheDocument();
   });
 
   it('Typing_keeps_the_previous_rows_while_loading', async () => {
@@ -393,7 +396,7 @@ describe('Abonnements › liste groupée', () => {
   });
 
   it('A_null_group_amount_shows_a_dash', async () => {
-    serve(list([claude, api], { groups: [group('Anthropic', [claude, api], { amortizedCostConverted: null, annualCostConverted: null })] }));
+    serve(list([claude, api], { groups: [group('Anthropic', [claude, api], { monthlyCostConverted: null, annualCostConverted: null })] }));
     await renderApp('/subscriptions?tab=list');
 
     const [row] = await rows();

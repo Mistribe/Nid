@@ -9,6 +9,9 @@ public static class DebtRatio
     /// <summary>The ceiling banks apply today (HCSF, 35 %).</summary>
     public const decimal Ceiling = 0.35m;
 
+    /// <summary>The share of rental income banks count in the income (HCSF: 70 %, the rest for vacancy and charges).</summary>
+    public const decimal RentShare = 0.7m;
+
     /// <summary>Null without a positive income: the ratio is unknown.</summary>
     public static decimal? Of(decimal payments, decimal income) => income > 0m ? payments / income : null;
 

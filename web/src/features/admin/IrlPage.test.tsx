@@ -121,7 +121,7 @@ describe('Administration › IRL', () => {
     }));
     const { user } = await renderApp('/admin/irl', { capabilities: adminCapabilities });
 
-    const toggle = await screen.findByRole('switch', { name: "Récupérer l'IRL" });
+    const toggle = await screen.findByRole('switch', { name: "Récupérer l’IRL" });
     expect(screen.getByRole('button', { name: 'Mettre à jour maintenant' })).toBeDisabled();
     await user.click(toggle);
     await waitFor(() => expect(sent).toEqual([{ irlEnabled: true }]));

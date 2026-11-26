@@ -65,7 +65,7 @@ describe('ImportStatementDialog', () => {
     const zone = within(dialog).getByText('Glissez un fichier ici').closest('[data-drop-zone]')!;
 
     fireEvent.drop(zone, { dataTransfer: { files: [new File(['%PDF'], 'releve.pdf', { type: 'application/pdf' })] } });
-    expect(await within(dialog).findByText('Ce fichier n\'est ni un relevé OFX ni un relevé CAMT.053.')).toBeInTheDocument();
+    expect(await within(dialog).findByText('Ce fichier n’est ni un relevé OFX ni un relevé CAMT.053.')).toBeInTheDocument();
 
     fireEvent.drop(zone, { dataTransfer: { files: [ofx()] } });
     await user.click(within(dialog).getByRole('button', { name: 'Lire le relevé' }));
@@ -108,13 +108,13 @@ describe('ImportStatementDialog', () => {
   });
 
   it.each([
-    [422, { code: 'banking.file_format' }, "Ce fichier n'est ni un relevé OFX ni un relevé CAMT.053."],
+    [422, { code: 'banking.file_format' }, "Ce fichier n’est ni un relevé OFX ni un relevé CAMT.053."],
     [422, { code: 'banking.file_malformed', line: 42 }, 'Le relevé est illisible (ligne 42).'],
     [422, { code: 'banking.file_malformed' }, 'Le relevé est illisible.'],
     [413, { code: 'banking.file_too_large' }, 'Le relevé dépasse 5 Mo.'],
     [422, { code: 'banking.file_account_mismatch' }, 'Ce relevé ne correspond pas au compte de cette enveloppe.'],
     [422, { code: 'banking.file_several_accounts' }, 'Ce fichier contient les relevés de plusieurs comptes : importez-les séparément.'],
-    [422, { code: 'banking.currency_mismatch' }, "La devise du compte et celle de l'enveloppe diffèrent."],
+    [422, { code: 'banking.currency_mismatch' }, "La devise du compte et celle de l’enveloppe diffèrent."],
   ])('announces a %i %o in French', async (status, body, text) => {
     serve(() => HttpResponse.json({ status, title: 'Refused.', ...body }, { status }));
     const { dialog } = await openFromEnvelope();

@@ -2449,6 +2449,21 @@
               "type": "string",
               "format": "uuid"
             }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
           }
         ],
         "responses": {
@@ -2879,6 +2894,13 @@
           },
           {
             "name": "provider",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "asset",
             "in": "query",
             "schema": {
               "type": "string"
@@ -3731,6 +3753,106 @@
             }
           }
         ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/subscriptions/{id}/asset": {
+      "put": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssetLinkBody"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "description": "OK",
@@ -12581,6 +12703,408 @@
         }
       }
     },
+    "/api/v1/assets/{id}/costs": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "year",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetCostsView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssetCostBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/assets/{id}/costs/{flowId}": {
+      "put": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "flowId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssetCostBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "flowId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/ai/workers": {
       "get": {
         "tags": [
@@ -18772,6 +19296,100 @@
         }
       }
     },
+    "/api/v1/banking/transactions/{id}/same-label": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/banking/transactions/category": {
       "post": {
         "tags": [
@@ -20332,6 +20950,103 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CategorySuggestionPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/banking/lines-to-classify": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "account",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LinesToClassifyPage"
                 }
               }
             }
@@ -26253,6 +26968,20 @@
             "schema": {
               "type": "string",
               "format": "uuid"
+            }
+          },
+          {
+            "name": "unfinanced",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "writable",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
             }
           }
         ],
@@ -41553,6 +42282,139 @@
           }
         }
       },
+      "AssetCostBody": {
+        "type": "object",
+        "properties": {
+          "occurredOn": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "amount": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "category": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "note": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "externalRef": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "documentId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "clearDocument": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          }
+        }
+      },
+      "AssetCostsView": {
+        "required": [
+          "year",
+          "rows",
+          "total",
+          "years"
+        ],
+        "type": "object",
+        "properties": {
+          "year": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AssetCostView"
+            }
+          },
+          "total": {
+            "$ref": "#/components/schemas/MoneyView"
+          },
+          "years": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        }
+      },
+      "AssetCostView": {
+        "required": [
+          "id",
+          "occurredOn",
+          "category",
+          "amount",
+          "fromBank"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "occurredOn": {
+            "type": "string",
+            "format": "date"
+          },
+          "category": {
+            "type": "string"
+          },
+          "amount": {
+            "$ref": "#/components/schemas/MoneyView"
+          },
+          "note": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "documentId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "fromBank": {
+            "type": "boolean"
+          }
+        }
+      },
+      "AssetLinkBody": {
+        "type": "object",
+        "properties": {
+          "assetId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          }
+        }
+      },
       "AssetListView": {
         "required": [
           "rows",
@@ -41584,6 +42446,7 @@
           "id",
           "name",
           "kind",
+          "valueEstimated",
           "valueFromPurchase",
           "currency",
           "visibility",
@@ -41636,6 +42499,20 @@
           },
           "archived": {
             "type": "boolean"
+          },
+          "valueEstimated": {
+            "type": "boolean",
+            "default": false
+          },
+          "valueBase": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MoneyView"
+              }
+            ]
           }
         }
       },
@@ -41668,6 +42545,10 @@
           "name",
           "kind",
           "valueFromPurchase",
+          "valueStale",
+          "fxMissing",
+          "valueEstimated",
+          "hasCosts",
           "valuations",
           "currency",
           "visibility",
@@ -41675,7 +42556,8 @@
           "archived",
           "version",
           "canWrite",
-          "shareLevel"
+          "shareLevel",
+          "subscriptions"
         ],
         "type": "object",
         "properties": {
@@ -41746,6 +42628,40 @@
             ],
             "format": "double"
           },
+          "registeredOn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "mileageKm": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "mileageOn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "fiscalHp": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "energy": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "valuations": {
             "type": "array",
             "items": {
@@ -41776,6 +42692,64 @@
           },
           "shareLevel": {
             "type": "string"
+          },
+          "subscriptions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LinkedSubscriptionView"
+            }
+          },
+          "hasCosts": {
+            "type": "boolean",
+            "default": false
+          },
+          "depreciationRate": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "valueEstimated": {
+            "type": "boolean",
+            "default": false
+          },
+          "valueBase": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MoneyView"
+              }
+            ]
+          },
+          "loans": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/LinkedLoanView"
+            }
+          },
+          "netValue": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MoneyView"
+              }
+            ]
+          },
+          "fxMissing": {
+            "type": "boolean",
+            "default": false
+          },
+          "valueStale": {
+            "type": "boolean",
+            "default": false
           }
         }
       },
@@ -43036,6 +44010,12 @@
             "items": {
               "$ref": "#/components/schemas/LinkedDocumentView"
             }
+          },
+          "debitedFrom": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -43243,7 +44223,8 @@
           "name",
           "kind",
           "amount",
-          "credit"
+          "credit",
+          "estimated"
         ],
         "type": "object",
         "properties": {
@@ -43284,6 +44265,9 @@
             ]
           },
           "credit": {
+            "type": "boolean"
+          },
+          "estimated": {
             "type": "boolean"
           }
         }
@@ -44214,7 +45198,8 @@
           "lineCount",
           "evidenceCount",
           "agreement",
-          "lines"
+          "lines",
+          "byMeaning"
         ],
         "type": "object",
         "properties": {
@@ -44248,6 +45233,9 @@
             "items": {
               "$ref": "#/components/schemas/BankTransactionView"
             }
+          },
+          "byMeaning": {
+            "type": "boolean"
           }
         }
       },
@@ -44417,7 +45405,8 @@
           "version",
           "weeks",
           "allocation",
-          "gapYears"
+          "gapYears",
+          "monthCostEstimated"
         ],
         "type": "object",
         "properties": {
@@ -44526,6 +45515,20 @@
                 "$ref": "#/components/schemas/LeaveCounterView"
               }
             ]
+          },
+          "monthCost": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ChildcareMoneyView"
+              }
+            ]
+          },
+          "monthCostEstimated": {
+            "type": "boolean",
+            "default": false
           }
         }
       },
@@ -46671,6 +47674,45 @@
             ],
             "format": "double"
           },
+          "registeredOn": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "mileageKm": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "mileageOn": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "fiscalHp": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "energy": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "depreciationRate": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
           "currentValue": {
             "type": [
               "null",
@@ -47181,6 +48223,13 @@
               "string"
             ],
             "format": "uuid"
+          },
+          "assetId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
           }
         }
       },
@@ -47442,6 +48491,13 @@
               "null",
               "string"
             ]
+          },
+          "assetId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
           }
         }
       },
@@ -47771,7 +48827,8 @@
           "todo",
           "envelopesWithoutStart",
           "commitmentSources",
-          "spendingSlices"
+          "spendingSlices",
+          "unattachedCards"
         ],
         "type": "object",
         "properties": {
@@ -47935,6 +48992,12 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/DashboardSpendingSliceView"
+            }
+          },
+          "unattachedCards": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SpendingCard"
             }
           }
         }
@@ -48842,6 +49905,45 @@
             ],
             "format": "double"
           },
+          "registeredOn": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "mileageKm": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "mileageOn": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "fiscalHp": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "energy": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "depreciationRate": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
           "version": {
             "type": [
               "null",
@@ -49207,6 +50309,7 @@
         "required": [
           "clearLender",
           "clearNote",
+          "clearAsset",
           "clearProperty",
           "clearEnvelope"
         ],
@@ -49260,6 +50363,17 @@
             "format": "uuid"
           },
           "clearEnvelope": {
+            "type": "boolean",
+            "default": false
+          },
+          "assetId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "clearAsset": {
             "type": "boolean",
             "default": false
           }
@@ -50313,6 +51427,22 @@
               "integer"
             ],
             "format": "int32"
+          }
+        }
+      },
+      "EveryView": {
+        "required": [
+          "count",
+          "unit"
+        ],
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "unit": {
+            "type": "string"
           }
         }
       },
@@ -51897,6 +53027,16 @@
                 "$ref": "#/components/schemas/MoneyView"
               }
             ]
+          },
+          "monthlyCostConverted": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MoneyView"
+              }
+            ]
           }
         }
       },
@@ -51968,6 +53108,16 @@
           "spentPartial": {
             "type": "boolean",
             "default": false
+          },
+          "monthlyCostConverted": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MoneyView"
+              }
+            ]
           }
         }
       },
@@ -54295,7 +55445,8 @@
           "id",
           "name",
           "kind",
-          "byKind"
+          "byKind",
+          "owners"
         ],
         "type": "object",
         "properties": {
@@ -54334,6 +55485,12 @@
               "number"
             ],
             "format": "double"
+          },
+          "owners": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ItemOwnerView"
+            }
           }
         }
       },
@@ -56581,6 +57738,87 @@
         },
         "additionalProperties": false
       },
+      "LinesToClassifyPage": {
+        "required": [
+          "items",
+          "total",
+          "accounts"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LineToClassifyView"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "accounts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OptionView"
+            }
+          }
+        }
+      },
+      "LineSuggestionView": {
+        "required": [
+          "categoryId",
+          "categoryName",
+          "evidenceCount",
+          "agreement",
+          "byMeaning",
+          "pattern"
+        ],
+        "type": "object",
+        "properties": {
+          "categoryId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "categoryName": {
+            "type": "string"
+          },
+          "evidenceCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "agreement": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "byMeaning": {
+            "type": "boolean"
+          },
+          "pattern": {
+            "type": "string"
+          }
+        }
+      },
+      "LineToClassifyView": {
+        "required": [
+          "line"
+        ],
+        "type": "object",
+        "properties": {
+          "line": {
+            "$ref": "#/components/schemas/BankTransactionView"
+          },
+          "suggestion": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LineSuggestionView"
+              }
+            ]
+          }
+        }
+      },
       "LineView": {
         "required": [
           "value"
@@ -56653,6 +57891,12 @@
               "null",
               "string"
             ]
+          },
+          "category": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
         "additionalProperties": false
@@ -56681,6 +57925,22 @@
           }
         }
       },
+      "LinkedAssetView": {
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
       "LinkedDocumentView": {
         "required": [
           "id",
@@ -56694,6 +57954,75 @@
           },
           "title": {
             "type": "string"
+          }
+        }
+      },
+      "LinkedLoanView": {
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "balance": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MoneyView"
+              }
+            ]
+          }
+        }
+      },
+      "LinkedSubscriptionView": {
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "price": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MoneyView"
+              }
+            ]
+          },
+          "every": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/EveryView"
+              }
+            ]
+          },
+          "nextDeadline": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
           }
         }
       },
@@ -57234,6 +58563,19 @@
               "null",
               "string"
             ]
+          },
+          "assetId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "assetName": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -57364,7 +58706,8 @@
           "paymentsLeft",
           "totalCost",
           "costPaid",
-          "costRemaining"
+          "costRemaining",
+          "capitalToRepay"
         ],
         "type": "object",
         "properties": {
@@ -57428,6 +58771,15 @@
           },
           "costRemaining": {
             "type": "string"
+          },
+          "capitalToRepay": {
+            "type": "string"
+          },
+          "capitalisedInterest": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -58278,6 +59630,12 @@
             "items": {
               "$ref": "#/components/schemas/LoanWarningView"
             }
+          },
+          "capitalisedInterest": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -58542,6 +59900,26 @@
               },
               {
                 "$ref": "#/components/schemas/LoanDebtRatioView"
+              }
+            ]
+          },
+          "capitalToRepay": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
+              }
+            ]
+          },
+          "capitalisedInterest": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
               }
             ]
           }
@@ -58936,6 +60314,19 @@
             "format": "uuid"
           },
           "envelopeName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "assetId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "assetName": {
             "type": [
               "null",
               "string"
@@ -65049,7 +66440,8 @@
       },
       "ProposalList": {
         "required": [
-          "items"
+          "items",
+          "total"
         ],
         "type": "object",
         "properties": {
@@ -65058,6 +66450,10 @@
             "items": {
               "$ref": "#/components/schemas/ProposalView"
             }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -68820,6 +70216,22 @@
           }
         }
       },
+      "SpendingCard": {
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
       "SpendingCategoryView": {
         "required": [
           "id",
@@ -68966,7 +70378,8 @@
           "to",
           "months",
           "budgetIncomplete",
-          "accounts"
+          "accounts",
+          "unattachedCards"
         ],
         "type": "object",
         "properties": {
@@ -69047,6 +70460,12 @@
             "format": "double"
           },
           "accounts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OptionView"
+            }
+          },
+          "unattachedCards": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/OptionView"
@@ -69579,6 +70998,7 @@
           "phases",
           "purchases",
           "canWrite",
+          "assetHidden",
           "cancellation"
         ],
         "type": "object",
@@ -69773,6 +71193,20 @@
                 "$ref": "#/components/schemas/SavedView"
               }
             ]
+          },
+          "asset": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LinkedAssetView"
+              }
+            ]
+          },
+          "assetHidden": {
+            "type": "boolean",
+            "default": false
           }
         }
       },
@@ -69849,6 +71283,16 @@
             }
           },
           "householdAnnualCostConverted": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MoneyView"
+              }
+            ]
+          },
+          "householdMonthlyCostConverted": {
             "oneOf": [
               {
                 "type": "null"
@@ -70235,6 +71679,16 @@
               },
               {
                 "$ref": "#/components/schemas/SpentView"
+              }
+            ]
+          },
+          "monthlyCostConverted": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MoneyView"
               }
             ]
           }
@@ -72743,6 +74197,16 @@
                 "$ref": "#/components/schemas/TaxDifferencesView"
               }
             ]
+          },
+          "tipRefunds": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TaxTipRefundsView"
+              }
+            ]
           }
         }
       },
@@ -72865,6 +74329,29 @@
           },
           "to": {
             "type": "string"
+          }
+        }
+      },
+      "TaxTipRefundsView": {
+        "type": "object",
+        "properties": {
+          "per": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "rentalRegime": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "capitalOption": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -73923,7 +75410,8 @@
           "rentalMonthly",
           "annual",
           "less",
-          "balance"
+          "balance",
+          "months"
         ],
         "type": "object",
         "properties": {
@@ -73947,6 +75435,11 @@
           },
           "balance": {
             "type": "string"
+          },
+          "months": {
+            "type": "integer",
+            "format": "int32",
+            "default": 12
           }
         }
       },

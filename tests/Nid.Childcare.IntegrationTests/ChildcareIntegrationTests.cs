@@ -88,6 +88,11 @@ public class ChildcareIntegrationTests(PostgresFixture fixture) : IClassFixture<
         var source = (await ChildcareSourceAsync(app))!.Value;
         Assert.True(source.GetProperty("estimated").GetBoolean());
         Assert.Equal(october.GetProperty("figures").GetProperty("cost").GetProperty("amount").GetString(), source.GetProperty("amortized").GetProperty("amount").GetString());
+
+        // #723: the arrangement's page shows the same figure, an estimate too.
+        var detail = await GetAsync(app, arrangement);
+        Assert.Equal(source.GetProperty("amortized").GetProperty("amount").GetString(), detail.GetProperty("monthCost").GetProperty("amount").GetString());
+        Assert.True(detail.GetProperty("monthCostEstimated").GetBoolean());
     }
 
     /// <summary>#30, #31: the contributions the CMG leaves to the household count in the cost, the year and the next months' estimate.</summary>
@@ -241,7 +246,35 @@ public class ChildcareIntegrationTests(PostgresFixture fixture) : IClassFixture<
         Assert.Equal(new LocalDate(2025, 10, 17), charge.DueOn); // validated on 2025-10-15, the test clock
         Assert.Equal(september.GetProperty("figures").GetProperty("cost").GetProperty("amount").GetString(), charge.Amount.AmountText);
         Assert.False(charge.Credit);
+        Assert.False(charge.Estimated); // #755
         Assert.Contains("PAJEMPLOI", charge.LabelHints);
+    }
+
+    /// <summary>#714: the month not validated yet is expected the month after, on the day the last one was debited, on the calendar only.</summary>
+    [Fact]
+    public async Task Month_not_validated_is_expected_the_month_after_on_the_calendar_only()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var arrangement = await CreateAsync(app);
+        await ValidateAsync(app, arrangement, "2025-09"); // validated on 2025-10-15, debited on 2025-10-17
+
+        var november = await ProjectedAsync(app, app.AdultA, new LocalDate(2025, 11, 1), new LocalDate(2025, 11, 30));
+        var charge = Assert.Single(november);
+        Assert.Equal(("estimate:2025-10", new LocalDate(2025, 11, 17), ChargeKinds.Childcare, false, true),
+            (charge.Key, charge.DueOn, charge.Kind.Name, charge.Credit, charge.Estimated));
+        Assert.True(charge.Amount.Amount > 0m);
+        // September is validated: its debit is ChildcareCharges' alone.
+        Assert.Empty(await ProjectedAsync(app, app.AdultA, new LocalDate(2025, 10, 1), new LocalDate(2025, 10, 31)));
+        Assert.Equal(["statement:2025-09"], (await ChargesAsync(app, app.AdultA, writable: true)).Select(c => c.Key));
+    }
+
+    private static async Task<IReadOnlyList<ExpectedCharge>> ProjectedAsync(NidApp app, PersonId reader, LocalDate from, LocalDate to)
+    {
+        await using var scope = app.Services.CreateAsyncScope();
+        scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.Notifier(reader);
+        var source = scope.ServiceProvider.GetServices<IProjectedCharges>().Single(s => s is ChildcareProjectedCharges);
+        Assert.True((await source.ChargesAsync(reader, VisibilityScope.Household, from, to, CancellationToken.None)).TryGetValue(out var charges));
+        return charges!;
     }
 
     [Fact]

@@ -109,7 +109,7 @@ public sealed class DashboardReader(
             taxDates = await tax.CalendarAsync(reader, scope, today, until, ct);
         }
         return Result.Success<IReadOnlyList<DashboardEventView>>(d!.SelectMany(x => x)
-            .Where(e => e.Kind != UpcomingKinds.IncomeGapSoon && Lists(e.Module) && (!milestonesOnly || kinds.IsMilestone(e.Kind)))
+            .Where(e => !UpcomingKinds.IsTodo(e.Kind) && Lists(e.Module) && (!milestonesOnly || kinds.IsMilestone(e.Kind)))
             .Select(e => new DashboardEventView(e.On, e.Kind, e.Item, e.Module, e.Name, e.Label,
                 e.Amount is { } a ? DashboardMath.Money(a.Amount, a.Currency) : null))
             .Concat(p).Concat(taxDates)

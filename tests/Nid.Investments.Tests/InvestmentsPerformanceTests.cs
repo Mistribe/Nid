@@ -94,15 +94,16 @@ public class InvestmentsPerformanceTests
     }
 
     [Fact]
-    public void An_envelope_valued_late_starts_at_its_amount_paid_in_and_its_transfer_cancels()
+    public void An_envelope_valued_late_is_listed_flagged_and_left_out_of_the_totals()
     {
         var (savings, pea) = Transfer(savingsStartsLate: true);
 
         var p = Build(savings, pea);
 
-        // Opened before the start, the savings account starts at its 10 000 paid in: no contribution of the period, flagged.
-        Assert.Equal((15_000m, 0m, 0m), (N(p.StartValue), N(p.Contributions), N(p.Transfers)));
-        Assert.Equal(450m + 600m, N(p.Performance));
+        // #768: opened before the start and first valued after it, the savings account's start is not known: out of the totals, as
+        // the overview's change since 1 January; its transfer to the PEA is then money from outside.
+        Assert.Equal((5_000m, 0m, 1_000m), (N(p.StartValue), N(p.Contributions), N(p.Transfers)));
+        Assert.Equal(600m, N(p.Performance));
         Assert.Equal([("PEA", false), ("Autre épargne", true)], p.Envelopes.Select(e => (e.Name, e.NoStartValue)));
         AssertTheEquality(p);
     }
@@ -120,11 +121,10 @@ public class InvestmentsPerformanceTests
         var row = Assert.Single(p.Envelopes);
         Assert.True(row.NoStartValue);
         Assert.Equal((1_500m, 1_800m, 200m, "100.00"), (N(row.StartValue), N(row.EndValue), N(row.NetContributions), row.Performance));
-        Assert.Equal((1_500m, 200m, 0m), (N(p.StartValue), N(p.Contributions), N(p.Withdrawals)));
-        Assert.Equal(N(p.Performance), p.Months.Sum(m => N(m.Performance)));
+        // #768: its start is not known, so the household's totals leave it out.
+        Assert.Equal((null, null, null), (p.StartValue, p.Contributions, p.Performance));
         // The return starts on the amount paid in, not on flows moved from before the start: 100 gained on about 1 640 engaged.
         Assert.InRange(row.PeriodReturnPct!.Value, 5m, 7m);
-        AssertTheEquality(p);
     }
 
     [Fact]
@@ -159,7 +159,7 @@ public class InvestmentsPerformanceTests
     }
 
     [Fact]
-    public void An_envelope_without_a_start_counts_from_zero_and_one_with_a_stale_start_counts_flagged()
+    public void An_envelope_without_a_start_counts_from_zero_and_one_with_a_stale_start_is_left_out_flagged()
     {
         var late = new EnvelopeFacts("Nouveau", EnvelopeKind.Pea).Flow(D(2026, 5, 1), FlowKind.Opening, 3_000m).Value(D(2026, 5, 1), 3_000m)
             .Value(D(2026, 9, 30), 3_300m).Build();
@@ -169,7 +169,7 @@ public class InvestmentsPerformanceTests
         var p = Build(Life(), late, stale);
 
         Assert.Equal([("Assurance-vie", false), ("Nouveau", false), ("CTO", true)], p.Envelopes.Select(e => (e.Name, e.StaleStart)));
-        Assert.Equal(2_000m + 300m + 100m, N(p.Performance));
+        Assert.Equal(2_000m + 300m, N(p.Performance)); // #768: not the stale CTO's 100
         Assert.Equal(N(p.Performance), p.Months.Sum(m => N(m.Performance)));
         AssertTheEquality(p);
     }

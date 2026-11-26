@@ -110,7 +110,7 @@ public class HoldingsSnapshotProposalTests(PostgresFixture fixture) : IClassFixt
             .Select(m => m.GetProperty("recorded").GetBoolean()));
 
         var approved = await JsonOf(await ApproveAsync(app, proposal));
-        Assert.Equal(2, approved.GetProperty("appliedRefs").GetArrayLength()); // the snapshot and the second identical fee
+        Assert.Equal(3, approved.GetProperty("appliedRefs").GetArrayLength()); // the snapshot, its value (#775) and the second identical fee
         var moves = JsonDocument.Parse(await app.GetRawAsync(app.AdultA, $"{Url(id)}/holdings/{fund}/movements")).RootElement.GetProperty("items");
         Assert.Equal(3, moves.GetArrayLength());
     }

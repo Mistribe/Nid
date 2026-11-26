@@ -693,16 +693,23 @@ de passe.
 - Tout ce qui sortirait de la démo est coupé : synchronisation bancaire (les réglages `EnableBanking__…` sont ignorés),
   emails (`Nid__Smtp__…` ignorés), jetons d'accès pour un assistant, webhooks Discord et messages de test, ajout ou
   appairage d'un moteur IA (et son marquage « sûr »), clés des fournisseurs cloud.
+- Ce qui laisserait un visiteur gâcher la démo des autres est refusé aussi : dépôt de documents (la démo hébergerait ses
+  fichiers), import d'un fichier Nid, « Déconnecter partout » (tous les visiteurs partagent Alice et Bob), rôle
+  d'administrateur et réglages du foyer.
 - Chaque écran affiche un bandeau « Démo : les données sont inventées et réinitialisées chaque nuit ».
-- Les fichiers d'import ne contiennent pas tout : `NID_URL=https://<domaine de la démo> node local/demo/finish.mjs`
-  valide les mois de garde, ajoute les documents, les avis d'impôt, les scénarios et l'indice des prix, connecté en
-  Alice. Le relancer ne change rien.
+- Les fichiers d'import ne contiennent pas tout :
+  `NID_URL=https://<domaine de la démo> NID_DEMO_SEED_KEY=<clé> node local/demo/finish.mjs` valide les mois de garde,
+  ajoute les documents, les avis d'impôt, la retraite (dates de naissance, coût de la vie, une pension), les scénarios et
+  l'indice des prix, connecté en Alice. La clé est celle de
+  `Nid__Demo__SeedKey` : sans elle, la démo refuse les documents et les réglages du foyer que le script ajoute. Le
+  relancer ne change rien.
 
 Les variables restantes sont celles de toute installation :
 
 ```bash
 docker run -d --name nid-demo -p 8080:8080 \
   -e Nid__Demo__Enabled=true \
+  -e Nid__Demo__SeedKey="$(openssl rand -hex 32)" \
   -e Auth__PublicUrl=https://demo.example.org \
   -e Auth__CsrfKey="$(openssl rand -hex 32)" \
   -e ConnectionStrings__nid="Host=…;Database=nid;Username=nid;Password=…" \

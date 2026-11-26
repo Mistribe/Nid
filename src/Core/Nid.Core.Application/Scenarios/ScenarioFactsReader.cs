@@ -19,10 +19,14 @@ public static class ScenarioCodes
 /// <summary>A holding of the savings (any module but <c>properties</c> and <c>loans</c>) at today's rate; <c>Converted</c> null without a value or a rate.</summary>
 public sealed record SavingsHolding(Holding Holding, decimal? Converted, IReadOnlyList<SavingsSlice> Slices, string Liquidity);
 
-/// <summary>The reader's figures of today in a scope, converted to the reference; <c>Missing</c> names the currencies left out.</summary>
+/// <summary>
+/// The reader's figures of today in a scope, converted to the reference; <c>Missing</c> names the currencies left out.
+/// <c>AmortizedCommitments</c> is what still runs at retirement: the commitments but the loans, the childcare and the income tax.
+/// </summary>
 public sealed record ScenarioToday(
     LocalDate Date, Currency Reference, IReadOnlyList<SavingsHolding> Savings, decimal? MonthlyIncome,
-    decimal Subscriptions, decimal PropertyCosts, decimal Commitments, IReadOnlyList<string> Missing, decimal AmortizedCommitments);
+    decimal Subscriptions, decimal PropertyCosts, decimal Commitments, IReadOnlyList<string> Missing, decimal AmortizedCommitments,
+    decimal Rents);
 
 /// <summary>
 /// What the calculator reads, for the reader: <c>Document</c> is the scenario without the funding lines the reader cannot see
@@ -82,13 +86,15 @@ public sealed class ScenarioFactsReader(
             return new SavingsHolding(h, amount, parts, liquidity);
         }).ToList();
 
-        // Retirement spec §3: the loans enter the financial independence test through their own payments, not here.
-        var amortized = Sum(c!.Where(p => p.Source != CommitmentSources.Loans).Select(p => p.Amortized));
+        // Retirement spec §3: the loans enter the financial independence test through their own payments, not here; the childcare
+        // and the income tax estimated on today's salaries do not run at retirement (#708).
+        var amortized = Sum(c!.Where(p => p.Source is not (CommitmentSources.Loans or CommitmentSources.Childcare or CommitmentSources.Tax))
+            .Select(p => p.Amortized));
         decimal Cash(string source) => Sum(c!.Where(p => p.Source == source).Select(p => p.Cash));
         return Result.Success(new ScenarioToday(
             today, reference, savings, e!.Sum(p => p.Sources) > 0 ? Sum(e!.Select(p => p.MonthlyEquivalent)) : null,
             Cash(CommitmentSources.Subscriptions), Cash(CommitmentSources.PropertyCosts), Sum(c!.Select(p => p.Cash)), missing.ToList(),
-            amortized));
+            amortized, Sum(income.Zip(e!).Where(x => x.First.Module == IncomeModules.Rents).Select(x => x.Second.MonthlyEquivalent))));
     }
 
     public async Task<Result<ScenarioReading>> ReadAsync(PropertyPurchase doc, VisibilityScope scope, CancellationToken ct)
@@ -117,7 +123,7 @@ public sealed class ScenarioFactsReader(
         var (increase, unavailable) = await TaxIncreaseAsync(shown, scope, today.Date, scenarioLoans!, ct);
         var facts = new ScenarioFacts(
             today.Date, today.MonthlyIncome, today.Subscriptions, today.PropertyCosts, today.Savings.SelectMany(s => s.Slices).ToList(),
-            existing!.Months, scenarioLoans!, increase);
+            existing!.Months, scenarioLoans!, increase, today.Rents);
         return Result.Success(new ScenarioReading(
             facts, doc.Funding.Count - shown.Funding.Count, today.Missing.Union(existing.MissingCurrencies).Order(StringComparer.Ordinal).ToList(),
             shown, today.Reference, unavailable));

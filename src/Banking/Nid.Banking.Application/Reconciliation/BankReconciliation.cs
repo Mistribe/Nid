@@ -180,7 +180,7 @@ public sealed partial class BankReconciliation(
                     return;
                 var echoed = cardLinksOf.Select(s => s.Link.TargetKey).ToHashSet();
                 var cardLines = (await transactions.ListAsync(echoing, echoes[0].BookedOn.PlusDays(-InternalTransfers.Days),
-                    echoes[^1].BookedOn.PlusDays(InternalTransfers.Days), 0, int.MaxValue, ct)).Where(l => !echoed.Contains(EchoKey(l.Id)) && !failed.Contains(l.Id)).ToList();
+                    echoes[^1].BookedOn.PlusDays(InternalTransfers.Days), 0, int.MaxValue, ct)).Where(l => !echoed.Contains(CardEchoes.Key(l.Id)) && !failed.Contains(l.Id)).ToList();
                 var byId = echoes.Concat(cardLines).ToDictionary(l => l.Id);
                 pairs = [.. CardEchoes.Pair([.. echoes.Select(TransactionLinker.LineOf)], [.. cardLines.Select(TransactionLinker.LineOf)])
                     .Where(p => open.Contains(p.Echo) || passIds.Contains(p.CardLine)).Select(p => (byId[p.Echo], byId[p.CardLine]))];
@@ -196,7 +196,7 @@ public sealed partial class BankReconciliation(
                             await categories.SetForLinesAsync([cardLine.Id], category, echo.CategorySource, "job", now, false, ct);
                             await categories.ClearSourceAsync([echo.Id], [echo.CategorySource.Value], ct);
                         }
-                        await links.SetAsync(new BankLink(echo.Id, null, null, EchoKey(cardLine.Id), cardLine.Account, LinkOutcome.CardSettlement, null, "job", now),
+                        await links.SetAsync(new BankLink(echo.Id, null, null, CardEchoes.Key(cardLine.Id), cardLine.Account, LinkOutcome.CardSettlement, null, "job", now),
                             TransactionLinkState.Internal, ct, LinkCategory.KeyFor(LinkOutcome.CardSettlement, null, null, null, false, []));
                         await both.CommitAsync(ct);
                     }
@@ -280,9 +280,6 @@ public sealed partial class BankReconciliation(
         await transactions.MarkReconciledAsync([.. lines.Select(l => l.Id).Where(id => !failed.Contains(id))], now, ct);
         return new ReconciliationCounts(internals, linked, proposed);
     }
-
-    /// <summary>The target key of an echo's link (step 2b): the card line it echoes.</summary>
-    private static string EchoKey(Guid cardLine) => $"line:{cardLine:N}";
 
     /// <summary>A <c>banking.link_transaction</c> proposal, submitted as <paramref name="depositor"/>; whether one was created.</summary>
     private async Task<bool> ProposeAsync(BankTransaction line, ExpectedCharge charge, PersonId depositor, CancellationToken ct)

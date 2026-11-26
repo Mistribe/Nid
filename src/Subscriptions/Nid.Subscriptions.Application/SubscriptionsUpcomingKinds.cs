@@ -11,7 +11,7 @@ public sealed class SubscriptionsUpcomingKinds : IUpcomingKinds
         new(UpcomingKinds.SubscriptionExpiry, UpcomingCadence.Milestone, _ => "Expire"),
         new(UpcomingKinds.SubscriptionCancelDeadline, UpcomingCadence.Milestone, _ => "Dernier jour pour résilier"),
         // Issue #244: the first paid charge after a free period, and the first charge of a dearer phase.
-        new(UpcomingKinds.SubscriptionTrialEnd, UpcomingCadence.Milestone, _ => "Fin de l'essai gratuit"),
+        new(UpcomingKinds.SubscriptionTrialEnd, UpcomingCadence.Milestone, _ => "Fin de l’essai gratuit"),
         new(UpcomingKinds.SubscriptionPriceIncrease, UpcomingCadence.Milestone, _ => "Hausse de prix"),
     ];
 }

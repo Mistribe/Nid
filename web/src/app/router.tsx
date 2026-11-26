@@ -12,7 +12,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { pageOf, type RootSearch } from '@/lib/search';
 import { DashboardPage } from '@/features/dashboard/DashboardPage';
-import { AMOUNT_MODULES } from '@/features/calendar/modules';
+import { AMOUNT_MODULES, storedAmounts } from '@/features/calendar/modules';
 import type { Panel } from '@/features/dashboard/KeyFigures';
 import type { LoanContractView } from '@/api/loans';
 import { compareSearch } from '@/features/scenarios/compare/compareSearch';
@@ -42,7 +42,7 @@ export type DashboardSearch = { curve?: '3y' | 'all'; curveReal?: 1; panel?: Pan
  * The calendar page (#239): its month (`yyyy-mm`, absent for the current one) and its modules (comma-joined, absent for every one);
  * its view (#240, absent for the month) and the timeline's horizon in years (absent for 5); the month's amounts (#241, absent: off).
  */
-export type CalendarSearch = { month?: string; modules?: string; view?: 'timeline'; horizon?: 1 | 3 | 10; amounts?: 1 };
+export type CalendarSearch = { month?: string; modules?: string; view?: 'timeline'; horizon?: 1 | 3 | 10; amounts?: 0 | 1 };
 /** The annual review (#12): the year, absent for the current one (so it stays out of the URL). */
 export type YearReviewSearch = { year?: number };
 export type ProjectionHorizon = '5y' | '20y' | '30y' | `retire:${string}`;
@@ -77,7 +77,7 @@ export type IncomeSearch = { ended?: 1; period?: '12m' | '3y'; person?: string; 
  * #85 « Dépenses »: the month (`yyyy-mm`, absent for the current one) and the 12 months up to it (`12m`, absent for the month alone);
  * #423: its tab (the overview, none, first), the Opérations tab's filters and the Catégories tab's kind (Dépenses, none, first).
  */
-export type SpendingSearch = OperationsSearch & { month?: string; period?: '12m'; tab?: 'operations' | 'categories'; kind?: 'income' | 'transfer' };
+export type SpendingSearch = OperationsSearch & { month?: string; period?: '12m'; tab?: 'operations' | 'to-classify' | 'categories'; kind?: 'income' | 'transfer' };
 
 /**
  * The income detail's own choices: the history period (2C2b design §5, `last12` by default), the one-offs listed (issue
@@ -132,6 +132,10 @@ export type LoansSearch = { ended?: 1; tab?: string; span?: '5y' | '10y' };
 /** Issue #412: a new goal opened as an emergency fund of `months` (1 to 24, anything else dropped). */
 export type NewGoalSearch = { kind?: 'emergency_fund'; months?: number };
 
+/** Issue #647: a new subscription opened from a leased vehicle, its name and note already written (trimmed, capped). */
+export type NewSubscriptionSearch = { name?: string; note?: string };
+const searchText = (value: unknown, max: number) => (typeof value === 'string' ? value.trim().slice(0, max) : '');
+
 /** Issue #17: a new loan opened from a new property, already linked to it. */
 export type NewLoanSearch = { property?: string };
 export type ReceiptSearch = { month?: string };
@@ -141,7 +145,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** 4C2: the proposals' tab; pending is the default and is dropped from the URL. */
 /** #373: `target` narrows the list to one item's proposals (an envelope's notice links here). */
-export type ProposalsSearch = { status?: 'approved' | 'rejected'; target?: string };
+export type ProposalsSearch = { status?: 'approved' | 'rejected'; target?: string; q?: string; page?: number };
 
 export function homePath(capabilities: Capabilities): '/dashboard' | '/subscriptions' | '/import' | '/settings/appearance' {
   if (capabilities.modules.includes('core')) return '/dashboard';
@@ -200,7 +204,8 @@ const calendarRoute = createRoute({
       modules: modules.length > 0 && modules.length < AMOUNT_MODULES.length ? modules.join(',') : undefined,
       view: search.view === 'timeline' ? 'timeline' : undefined,
       horizon: ([1, 3, 10] as const).find((h) => h === Number(search.horizon)),
-      amounts: search.amounts === 1 || search.amounts === '1' ? 1 : undefined,
+      // #766: an explicit choice in the address wins; without one, the last choice on this device.
+      amounts: search.amounts === 1 || search.amounts === '1' ? 1 : search.amounts === 0 || search.amounts === '0' ? 0 : storedAmounts() ? 1 : undefined,
     };
   },
   component: lazyRouteComponent(() => import('@/features/calendar/CalendarPage'), 'CalendarPage'),
@@ -465,7 +470,7 @@ const spendingRoute = createRoute({
     ...operationsSearch(search),
     ...(typeof search.month === 'string' && /^\d{4}-(0[1-9]|1[0-2])$/.test(search.month) ? { month: search.month } : {}),
     ...(search.period === '12m' ? { period: '12m' as const } : {}),
-    tab: search.tab === 'operations' || search.tab === 'categories' ? search.tab : undefined,
+    tab: search.tab === 'operations' || search.tab === 'to-classify' || search.tab === 'categories' ? search.tab : undefined,
     kind: search.kind === 'income' || search.kind === 'transfer' ? search.kind : undefined,
   }),
   component: lazyRouteComponent(() => import('@/features/spending/SpendingPage'), 'SpendingPage'),
@@ -733,6 +738,10 @@ const subscriptionNewRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/subscriptions/new',
   beforeLoad: requireModule('subscriptions'),
+  validateSearch: (search: Record<string, unknown>): NewSubscriptionSearch => ({
+    ...(searchText(search.name, 100) ? { name: searchText(search.name, 100) } : {}),
+    ...(searchText(search.note, 2000) ? { note: searchText(search.note, 2000) } : {}),
+  }),
   component: lazyRouteComponent(() => import('@/features/subscriptions/NewSubscription'), 'NewSubscription'),
 });
 
@@ -827,6 +836,8 @@ const proposalsRoute = createRoute({
   validateSearch: (search: Record<string, unknown>): ProposalsSearch => ({
     ...(search.status === 'approved' || search.status === 'rejected' ? { status: search.status } : {}),
     ...(typeof search.target === 'string' ? { target: search.target } : {}),
+    ...(typeof search.q === 'string' && search.q !== '' ? { q: search.q } : {}),
+    ...pageSearch(search),
   }),
   component: lazyRouteComponent(() => import('@/features/proposals/ProposalsPage'), 'ProposalsPage'),
 });

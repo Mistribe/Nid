@@ -112,7 +112,7 @@ public sealed class ImportStatementHandler(
         var lines = file.Lines
             .Select(l => new NewBankTransaction(l.ProviderRef, l.BookedOn, l.ValueOn, l.Amount, currency, l.Label, l.Counterparty, l.Remittance, "file", l.BankCode))
             .ToList();
-        var probable = await ProbablyKnownAsync(account.Id, lines, ct);
+        var probable = await ProbablyKnown.ForAsync(transactions, account.Id, lines, "api", ct);
         var written = await transactions.AddAsync(account.Id, command.KeepProbablyKnown ? lines : lines.Where((_, i) => !probable[i]).ToList(), ct);
         var view = new StatementImportView(
             file.Format, found is null && !command.Confirm ? null : account.Id, found is null, account.Name, account.IbanMasked, file.From, file.To,
@@ -131,40 +131,4 @@ public sealed class ImportStatementHandler(
 
     private static Result<StatementImportView> Mismatch()
         => BankingAccess.Fail<StatementImportView>(BankingCodes.FileAccountMismatch, "This statement is of another bank account.");
-
-    /// <summary>
-    /// D23, on an account the API reads: a line whose fingerprint and ref are unknown, held back by a line from the API of the same amount
-    /// booked within a day that no line of the file is exactly. One to one: an API line holds back one file line at most, the same day's first.
-    /// </summary>
-    private async Task<bool[]> ProbablyKnownAsync(Guid account, IReadOnlyList<NewBankTransaction> lines, CancellationToken ct)
-    {
-        var probable = new bool[lines.Count];
-        if (!await transactions.HasFetchedViaAsync(account, "api", ct))
-            return probable;
-
-        var near = await transactions.NearAsync(account, lines.Select(l => (l.BookedOn, l.Amount)).ToList(), ct);
-        var fingerprints = TransactionFingerprint.ForBatch(lines.Select(l => (l.BookedOn, l.Amount, TransactionLabel.Normalize(l.Label))).ToList());
-        var fileFingerprints = fingerprints.ToHashSet();
-        var fileRefs = lines.Select(l => l.ProviderRef).OfType<string>().ToHashSet();
-        var storedFingerprints = near.Select(t => t.Fingerprint).ToHashSet();
-        var storedRefs = near.Select(t => t.ProviderRef).ToHashSet();
-        var twins = near.Where(t => t.FetchedVia == "api" && !fileFingerprints.Contains(t.Fingerprint) && !fileRefs.Contains(t.ProviderRef)).ToList();
-        // The file's unknown lines by (amount, day), in the file's order.
-        var open = Enumerable.Range(0, lines.Count)
-            .Where(i => !storedFingerprints.Contains(fingerprints[i]) && !(lines[i].ProviderRef is { } r && storedRefs.Contains(r)))
-            .GroupBy(i => (lines[i].Amount, lines[i].BookedOn))
-            .ToDictionary(g => g.Key, g => new Queue<int>(g));
-        var unmatched = twins.Where(t => !Take(t.Amount, t.BookedOn)).ToList();
-        foreach (var t in unmatched)
-            _ = Take(t.Amount, t.BookedOn.PlusDays(-1)) || Take(t.Amount, t.BookedOn.PlusDays(1));
-        return probable;
-
-        bool Take(decimal amount, LocalDate on)
-        {
-            if (!open.TryGetValue((amount, on), out var waiting) || !waiting.TryDequeue(out var i))
-                return false;
-            probable[i] = true;
-            return true;
-        }
-    }
 }

@@ -103,6 +103,27 @@ public class CommandCountTests(PostgresFixture fixture) : IClassFixture<Postgres
         }, async () => Assert.Equal(readable, (await BankingApi.AccountsAsync(app, app.AdultA)).GetArrayLength()));
     }
 
+    [Fact]
+    public async Task An_asset_page_issues_as_many_commands_for_2N_linked_subscriptions_as_for_N()
+    {
+        var counter = new CommandCounter();
+        await using var app = await NidApp.StartAsync(fixture, services => Count(services, counter));
+        var made = await app.RawAsync(app.AdultA, HttpMethod.Post, "/api/v1/assets", new
+        {
+            name = "Voiture", kind = "vehicle", purchasePrice = "10000", purchasedOn = "2025-01-10", visibility = "shared",
+            owners = new[] { new { personId = app.AdultA.Value, shareBp = 10_000 } },
+        });
+        var asset = System.Text.Json.JsonDocument.Parse(await made.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement.GetProperty("id").GetGuid();
+        var linked = 0;
+        await AssertFixedAsync(counter, async i =>
+        {
+            var subscription = await app.NewMonthlyAsync(app.AdultA, 10m + i);
+            (await app.RawAsync(app.AdultA, HttpMethod.Put, $"/api/v1/subscriptions/{subscription.Value}/asset", new { assetId = asset })).EnsureSuccessStatusCode();
+            linked++;
+        }, async () => Assert.Equal(linked, (await app.GetAsync<System.Text.Json.JsonElement>(app.AdultA, $"/api/v1/assets/{asset}"))
+            .GetProperty("subscriptions").GetArrayLength()));
+    }
+
     /// <summary>The read counted after <see cref="N"/> rounds and after <c>2N</c>: as many commands each time.</summary>
     private static async Task AssertFixedAsync(CommandCounter counter, Func<int, Task> round, Func<Task> read)
     {

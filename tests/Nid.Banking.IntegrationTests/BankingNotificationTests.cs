@@ -469,8 +469,8 @@ public class BankingNotificationTests(PostgresFixture fixture) : IClassFixture<P
         Assert.Equal("banking.idle_cash:2025-10", signal.Key);
         Assert.Empty(signal.ItemIds);
         Assert.Null(signal.DueOn);
-        // The buffer is 3 months of the 12,99 subscription, amortized as the emergency fund's target (39,14).
-        Assert.Equal((960.86m, 39.14m, "EUR", "goal_behind"), (decimal.Parse(signal.Params["above_amount"], CultureInfo.InvariantCulture),
+        // The buffer is 3 months of the 12,99 subscription, a twelfth of its next 12 months as the emergency fund's target (#782: 38,97).
+        Assert.Equal((961.03m, 38.97m, "EUR", "goal_behind"), (decimal.Parse(signal.Params["above_amount"], CultureInfo.InvariantCulture),
             decimal.Parse(signal.Params["buffer_amount"], CultureInfo.InvariantCulture), signal.Params["currency"], signal.Params["reason"]));
         Assert.False(signal.Params.ContainsKey("room_amount"));
         Assert.Empty(Findings(await SignalsAsync(app, app.AdultB), "banking.idle_cash")); // A's own account

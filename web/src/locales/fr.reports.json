@@ -6,7 +6,7 @@
     "year": "Année du bilan",
     "print": "Imprimer",
     "previous": "{{year}} : {{amount}}",
-    "fx_missing": "Un taux de change manque : le patrimoine de l'année ne peut pas être calculé.",
+    "fx_missing": "Un taux de change manque : le patrimoine de l’année ne peut pas être calculé.",
     "net_worth": {
       "title": "Patrimoine net",
       "at": "Au {{date}}",
@@ -49,8 +49,8 @@
         "gain": "Gain",
         "return": "Rendement"
       },
-      "stale_start": "valeur de départ ancienne",
-      "no_start_value": "sans valeur au début : compté au montant versé",
+      "stale_start": "valeur de départ ancienne : hors total",
+      "no_start_value": "sans valeur au début : hors total",
       "pct": "{{value}} %",
       "unknown": "Inconnu"
     },

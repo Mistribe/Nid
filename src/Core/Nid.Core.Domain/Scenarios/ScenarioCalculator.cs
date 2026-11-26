@@ -10,7 +10,8 @@ public sealed record ScenarioFacts(
     LocalDate Today, decimal? MonthlyIncome,          // null: no income declared
     decimal Subscriptions, decimal PropertyCosts,     // this month, cash
     IReadOnlyList<SavingsSlice> Savings, IReadOnlyList<RealEstateMonth> RealEstate,
-    IReadOnlyList<SimulatedLoan> Loans, decimal MonthlyTaxIncrease);   // 0 for a primary home
+    IReadOnlyList<SimulatedLoan> Loans, decimal MonthlyTaxIncrease,   // 0 for a primary home
+    decimal Rents = 0m);                              // the rents already in MonthlyIncome
 
 public sealed record CapacityResult(
     YearMonth RetainedMonth, decimal NewPayment, decimal LoansCost, LocalDate LastPayment,
@@ -28,7 +29,7 @@ public sealed record ProjectionResult(
 public static partial class ScenarioCalculator
 {
     public const decimal HcsfRatio = DebtRatio.Ceiling;
-    public const decimal RentInRatio = 0.7m;
+    public const decimal RentInRatio = DebtRatio.RentShare;
 
     private static YearMonth Of(LocalDate d) => new(d.Year, d.Month);
 
@@ -67,8 +68,10 @@ public static partial class ScenarioCalculator
         var rental = doc.Use == PurchaseUse.Rental;
         var income = facts.MonthlyIncome ?? 0m;
         var hasIncome = income > 0m;
-        var ratioBase = income + (rental ? RentInRatio * doc.ExpectedRent : 0m);
-        var before = DebtRatio.Of(loansToday, income);
+        // #758: the rents already received count at 70 % too, as in Crédits' ratio.
+        var ratioIncome = income - (1m - RentInRatio) * facts.Rents;
+        var ratioBase = ratioIncome + (rental ? RentInRatio * doc.ExpectedRent : 0m);
+        var before = DebtRatio.Of(loansToday, ratioIncome);
         var after = hasIncome ? DebtRatio.Of(loansRetained + newPayment, ratioBase) : null;
 
         var leftBefore = income - facts.Subscriptions - loansToday - facts.PropertyCosts;

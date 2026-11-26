@@ -10,7 +10,7 @@ const line = (id: string, label: string) => ({
   linkState: 'unlinked', link: null, accountName: 'Compte courant', accountId: 'a1', category: null, categorySource: null, suggestedPattern: 'SHOP ONE', sharedAccount: true,
 });
 const suggestion = {
-  pattern: 'SHOP ONE', direction: 'debit', categoryId: 'groceries', categoryName: 'Courses', lineCount: 2, evidenceCount: 5, agreement: 100,
+  pattern: 'SHOP ONE', direction: 'debit', categoryId: 'groceries', categoryName: 'Courses', lineCount: 2, evidenceCount: 5, agreement: 100, byMeaning: false,
   lines: [line('t1', 'CB SHOP ONE 12/10'), line('t2', 'CB SHOP ONE 14/10')],
 };
 const operations = { items: [], total: 0, totals: { out: '0', in: '0', net: '0', currency: 'EUR', incomplete: false }, facets: { accounts: [], owners: [], categories: [] }, accountOwners: [] };
@@ -57,7 +57,7 @@ describe('« Suggestions » in Opérations (#449)', () => {
     const writes = serve();
     const { user, block } = await open();
     expect(within(block).getByText('SHOP ONE')).toBeInTheDocument();
-    expect(within(block).getByText(/2 opérations à classer · d'après 5 opérations classées à la main/)).toBeInTheDocument();
+    expect(within(block).getByText(/2 opérations à classer · d’après 5 opérations classées à la main/)).toBeInTheDocument();
     await user.click(within(block).getByRole('button', { name: 'Voir les opérations' }));
     const lines = within(block).getByRole('list', { name: 'Opérations « SHOP ONE »' });
     expect(within(lines).getAllByRole('listitem')[0]).toHaveTextContent('CB SHOP ONE 12/10 · Compte courant');
@@ -69,6 +69,15 @@ describe('« Suggestions » in Opérations (#449)', () => {
     await waitFor(() => expect(screen.queryByRole('region', { name: /suggestion/ })).not.toBeInTheDocument());
     // Nothing left to suggest: the focus goes to the list's count, not to the page's body.
     await waitFor(() => expect(screen.getByText('0 opération')).toHaveFocus());
+  });
+
+  it('says when the evidence is that of labels near by meaning (#450)', async () => {
+    server.use(
+      http.get('*/api/v1/banking/operations', () => HttpResponse.json(operations)),
+      http.get('*/api/v1/banking/category-suggestions', () => HttpResponse.json({ items: [{ ...suggestion, byMeaning: true, evidenceCount: 3 }], total: 1 })),
+    );
+    const { block } = await open();
+    expect(within(block).getByText(/2 opérations à classer · proche par le sens de 3 opérations classées à la main/)).toBeInTheDocument();
   });
 
   it('ignores a group for the household, the focus on the block while groups remain', async () => {

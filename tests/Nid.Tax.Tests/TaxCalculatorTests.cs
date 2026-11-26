@@ -813,6 +813,44 @@ public class TaxCalculatorTests
         return cut;
     }
 
+    [Theory]
+    [InlineData(2025, 3, 15, 8, 143.13)]  // asked in March: May to December
+    [InlineData(2025, 10, 31, 1, 17.89)]  // asked in October: December only
+    [InlineData(2025, 11, 26, 0, 0.0)]    // asked in November: January, next year's
+    [InlineData(2024, 12, 2, 11, 196.80)] // asked in December the year before: February to December
+    public void A_cut_counts_only_the_months_its_rate_still_applies_to_this_year(int y, int m, int d, int months, double less)
+    {
+        var cut = SafeCut(TaxCalculator.Compute(YoungCouple()));
+
+        var applied = cut.AppliedFrom(new NodaTime.LocalDate(y, m, d), 2025);
+
+        Assert.Equal((months, Decimals.FromDouble(less)), (applied.Months, applied.Less));
+        // Withheld at the real rate for the months before: the balance moves by the cut's months only.
+        Assert.Equal(cut.Balance - cut.Less + applied.Less, applied.Balance);
+        Assert.Equal(cut, cut.AppliedFrom(new NodaTime.LocalDate(2024, 10, 1), 2025)); // asked by October before: the whole year
+    }
+
+    private sealed class Calendar(NodaTime.LocalDate today) : IHouseholdCalendar
+    {
+        public Task<NodaTime.LocalDate> TodayAsync(CancellationToken ct) => Task.FromResult(today);
+        public Task<NodaTime.LocalDateTime> NowAsync(CancellationToken ct) => Task.FromResult(today.AtMidnight());
+        public Task<NodaTime.DateTimeZone> ZoneAsync(CancellationToken ct) => Task.FromResult(NodaTime.DateTimeZone.Utc);
+    }
+
+    [Theory]
+    [InlineData(3, "143.13", 8)]
+    [InlineData(11, "0.00", 0)]
+    public async Task The_simulation_counts_the_cut_over_the_months_the_estimate_counts(int month, string less, int months)
+    {
+        // #759: the simulation of the estimate's own inputs shows the « Baisse sans risque » saving of this year, not the whole year's.
+        var handler = new Nid.Tax.Application.SimulateTaxHandler(new Calendar(new NodaTime.LocalDate(2025, month, 15)), null!);
+
+        var view = await handler.HandleAsync(new Nid.Tax.Application.SimulateTaxQuery(YoungCouple()), TestContext.Current.CancellationToken);
+
+        Assert.True(view.TryGetValue(out var result));
+        Assert.Equal((less, months), (result!.Withholding.Cut!.Less, result.Withholding.Cut.Months));
+    }
+
     private static TaxInputs YoungCouple() => Inputs([
         new("A", 50_000m, EmploymentStatus.NonExecutive, 0m, 0m),
         new("B", 40_000m, EmploymentStatus.Executive, 0m, 0m)], dependents: 2) with { ChildrenUnder6 = 2, ChildcareOutsideHome = 6_000m };

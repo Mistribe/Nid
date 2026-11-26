@@ -21,9 +21,12 @@ public sealed class DashboardSpending(
     public async Task<Result<SpendingPart>> EverydayAsync(PersonId reader, VisibilityScope scope, LocalDate today, CancellationToken ct)
     {
         // The accounts are the actor's: read for anyone else (or for no one, the system), nothing rather than the actor's lines.
-        if (actor.Current?.PersonId != reader || !(await access.EnabledAsync(ct)).IsSuccess
-            || await scopes.ForAsync(scope, ct) is not { Count: > 0 } accounts)
+        if (actor.Current?.PersonId != reader || !(await access.EnabledAsync(ct)).IsSuccess)
             return Result.Success(SpendingPart.None);
+        var (counted, unattached) = await scopes.ReadAsync(scope, ct);
+        if (counted.Count == 0)
+            return Result.Success(SpendingPart.None);
+        IReadOnlyList<Guid> accounts = [.. counted.Select(a => a.Id)];
         var byId = (await categories.AllAsync(ct)).ToDictionary(c => c.Id);
         // Seeded at zero: an account that spent nothing yet reads 0, not « nothing to read ».
         var total = new Dictionary<Currency, decimal> { [await household.ReferenceCurrencyAsync(ct)] = 0m };
@@ -38,8 +41,10 @@ public sealed class DashboardSpending(
             var slice = slices.TryGetValue(top, out var found) ? found : slices[top] = [];
             slice[sum.Currency] = slice.GetValueOrDefault(sum.Currency) + amount;
         }
+        var cards = await scopes.WithLinesAsync(unattached, month.Start, month.End, ct);
         return Result.Success(new SpendingPart(total,
-            [.. slices.Select(s => s.Key == Guid.Empty ? new SpendingSlice(null, Uncategorised, s.Value) : new SpendingSlice(s.Key, byId[s.Key].Name, s.Value))]));
+            [.. slices.Select(s => s.Key == Guid.Empty ? new SpendingSlice(null, Uncategorised, s.Value) : new SpendingSlice(s.Key, byId[s.Key].Name, s.Value))],
+            [.. cards.Select(c => new SpendingCard(c.Id, c.Name))]));
     }
 
     /// <summary>

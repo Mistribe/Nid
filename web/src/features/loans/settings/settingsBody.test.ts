@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { loanDetail } from '../testData';
 import { toEditBody, toWireBody } from './settingsBody';
 
-const values = { name: 'Prêt maison', lender: 'Banque', note: '', propertyId: '', envelopeId: '' };
+const values = { name: 'Prêt maison', lender: 'Banque', note: '', propertyId: '', envelopeId: '', assetId: '' };
 
 describe('toEditBody', () => {
   it('links, relinks and unlinks the property financed, and leaves an unchanged link alone (3D1 design §7)', () => {
@@ -17,6 +17,13 @@ describe('toEditBody', () => {
     const linked = loanDetail({ propertyId: 'p1', propertyName: null });
     expect(toEditBody(linked, { ...values, envelopeId: 'e1' })).toEqual({ clearProperty: true, envelopeId: 'e1' });
     expect(toEditBody(loanDetail({ envelopeId: 'e1', envelopeName: 'SCPI' }), values)).toEqual({ clearEnvelope: true });
+  });
+
+  it('links an asset instead, clearing what it financed in the same patch, and unlinks it (#188)', () => {
+    const linked = loanDetail({ propertyId: 'p1', propertyName: null });
+    expect(toEditBody(linked, { ...values, assetId: 'a1' })).toEqual({ clearProperty: true, assetId: 'a1' });
+    expect(toEditBody(loanDetail({ assetId: 'a1', assetName: 'Voiture' }), values)).toEqual({ clearAsset: true });
+    expect(toEditBody(loanDetail({ assetId: 'a1', assetName: null }), { ...values, assetId: 'a1' })).toBeNull();
   });
 
   it('is null when nothing changed, a trimmed name included', () => {
@@ -34,7 +41,7 @@ describe('toEditBody', () => {
 });
 
 describe('toWireBody', () => {
-  it('states both clear flags, which the wire type requires', () => {
-    expect(toWireBody({ name: 'Résidence' })).toEqual({ name: 'Résidence', clearLender: false, clearNote: false, clearProperty: false, clearEnvelope: false });
+  it('states every clear flag, which the wire type requires', () => {
+    expect(toWireBody({ name: 'Résidence' })).toEqual({ name: 'Résidence', clearLender: false, clearNote: false, clearProperty: false, clearEnvelope: false, clearAsset: false });
   });
 });

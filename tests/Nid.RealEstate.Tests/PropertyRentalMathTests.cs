@@ -94,8 +94,8 @@ public class PropertyRentalMathTests
         Assert.Equal(0.0274m, decimal.Round(r.VacancyRate!.Value, 4)); // 10 ÷ 365
         // March: 9 days of the first (261.29) and 12 days of the second (348.39), each prorated and rounded on its own.
         Assert.Equal(10_509.68m, r.ExpectedRent);
-        // Nothing received: the ledger's last 12 months, October 2025 due whole (16 more days of the second lease, 464.52).
-        Assert.Equal(10_974.20m, r.Arrears);
+        // Nothing received: the ledger's last 12 months to 30 September 2025; October, not over, is not owed yet (#716).
+        Assert.Equal(10_074.20m, r.Arrears);
     }
 
     [Fact]
@@ -146,11 +146,12 @@ public class PropertyRentalMathTests
     }
 
     [Theory]
-    [InlineData(11, "900")]  // a month unpaid
+    [InlineData(10, "900")]  // a month over unpaid
+    [InlineData(11, "0")]    // the current month unpaid: not owed before it is over (#716)
     [InlineData(13, "-900")] // a month paid twice: negative, shown as is
     public void Arrears_are_the_ledger_s_due_since_the_first_rent_less_all_the_cash(int rents, string arrears)
     {
-        // The first rent is in November 2024: the ledger owes November to October 2025, the current month whole.
+        // The first rent is in November 2024: the ledger owes November to September 2025, the months over by October.
         var flows = Enumerable.Range(0, rents).Select(i => Rent(new LocalDate(2024, 11, 5).PlusDays(i)));
         var r = At(Bought(), flows, Lease(new LocalDate(2020, 9, 1))).Rental;
         Assert.Equal(10_800m, r.ExpectedRent); // W's figure is unchanged

@@ -20,7 +20,7 @@ import { Button } from '@/components/ui/button';
 import { ChartContainer, ChartTooltip, type ChartConfig } from '@/components/ui/chart';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { monthLabel } from '@/lib/format';
-import { ISO_DATE } from '@/lib/amount';
+import { directionOf, ISO_DATE } from '@/lib/amount';
 import { todayIso } from '@/lib/today';
 import { HOUSEHOLD_PERFORMANCE, OVERVIEW, type HouseholdPerformance } from '@/api/investments';
 import { toPlot } from '@/lib/plot';
@@ -175,7 +175,9 @@ function Bridge({ d }: { d: HouseholdPerformance }) {
   ];
   const size = (v?: MoneyValue | null) => (v ? Math.abs(toPlot(v.amount)) : 0);
   const max = Math.max(1, ...lines.map((l) => size(l.value)));
-  const text = (l: (typeof lines)[number]) => (l.value ? (l.sign < 0 ? `−${formatMoney(l.value)}` : signed(l.value)) : null);
+  // #718: nothing moved reads « 0,00 € », with no sign.
+  const text = (l: (typeof lines)[number]) => (!l.value ? null : directionOf(l.value.amount) === 'flat' ? formatMoney({ ...l.value, amount: l.value.amount.replace(/^-/, '') })
+    : l.sign < 0 ? `−${formatMoney(l.value)}` : signed(l.value));
   return (
     <SectionCard title={t('investments_performance.bridge_title')}>
       <Table aria-label={t('investments_performance.bridge_table')}>

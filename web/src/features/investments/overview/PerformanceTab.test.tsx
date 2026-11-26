@@ -5,7 +5,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import type { HouseholdPerformance } from '@/api/investments';
-import { householdPerformance, overview, PEA, performance } from '../testData';
+import { eur, householdPerformance, overview, PEA, performance } from '../testData';
 
 const serve = (body: HouseholdPerformance, seen: string[] = []) =>
   server.use(http.get('*/api/v1/investments/overview/performance', ({ request }) => {
@@ -26,7 +26,7 @@ describe('Placements › performance', () => {
     const { container } = await renderApp('/investments?tab=performance');
 
     const figures = (await screen.findByText('Performance de la période')).closest('dl')!;
-    expect(figures).toHaveTextContent('+1 840,00 €en haussehors versements · avant fiscalité');
+    expect(figures).toHaveTextContent('+1 840,00 €en hausseplacements seuls · hors versements · avant fiscalité');
     expect(figures).toHaveTextContent('Rapporté aux sommes engagées+5,5 %');
     expect(figures).toHaveTextContent('Meilleur mois+1 510,00 €mars 2025');
     expect(figures).toHaveTextContent('Pire mois-310,00 €février 2025');
@@ -56,9 +56,17 @@ describe('Placements › performance', () => {
     expect(within(earned).getByRole('link', { name: 'PEA' })).toHaveAttribute('href', `/investments/${PEA}`);
     expect(earned).toHaveTextContent('PEA+1 700,00 €');
     // An old start value is marked, the envelope still counted.
-    expect(within(earned).getByRole('link', { name: /CTO/ })).toHaveTextContent('CTOvaleur de départ ancienne');
+    expect(within(earned).getByRole('link', { name: /CTO/ })).toHaveTextContent('CTOvaleur de départ ancienne : hors total');
     expect(within(earned).getByRole('link', { name: 'Livret A' })).not.toHaveTextContent('valeur de départ ancienne');
     expect(await region('Rendement annuel depuis l’ouverture')).toHaveTextContent('Vos livrets +2,6 %');
+  });
+
+  it('writes a withdrawal of nothing without a sign (#718)', async () => {
+    serve({ ...householdPerformance(), withdrawals: eur('0.00') });
+    await renderApp('/investments?tab=performance');
+
+    const bridge = await screen.findByRole('table', { name: 'Variation de valeur de la période' });
+    expect(within(bridge).getByRole('row', { name: /Retraits/ })).toHaveTextContent(/^Retraits0,00 €$/);
   });
 
   it('marks an envelope without a value at the start, counted at its amount paid in', async () => {
@@ -67,7 +75,7 @@ describe('Placements › performance', () => {
     await renderApp('/investments?tab=performance');
 
     const earned = await region('Ce qui a rapporté');
-    expect(within(earned).getByRole('link', { name: /Livret A/ })).toHaveTextContent('Livret Asans valeur au début : compté au montant versé');
+    expect(within(earned).getByRole('link', { name: /Livret A/ })).toHaveTextContent('Livret Asans valeur au début : hors total');
     expect(within(earned).getByRole('link', { name: 'PEA' })).not.toHaveTextContent('sans valeur au début');
   });
 

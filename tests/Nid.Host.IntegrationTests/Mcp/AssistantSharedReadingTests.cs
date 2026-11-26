@@ -67,6 +67,7 @@ public sealed class AssistantSharedReadingTests(PostgresFixture fixture) : IClas
         ["get_property"] = new { id = data.Properties["P-A"].Value },
         ["list_assets"] = new { scope = "me" },
         ["get_asset"] = new { id = data.Assets["P-A"].Value },
+        ["list_asset_costs"] = new { id = data.Assets["P-A"].Value },
         ["list_income_sources"] = new { scope = "me" },
         ["get_income_source"] = new { id = data.IncomeSources["P-A"].Value },
         ["list_tax_years"] = new { scope = "me" },

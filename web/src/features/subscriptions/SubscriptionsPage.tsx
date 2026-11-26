@@ -40,7 +40,7 @@ type Row = {
   children?: Row[];
 };
 
-const itemRow = (item: Summary, key = item.id, figures: Pick<Row, 'monthly' | 'annual' | 'spent'> = { monthly: item.amortizedCostConverted, annual: item.annualCostConverted, spent: item.spent?.total }): Row =>
+const itemRow = (item: Summary, key = item.id, figures: Pick<Row, 'monthly' | 'annual' | 'spent'> = { monthly: item.monthlyCostConverted, annual: item.annualCostConverted, spent: item.spent?.total }): Row =>
   ({ key, name: item.displayName, items: [item], ...figures });
 
 /** Subscriptions dashboard design §3.3: a group of one reads as its subscription (with the group's figures), groups as the server sorts them. */
@@ -51,7 +51,7 @@ function rowsOf(data: ListResponse, nameOf: (g: Group) => string, groupBy: Group
     // Each child carries the figures the group counts: the person's share under a person, the full amount otherwise.
     const members = g.items.flatMap((gi) => {
       const item = byId.get(gi.id);
-      return item ? [{ item, figures: { monthly: gi.amortizedCostConverted, annual: gi.annualCostConverted, spent: gi.spentTotal } }] : [];
+      return item ? [{ item, figures: { monthly: gi.monthlyCostConverted, annual: gi.annualCostConverted, spent: gi.spentTotal } }] : [];
     });
     const items = members.map((m) => m.item);
     // A subscription shared by two persons sits under both: its key carries the group's.
@@ -61,7 +61,7 @@ function rowsOf(data: ListResponse, nameOf: (g: Group) => string, groupBy: Group
       return groupBy === 'person' ? { ...row, name: nameOf(g), subtitle: row.name } : row;
     }
     return {
-      key: g.key, name: nameOf(g), items, monthly: g.amortizedCostConverted, annual: g.annualCostConverted, spent: g.spentTotal,
+      key: g.key, name: nameOf(g), items, monthly: g.monthlyCostConverted, annual: g.annualCostConverted, spent: g.spentTotal,
       children: members.map((m) => itemRow(m.item, `${g.key}/${m.item.id}`, m.figures)),
     };
   });
@@ -134,8 +134,9 @@ function ListTab({ scope }: { scope: 'household' | 'me' }) {
     <section aria-labelledby={totalsId} className="space-y-1">
       <h2 id={totalsId} className="text-sm font-semibold">{t('subscriptions.household_totals')}</h2>
       <StatLine items={[
-        { label: t('subscriptions.per_month'), value: <Amount value={data.householdAmortizedCostConverted} /> },
-        { label: t('subscriptions.per_year'), value: <Amount value={data.householdAnnualCostConverted} /> },
+        // #711: both over the next 12 months, the month a twelfth of the year; the tips say so.
+        { label: t('subscriptions.per_month'), value: <Amount value={data.householdMonthlyCostConverted} />, tip: t('subscriptions.per_month_tip') },
+        { label: t('subscriptions.per_year'), value: <Amount value={data.householdAnnualCostConverted} />, tip: t('subscriptions.per_year_tip') },
         { label: t('subscriptions.cash_month'), value: <Amount value={data.householdCashCostConverted} /> },
       ]} />
       {data.sharedPurchaseIds.length > 0 ? <p className="text-sm text-muted-foreground">{t('subscriptions.shared_purchases_note')}</p> : null}

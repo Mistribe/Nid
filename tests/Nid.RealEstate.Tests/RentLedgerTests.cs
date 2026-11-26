@@ -83,7 +83,7 @@ public class RentLedgerTests
         };
         var arrears = PropertyMath.At(Bought, true, [], flows, [], Loans.Chain(tenancies), d).Rental.Arrears;
         var months = RentLedger.Months(tenancies, flows, d);
-        Assert.Equal(Math.Max(0m, arrears), months.Sum(m => m.Remaining));
+        Assert.Equal(Math.Max(0m, arrears), months.Where(m => m.Month < new LocalDate(2025, 10, 1)).Sum(m => m.Remaining)); // the months over
     }
 
     private static ReceiptFigures? Receipt(IEnumerable<Flow> flows, int year, int month, params Tenancy[] tenancies)
@@ -175,10 +175,11 @@ public class RentLedgerTests
         Assert.Equal("quittance", RentReceipt.For([Since2018], flows, new LocalDate(2025, 3, 1), October23)!.Kind);
         Assert.Null(RentReceipt.For([Since2018], flows, new LocalDate(2025, 2, 1), October23));
 
-        // « Loyers suivis depuis » February 2025: February is due, and oldest first the shortfall lands on October.
+        // « Loyers suivis depuis » February 2025: February is due, and oldest first the shortfall lands on October, owed once over.
         var set = Since2018 with { RentsTrackedFrom = new LocalDate(2025, 2, 1) };
         Assert.Equal(new LocalDate(2025, 2, 1), RentLedger.Tracked(set, flows, October23));
-        Assert.Equal(850m, Arrears(flows, October23, set));
+        Assert.Equal(0m, Arrears(flows, October23, set));
+        Assert.Equal(850m, Arrears(flows, new LocalDate(2026, 11, 1), set));
         Assert.Equal("quittance", RentReceipt.For([set], flows, new LocalDate(2025, 2, 1), October23)!.Kind);
         Assert.Equal("unpaid", RentReceipt.For([set], flows, new LocalDate(2026, 10, 1), October23)!.Kind);
     }
@@ -203,7 +204,9 @@ public class RentLedgerTests
         Assert.Equal(("quittance", new LocalDate(2025, 4, 2)), (march.Kind, march.PaidOn));
         Assert.Equal("quittance", RentReceipt.For([SinceMarch], flows, new LocalDate(2026, 9, 1), October23)!.Kind);
         Assert.Equal("unpaid", RentReceipt.For([SinceMarch], flows, new LocalDate(2026, 10, 1), October23)!.Kind);
-        Assert.Equal(850m, Arrears(flows, October23, SinceMarch)); // October is due whole from the 1st
+        // #716: October is not unpaid before it is over; from 1 November, unpaid, it is owed whole.
+        Assert.Equal(0m, Arrears(flows, October23, SinceMarch));
+        Assert.Equal(850m, Arrears(flows, new LocalDate(2026, 11, 1), SinceMarch));
 
         List<Flow> paid = [.. flows, Cash(October23, 850m)];
         Assert.Equal("quittance", RentReceipt.For([SinceMarch], paid, new LocalDate(2026, 10, 1), October23)!.Kind);
@@ -222,12 +225,13 @@ public class RentLedgerTests
     }
 
     [Fact]
-    public void Without_any_cash_in_the_arrears_are_the_last_12_months_and_the_current_one_whole()
+    public void Without_any_cash_in_the_arrears_are_the_months_over_of_the_last_12()
     {
         Assert.Equal(new LocalDate(2025, 10, 24), RentLedger.Tracked(Since2018, [], October23));
         var rental = PropertyMath.At(Bought, true, [], [], [], Loans.Chain([Since2018]), October23).Rental;
-        Assert.Equal(PropertyMath.Expected(Since2018, new LocalDate(2025, 10, 24), new LocalDate(2026, 10, 31)), rental.Arrears);
-        Assert.Equal(rental.ExpectedRent + 850m * 8 / 31, rental.Arrears, 2); // the 8 days of October still to come
+        // #716: to 30 September; October, not over, is not unpaid yet.
+        Assert.Equal(PropertyMath.Expected(Since2018, new LocalDate(2025, 10, 24), new LocalDate(2026, 9, 30)), rental.Arrears);
+        Assert.Equal(rental.ExpectedRent - 850m * 23 / 31, rental.Arrears, 2); // less October's 23 days to date
         Assert.Null(RentReceipt.For([Since2018], [], new LocalDate(2025, 9, 1), October23));
         Assert.Equal("unpaid", RentReceipt.For([Since2018], [], new LocalDate(2025, 10, 1), October23)!.Kind);
     }
@@ -252,7 +256,8 @@ public class RentLedgerTests
         Assert.Equal(0m, Arrears([], October23, soon));
         Assert.Empty(RentLedger.Months([soon], [], October23));
         Assert.Null(RentReceipt.For([soon], [], new LocalDate(2026, 10, 1), October23));
-        Assert.Equal(191.94m, Arrears([], new LocalDate(2026, 10, 25), soon)); // from its start: 850 × 7 ÷ 31
+        Assert.Equal(0m, Arrears([], new LocalDate(2026, 10, 25), soon)); // its first month is not over (#716)
+        Assert.Equal(191.94m, Arrears([], new LocalDate(2026, 11, 1), soon)); // from its start: 850 × 7 ÷ 31
     }
 
     [Fact]
@@ -280,8 +285,9 @@ public class RentLedgerTests
         var flows = Monthly(new LocalDate(2025, 3, 5), 19); // October 2026 unpaid
         Assert.True(RentLedger.ArrearsDueBy([SinceMarch], flows, new LocalDate(2026, 11, 10), 10) <= 0m);
         Assert.Equal(850m, RentLedger.ArrearsDueBy([SinceMarch], flows, new LocalDate(2026, 11, 11), 10));
-        // The figure itself owes October from its 1st.
-        Assert.Equal(850m, Arrears(flows, October23, SinceMarch));
+        // The figure owes October once it is over (#716), before the watch's grace.
+        Assert.Equal(0m, Arrears(flows, October23, SinceMarch));
+        Assert.Equal(850m, Arrears(flows, new LocalDate(2026, 11, 1), SinceMarch));
     }
 
     [Fact]

@@ -51,7 +51,8 @@ public sealed record SubmittedProposal(ProposalView? Proposal, bool Created, Jso
     public object WithReadableDocuments(IReadOnlySet<Guid> readable) => this with { Proposal = Proposal?.Masked(readable) };
 }
 
-public sealed record ProposalList(IReadOnlyList<ProposalView> Items) : IExposesItems, IExposesDocuments
+/// <summary><see cref="Total"/>: the proposals the query matches, on every page (#774).</summary>
+public sealed record ProposalList(IReadOnlyList<ProposalView> Items, int Total) : IExposesItems, IExposesDocuments
 {
     public IEnumerable<ItemId> ExposedItems() => Items.Where(p => p.TargetItemId is not null).Select(p => new ItemId(p.TargetItemId!.Value)).Distinct();
 
@@ -80,8 +81,16 @@ public sealed record SubmitProposalCommand(string Kind, ItemId? ItemId, JsonElem
     public string RequiredScope => ScopeNames.Write;
 }
 
-/// <summary>Issue #373: <paramref name="Target"/> narrows the list to the proposals on that item, when the actor can read it.</summary>
-public sealed record ListProposalsQuery(string? Status, ItemId? Target = null) : IQuery<ProposalList>;
+/// <summary>
+/// Issue #373: <paramref name="Target"/> narrows the list to the proposals on that item, when the actor can read it.
+/// #774: <paramref name="Search"/> is part of the source label or of the target's name, whatever the case;
+/// <paramref name="Page"/> (from 1) answers <see cref="PageSize"/> proposals, null answers them all.
+/// </summary>
+public sealed record ListProposalsQuery(string? Status, ItemId? Target = null, string? Search = null, int? Page = null,
+    int PageSize = ListProposalsQuery.DefaultPageSize) : IQuery<ProposalList>
+{
+    public const int DefaultPageSize = 50;
+}
 
 public sealed record GetProposalQuery(Guid Id) : IQuery<ProposalDetail>, IProposalScoped
 {
@@ -288,11 +297,15 @@ public sealed class ListProposalsHandler(IProposalStore store, IVisibleItems vis
         if (!Enum.TryParse<ProposalStatus>(query.Status ?? "pending", ignoreCase: true, out var status) || !Enum.IsDefined(status))
             return Result.Failure<ProposalList>(FieldErrors.At(new Failure("request.invalid", "pending, approved, rejected or superseded.", null), "status"));
         var targets = await visible.ForAsync(me, VisibilityScope.Me, includeArchived: true, ct);
+        var size = Math.Max(query.PageSize, 1);
+        var skip = query.Page is { } page ? (Math.Max(page, 1) - 1) * size : 0;
+        var take = query.Page is null ? (int?)null : size;
+        var search = string.IsNullOrWhiteSpace(query.Search) ? null : query.Search;
         var stored = query.Target is { } target
-            ? await store.ListAsync(targets.Contains(target) ? new HashSet<ItemId> { target } : new HashSet<ItemId>(), null, status, ct, viewer: me)
-            : await store.ListAsync(targets, me, status, ct, viewer: me);
-        var names = await ProposalAccess.NamesAsync(items, stored.Select(p => p.Target), ct);
-        return Result.Success(new ProposalList(stored.Select(p => ProposalView.From(p, names(p.Target))).ToList()));
+            ? await store.PageAsync(targets.Contains(target) ? new HashSet<ItemId> { target } : new HashSet<ItemId>(), null, status, me, search, skip, take, ct)
+            : await store.PageAsync(targets, me, status, me, search, skip, take, ct);
+        var names = await ProposalAccess.NamesAsync(items, stored.Items.Select(p => p.Target), ct);
+        return Result.Success(new ProposalList(stored.Items.Select(p => ProposalView.From(p, names(p.Target))).ToList(), stored.Total));
     }
 }
 

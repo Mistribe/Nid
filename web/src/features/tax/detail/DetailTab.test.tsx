@@ -96,7 +96,7 @@ describe('DetailTab', () => {
     await renderApp('/tax?tab=detail');
 
     const card = await screen.findByRole('region', { name: 'Salaires et PER' });
-    expect(within(card).getByRole('progressbar', { name: 'PER de Alice' }).getAttribute('aria-valuetext')?.replace(/\s/g, ' ')).toBe('3 000,00 € déduits sur un plafond de 5 000,00 €');
+    expect(within(card).getByRole('progressbar', { name: 'PER d’Alice' }).getAttribute('aria-valuetext')?.replace(/\s/g, ' ')).toBe('3 000,00 € déduits sur un plafond de 5 000,00 €');
     expect(within(card).queryByText(/déduits sur un plafond/)).not.toBeInTheDocument();
     expect(within(card).getAllByRole('row', { name: /^Versements PER déduits/ })).toHaveLength(1);
     expect(within(card).queryByRole('row', { name: /^Déduit/ })).not.toBeInTheDocument();

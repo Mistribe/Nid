@@ -117,11 +117,12 @@ function NetHero({ d, aside }: { d: PropertiesOverview; aside?: ReactNode }) {
   const figure = useFigure(d);
   return (
     <Hero aside={aside} label={t('properties_overview.net')} figure={d.netValue ? figure(d.netValue) : <HeroUnknown>{figure(d.netValue)}</HeroUnknown>}
-      change={d.latentGain ? (
+      // #729: the latent gain is named first, so a loss does not read as a fall of the net value.
+      change={<span className="flex flex-wrap items-center gap-x-1"><span className="text-muted-foreground">{t('properties_overview.gain')}</span>{d.latentGain ? (
         <HeroChange amount={d.latentGain} pct={known(d.latentGainPct) ? share(t, d.latentGainPct) : null}>
           {t(known(d.latentGainPct) ? 'properties_overview.hero_gain' : 'properties_overview.hero_gain_plain')}
         </HeroChange>
-      ) : <span className="flex flex-wrap gap-x-1"><span className="text-muted-foreground">{t('properties_overview.gain')}</span>{figure(d.latentGain)}</span>}
+      ) : figure(d.latentGain)}</span>}
       note={known(d.netValuePct) ? t('properties_overview.net_note', { pct: share(t, d.netValuePct) }) : null}
     />
   );

@@ -55,21 +55,24 @@
     "several_one": "{{count}} échéance, du {{from}} au {{to}}",
     "several_other": "{{count}} échéances, du {{from}} au {{to}}",
     "amounts": "Montants",
-    "amounts_hint": "Ce qui doit sortir du compte et y entrer chaque jour : prélèvements, échéances de prêt, charges, loyers.",
+    "amounts_hint": "Ce qui doit sortir du compte et y entrer chaque jour : prélèvements, échéances de prêt, charges, garde, loyers et revenus.",
     "out": "Sorties prévues",
     "in": "Entrées prévues",
     "balance": "Solde du mois",
-    "balance_tip": "Les entrées prévues moins les sorties prévues de ce mois-ci, converties dans la devise du foyer. Les dépenses courantes et les salaires n’y sont pas.",
+    "balance_tip": "Les entrées prévues moins les sorties prévues de ce mois-ci, converties dans la devise du foyer. Les dépenses courantes n’y sont pas.",
     "day_out": "Sorties",
     "day_in": "Entrées",
     "heavy": "Jour chargé",
     "unknown": "Inconnu",
+    "estimated": "estimé",
+    "estimated_tip": "Ce mois de garde n’est pas encore validé : son montant est le coût net estimé de la garde, et sa date celle où le dernier mois validé a été prélevé (le 5 du mois sans mois validé).",
     "charge": {
       "subscription": "Prélèvement",
       "loan_instalment": "Échéance de prêt",
       "property_cost": "Charge du bien",
       "rent": "Loyer",
-      "childcare": "Pajemploi"
+      "childcare": "Pajemploi du mois précédent",
+      "income": "Versement"
     }
   }
 }

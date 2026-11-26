@@ -93,10 +93,10 @@ describe('ExpectedDocuments (#414)', () => {
     expect(screen.queryByRole('region', { name: 'Documents attendus' })).not.toBeInTheDocument();
   });
 
-  it('« Pas disponible » stops asking for that document', async () => {
+  it('« Ne plus demander » stops asking for that document', async () => {
     const api = serve([statement]);
     const { user } = await renderList();
-    await user.click(await screen.findByRole('button', { name: 'Pas disponible : Relevé annuel 2025' }));
+    await user.click(await screen.findByRole('button', { name: 'Ne plus demander : Relevé annuel 2025' }));
     await waitFor(() => expect(api.writes).toEqual([{ path: '/api/v1/documents/expected/dismissals',
       body: { targetKind: 'core.item', targetId: ITEM, role: 'statement', period: 2025 } }]));
     await waitFor(() => expect(toasts()).toHaveTextContent('Ce document ne sera plus demandé.'));

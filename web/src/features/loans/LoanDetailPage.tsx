@@ -133,6 +133,14 @@ export function LoanDetailPage() {
             : t('loan_detail.envelope_unreadable')}
         </p>
       ) : null}
+      {loan.assetId ? (
+        <p>
+          {t('loan_detail.asset')}{' '}
+          {loan.assetName
+            ? <Link to="/other-assets/$id" params={{ id: loan.assetId }} className="underline">{loan.assetName}</Link>
+            : t('loan_detail.asset_unreadable')}
+        </p>
+      ) : null}
       {loan.warnings.length > 0 ? (
         <ul aria-label={t('loan_detail.warnings')} className="space-y-1">
           {loan.warnings.map((w, i) => (
@@ -245,9 +253,13 @@ function OverviewSchedule({ loan }: { loan: LoanDetail }) {
         <Section title={t('loan_detail.chart.title')} actions={<><SeriesLink keys={[`loan:${loan.id}:remaining`]} /><TableToggle asTable={asTable} onToggle={() => setAsTable((v) => !v)} /></>}>
           {/* Spec §7: the chart's reading for screen readers, outside the lazy chunk so it never waits for it. */}
           <p id={summaryId} className="sr-only">
-            {t('loan_detail.chart.summary', {
-              first: first.year, last: last.year, interest: m(plan.totalInterest), principal: m(plan.totalPrincipal),
-            })}
+            {plan.capitalisedInterest
+              ? t('loan_detail.chart.summary_capitalised', {
+                first: first.year, last: last.year, interest: m(plan.totalInterest), principal: m(plan.totalPrincipal), capitalised: m(plan.capitalisedInterest),
+              })
+              : t('loan_detail.chart.summary', {
+                first: first.year, last: last.year, interest: m(plan.totalInterest), principal: m(plan.totalPrincipal),
+              })}
           </p>
           {asTable ? <ScheduleYearsTable years={plan.years} currency={loan.currency} /> : (
             <Suspense fallback={<div className="h-64 shimmer rounded-md border bg-muted" />}>

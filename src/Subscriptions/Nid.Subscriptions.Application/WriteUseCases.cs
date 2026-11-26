@@ -26,7 +26,8 @@ public sealed record CreateSubscriptionCommand(
     string? Note,
     IReadOnlyList<BillingPhase>? Phases = null,
     IReadOnlyList<PurchaseDraft>? Purchases = null,
-    ShareLevel ShareLevel = ShareLevel.View) : ICommand<ItemId>, ICreatesItem, ITransactional;
+    ShareLevel ShareLevel = ShareLevel.View,
+    ItemId? AssetId = null) : ICommand<ItemId>, ICreatesItem, ITransactional;
 
 public sealed record EditSubscriptionCommand(
     ItemId ItemId, bool? AutoRenew, LocalDate? CancelledAt, bool ClearCancelledAt, string? Note,
@@ -71,7 +72,7 @@ public static class SubscriptionName
 [RequestHandler<CreateSubscriptionCommand, ItemId>]
 public sealed class CreateSubscriptionHandler(
     IItemRegistry items, ISubscriptionStore store, ProviderAccess providers, IAccessPolicy policy,
-    IActorAccessor actor)
+    IActorAccessor actor, AssetLinks assetLinks)
     : IRequestHandler<CreateSubscriptionCommand, ItemId>
 {
     public async ValueTask<Result<ItemId>> HandleAsync(CreateSubscriptionCommand command, CancellationToken ct = default)
@@ -88,6 +89,10 @@ public sealed class CreateSubscriptionHandler(
             && (await providers.EnsureLinkableAsync(actor.Current?.PersonId, key, ct)).TryGetFailure(out var unknown))
             return Result.Failure<ItemId>(FieldErrors.At(unknown!, "providerKey"));
 
+        // #648: the asset it relates to, checked before anything is written.
+        if (command.AssetId is { } asset && await assetLinks.RefusalAsync(asset, ct) is { } badAsset)
+            return Result.Failure<ItemId>(badAsset);
+
         // 1E2b1 design §3.1 step 2: every other subscription a grant names, before anything is written.
         for (var i = 0; i < drafts.Count; i++)
             if (await GrantTargets.RefusedAsync(policy, actor.Current!, drafts[i], null, $"purchases[{i}]", ct) is { } refused)
@@ -102,7 +107,7 @@ public sealed class CreateSubscriptionHandler(
             return created.TryGetFailure(out var refusedOwners) ? Result.Failure<ItemId>(FieldErrors.At(refusedOwners!, "owners")) : created;
 
         var stored = await store.CreateAsync(
-            id, new NewSubscription(command.ProviderKey, command.AutoRenew, command.Users, command.Note), ct);
+            id, new NewSubscription(command.ProviderKey, command.AutoRenew, command.Users, command.Note, AssetId: command.AssetId), ct);
         if (stored.TryGetFailure(out var failure))
             return Result.Failure<ItemId>(failure!);
 

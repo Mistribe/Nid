@@ -18,7 +18,7 @@ const keyOf = (e: ExpectedDocument) => `${e.targetKind}:${e.targetId}:${e.role}:
 
 /**
  * Issue #414: « Documents attendus », the documents the server's rules still ask for: « Déposer » on the right item with the type
- * (and the year) preset, « Pas disponible » to stop asking. On an item's tab (`itemId`), its own; on the documents page, every one,
+ * (and the year) preset, « Ne plus demander » to stop asking. On an item's tab (`itemId`), its own; on the documents page, every one,
  * each named by its item. Nothing when none is missing.
  */
 export function ExpectedDocuments({ itemId }: { itemId?: string }) {

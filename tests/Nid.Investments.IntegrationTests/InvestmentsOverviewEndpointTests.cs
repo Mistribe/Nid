@@ -145,9 +145,11 @@ public class InvestmentsOverviewEndpointTests(PostgresFixture fixture) : IClassF
         Assert.Equal("1600.00", S(Assert.Single(body.GetProperty("byPerson").EnumerateArray()).GetProperty("value"), "amount"));
         // The gain, what was paid in and the returns stay on the valuation: 1 500 − 1 200.
         Assert.Equal("300.00", S(body.GetProperty("gain"), "amount"));
-        foreach (var name in new[] { "gain", "gainPct", "paidIn", "netContributions", "annualReturnPct", "sinceJanuary", "staleCount" })
+        foreach (var name in new[] { "gain", "gainPct", "paidIn", "netContributions", "annualReturnPct", "staleCount" })
             Assert.Equal(before.GetProperty(name).ToString(), body.GetProperty(name).ToString());
         Assert.Equal(before.GetProperty("envelopes")[0].GetProperty("figures").GetProperty("gain").ToString(), row.GetProperty("figures").GetProperty("gain").ToString());
+        // #754, #768: opened this year, it counts since 1 January from 0, up to the estimate as on the Performance tab.
+        Assert.Equal(("300.00", "400.00"), (S(before.GetProperty("sinceJanuary"), "amount"), S(body.GetProperty("sinceJanuary"), "amount")));
         // Only today's point.
         var points = body.GetProperty("points");
         Assert.Equal(("2025-10-15", "1600.00"), (S(points[12], "on"), S(points[12].GetProperty("value"), "amount")));
@@ -239,18 +241,18 @@ public class InvestmentsPerformanceEndpointTests(PostgresFixture fixture) : ICla
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await JsonAsync(response);
-        // The recent envelope counts from 0: its 100 is all performance.
-        Assert.Equal(("21000.00", "25100.00", "2000.00", "0.00", "0.00", "2100.00"),
+        // #768: the recent envelope has no start value and nothing paid in: listed, flagged, out of the totals (not 100 of performance).
+        Assert.Equal(("21000.00", "25000.00", "2000.00", "0.00", "0.00", "2000.00"),
             (S(body.GetProperty("startValue"), "amount"), S(body.GetProperty("endValue"), "amount"), S(body.GetProperty("contributions"), "amount"),
                 S(body.GetProperty("withdrawals"), "amount"), S(body.GetProperty("transfers"), "amount"), S(body.GetProperty("performance"), "amount")));
-        Assert.Equal(9.1m, body.GetProperty("performancePct").GetDecimal());
+        Assert.Equal(8.7m, body.GetProperty("performancePct").GetDecimal());
         var months = body.GetProperty("months");
         Assert.Equal(("2025-01", "2025-10"), (S(months[0], "month"), S(months[months.GetArrayLength() - 1], "month")));
         Assert.Equal(("2000.00", "2025-09"), (S(months[8].GetProperty("performance"), "amount"), S(body, "bestMonth")));
         var rows = body.GetProperty("envelopes").EnumerateArray().ToList();
         Assert.Equal([pea.Value, late.Value], rows.Select(r => r.GetProperty("id").GetGuid()));
-        Assert.Equal(("0.00", "100.00", false), (S(rows[1].GetProperty("startValue"), "amount"), S(rows[1].GetProperty("endValue"), "amount"),
-            rows[1].GetProperty("staleStart").GetBoolean()));
+        Assert.Equal(("0.00", "100.00", false, true), (S(rows[1].GetProperty("startValue"), "amount"), S(rows[1].GetProperty("endValue"), "amount"),
+            rows[1].GetProperty("staleStart").GetBoolean(), rows[1].GetProperty("noStartValue").GetBoolean()));
         Assert.False(body.TryGetProperty("excluded", out _));
     }
 

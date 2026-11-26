@@ -18,18 +18,32 @@ public class MonthChangesTests
         => MonthChanges.Figure(parts, hadBefore: true, Currency.Eur, RateTable.Empty(Today, 7), Since, Today);
 
     [Fact]
-    public void The_change_is_now_minus_before_and_keeps_the_three_largest_causes()
+    public void The_change_is_now_minus_before_and_keeps_the_three_largest_causes_then_the_rest()
     {
         var figure = Figure(
             new MonthPart("subscriptions", Eur(100m), Eur(101m)),
-            new MonthPart("loans", Eur(900m), Eur(900m)),
+            new MonthPart("loans", Eur(900m), Eur(903m)),
             new MonthPart("tax", Eur(200m), Eur(150m)),
             new MonthPart("childcare", Eur(300m), Eur(320m)),
-            new MonthPart("property_costs", Eur(40m), Eur(42m)))!;
+            new MonthPart("property_costs", Eur(40m), Eur(45m)))!;
 
-        Assert.Equal(("1540.00", "1513.00", "-27.00"), (figure.Before.Amount, figure.Now.Amount, figure.Change.Amount));
-        Assert.Equal([("tax", "-50.00"), ("childcare", "20.00"), ("property_costs", "2.00")], figure.Causes.Select(c => (c.Key, c.Change.Amount)));
+        Assert.Equal(("1540.00", "1519.00", "-21.00"), (figure.Before.Amount, figure.Now.Amount, figure.Change.Amount));
+        // #715: subscriptions and loans past the three largest add up under « other », so the causes add up to the change.
+        Assert.Equal([("tax", "-50.00"), ("childcare", "20.00"), ("property_costs", "5.00"), ("other", "4.00")],
+            figure.Causes.Select(c => (c.Key, c.Change.Amount)));
     }
+
+    [Fact]
+    public void Three_causes_or_fewer_have_no_rest()
+    {
+        var figure = Figure(new MonthPart("tax", Eur(200m), Eur(150m)), new MonthPart("childcare", Eur(300m), Eur(320m)))!;
+
+        Assert.Equal(["tax", "childcare"], figure.Causes.Select(c => c.Key));
+    }
+
+    [Fact]
+    public void A_figure_that_did_not_move_to_the_cent_is_left_out()
+        => Assert.Null(Figure(new MonthPart("income", Eur(1000m), Eur(1000.004m))));
 
     [Fact]
     public void A_cause_under_a_cent_is_left_out_and_parts_under_one_key_add_up()

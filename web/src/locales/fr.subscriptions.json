@@ -84,7 +84,7 @@
     "col_state": "État",
     "grant": "Couvre {{duration}}",
     "grant_elsewhere": "Couvre {{duration}} sur un autre abonnement",
-    "loading": "Chargement de l'abonnement",
+    "loading": "Chargement de l’abonnement",
     "spent_since": "Dépensé depuis le {{date}}",
     "spent_last12": "dont 12 derniers mois",
     "saved_since": "Économisé depuis le {{date}}",
@@ -114,7 +114,25 @@
   },
   "payer": {
     "household": "Le foyer",
-    "external": "Quelqu'un d'extérieur",
+    "external": "Quelqu’un d’extérieur",
     "person": "{{name}}"
+  },
+  "asset_link": {
+    "title": "Bien concerné",
+    "more": "Lier à un bien (voiture, logement…)",
+    "edit": "Bien concerné",
+    "add": "Lier à un bien",
+    "change": "Changer le bien lié",
+    "field": "Bien concerné",
+    "none": "Aucun bien",
+    "placeholder": "Choisir un bien",
+    "search": "Rechercher un bien",
+    "empty": "Aucun bien trouvé.",
+    "hint_empty": "Aucun bien enregistré pour l’instant : ajoutez-en un dans « Autres biens ».",
+    "hint": "Une assurance auto, un contrat d’entretien… : le bien auquel cet abonnement se rapporte.",
+    "saved": "Bien enregistré.",
+    "hidden": "Lié à un bien que vous ne voyez pas.",
+    "invalid_asset": "Ce bien n’existe pas ou vous ne pouvez pas le lire.",
+    "submit": "Enregistrer"
   }
 }

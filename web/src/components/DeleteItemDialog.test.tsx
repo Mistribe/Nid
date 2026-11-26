@@ -93,6 +93,12 @@ describe('DeleteItemDialog', () => {
     expect(screen.queryByText(/deletion\.way_out/)).not.toBeInTheDocument();
   });
 
+  it('names a loan blocker of an asset and says the way out (#188)', () => {
+    show(preview({ blockers: [{ key: 'asset_loan', count: 2, items: [{ id: '0192f0aa-0000-7000-8000-00000000a002', name: 'Crédit auto' }] }] }));
+    expect(screen.getByText(/2 crédits financent ce bien/)).toBeInTheDocument();
+    expect(screen.getByText('Retirez le bien de ces crédits : onglet « Crédit » de la fiche, ou « Bien financé » sur la fiche du crédit.')).toBeInTheDocument();
+  });
+
   it('gives no « end it instead » hint for an item already ended', () => {
     render(<DeleteItemDialog preview={preview()} previewError={null} pending={false} error={null} onConfirm={vi.fn()} onClose={vi.fn()} />);
     expect(screen.getByText('La suppression est définitive et ne peut pas être annulée.')).toBeInTheDocument();

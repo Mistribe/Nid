@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Nid.Core.Application;
 using Nid.Core.Contracts;
 using Nid.Platform.Contracts;
 using Nid.TestSupport;
@@ -247,6 +248,33 @@ public class ProposalRouteTests(PostgresFixture fixture) : IClassFixture<Postgre
         Assert.Single(await Ids(app.AdultA, hidden));
         Assert.Empty(await Ids(app.AdultB, hidden));
         Assert.Equal(3, (await JsonOf(await app.RawAsync(app.AdultA, HttpMethod.Get, Proposals))).GetProperty("items").GetArrayLength());
+    }
+
+    // #774: the decided proposals are history: searched and paged by the server, with their total.
+    [Fact]
+    public async Task Decided_proposals_are_searched_and_paged_with_their_total()
+    {
+        await using var app = await StartAsync(fixture);
+        foreach (var (name, label) in new[] { ("Netflix", "Relevé mars"), ("Spotify", "Relevé avril"), ("Deezer", "Facture") })
+        {
+            var item = await app.NewSubscriptionAsync(name, app.AdultA, Visibility.Shared);
+            var proposal = await JsonOf(await app.RawAsync(app.AdultA, HttpMethod.Post, Proposals, Echo(item.Value, label: label)));
+            (await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Proposals}/{proposal.GetProperty("id").GetGuid()}/reject",
+                new { version = proposal.GetProperty("version").GetUInt32() })).EnsureSuccessStatusCode();
+        }
+
+        async Task<string> Listed(string query)
+        {
+            var list = await JsonOf(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Proposals}?status=rejected&{query}"));
+            var names = list.GetProperty("items").EnumerateArray().Select(p => p.GetProperty("targetName").GetString());
+            return $"{string.Join(",", names)} / {list.GetProperty("total").GetInt32()}";
+        }
+
+        Assert.Equal("Netflix / 1", await Listed("q=NETF"));
+        Assert.Equal("Spotify,Netflix / 2", await Listed("q=relev%C3%A9&page=1"));
+        Assert.Equal("Deezer,Spotify,Netflix / 3", await Listed("page=1"));
+        var second = (ProposalList)(await app.InvokeAsync(app.AdultA, new ListProposalsQuery("rejected", Page: 2, PageSize: 2), TestContext.Current.CancellationToken)).Response!;
+        Assert.Equal("Netflix / 3", $"{string.Join(",", second.Items.Select(p => p.TargetName))} / {second.Total}");
     }
 
     // Review Focus 2.

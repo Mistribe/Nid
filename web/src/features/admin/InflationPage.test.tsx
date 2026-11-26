@@ -124,7 +124,7 @@ describe('Administration › Inflation', () => {
     }));
     const { user } = await renderApp('/admin/inflation', { capabilities: adminCapabilities });
 
-    const toggle = await screen.findByRole('switch', { name: "Récupérer l'inflation" });
+    const toggle = await screen.findByRole('switch', { name: "Récupérer l’inflation" });
     expect(screen.getByRole('button', { name: 'Synchroniser maintenant' })).toBeDisabled();
     await user.click(toggle);
     await waitFor(() => expect(sent).toEqual([{ inflationEnabled: true }]));

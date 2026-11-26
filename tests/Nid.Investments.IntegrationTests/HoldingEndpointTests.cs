@@ -111,6 +111,36 @@ public class HoldingEndpointTests(PostgresFixture fixture, SharedNidApp shared) 
     }
 
     [Fact]
+    public async Task A_complete_snapshot_newer_than_the_last_value_becomes_the_value_and_follows_its_corrections()
+    {
+        // #775: the PEA's last value is older than its complete holdings; an older snapshot or a hand value keeps the value.
+        await using var app = await NidApp.StartAsync(fixture);
+        var (id, euro, fund) = await GoldenAsync(app);
+        await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Url(id)}/valuations", new { asOf = "2025-03-01", amount = Eur("3000.00") });
+        async Task<(string?, string?)> ValueAsync()
+        {
+            var figures = (await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, Url(id)))).GetProperty("figures");
+            return (figures.GetProperty("value").GetProperty("amount").GetString(), figures.GetProperty("asOf").GetString());
+        }
+
+        await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Url(id)}/holding-snapshots", Snapshot("2025-02-01", euro, "1000.00", fund, "10", "100", "1000.00"));
+        Assert.Equal(("3000.0000", "2025-03-01"), await ValueAsync());
+
+        var newer = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Url(id)}/holding-snapshots",
+            Snapshot("2025-04-15", euro, "1600.00", fund, "20", "100", "2000.00")));
+        Assert.Equal(("3600.0000", "2025-04-15"), await ValueAsync());
+
+        await app.RawAsync(app.AdultA, HttpMethod.Put, $"{Url(id)}/holding-snapshots/{newer.GetProperty("id").GetGuid()}",
+            Snapshot("2025-04-15", euro, "1700.00", fund, "20", "100", "2000.00"));
+        Assert.Equal(("3700.0000", "2025-04-15"), await ValueAsync());
+
+        await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Url(id)}/valuations", new { asOf = "2025-04-15", amount = Eur("3750.00") });
+        await app.RawAsync(app.AdultA, HttpMethod.Put, $"{Url(id)}/holding-snapshots/{newer.GetProperty("id").GetGuid()}",
+            Snapshot("2025-04-15", euro, "1800.00", fund, "20", "100", "2000.00"));
+        Assert.Equal(("3750.0000", "2025-04-15"), await ValueAsync());
+    }
+
+    [Fact]
     public async Task A_line_off_its_units_times_price_warns_on_that_holding()
     {
         await using var app = await NidApp.StartAsync(fixture);

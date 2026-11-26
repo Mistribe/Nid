@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Nid.Assets.Contracts;
 using Nid.Banking.Application.Operations;
 using Nid.Banking.Application.Reconciliation;
 using Nid.Banking.Contracts;
@@ -36,7 +37,7 @@ public sealed record LinkCandidatesQuery(Guid TransactionId) : IQuery<IReadOnlyL
 public sealed record ListExpectedChargesQuery(LocalDate From, LocalDate To) : IQuery<IReadOnlyList<ExpectedChargeView>>, IRequiresBanking;
 
 /// <summary>A line of an account the actor writes linked by hand to a charge of an item they write, with its rule (<see cref="TransactionLinker.LinkAsync"/>).</summary>
-public sealed record LinkTransactionCommand(Guid TransactionId, string Module, Guid ItemId, string? Key) : ICommand<BankTransactionView>, IBankLineScoped
+public sealed record LinkTransactionCommand(Guid TransactionId, string Module, Guid ItemId, string? Key, string? Category = null) : ICommand<BankTransactionView>, ITransactional, IBankLineScoped
 {
     public AccessKind Access => AccessKind.Write;
 }
@@ -64,6 +65,16 @@ public sealed record SetTransactionCategoryCommand(Guid TransactionId, Guid? Cat
 /// refused line does not stop the others. 1 to <see cref="SetTransactionsCategoryHandler.Most"/> distinct lines.
 /// </summary>
 public sealed record SetTransactionsCategoryCommand(IReadOnlyList<Guid> TransactionIds, Guid? CategoryId) : ICommand<LinesCategorised>, ITransactional, IRequiresBanking;
+
+/// <summary>
+/// #721: the other lines of <paramref name="TransactionId"/>'s normalised label that nothing classified yet (no category, no category source,
+/// not ignored), on the accounts the actor writes, newest first; at most <see cref="SameLabelLinesHandler.Most"/>, so they take a category
+/// with it in one <see cref="SetTransactionsCategoryCommand"/>.
+/// </summary>
+public sealed record SameLabelLinesQuery(Guid TransactionId) : IQuery<IReadOnlyList<Guid>>, IBankLineScoped
+{
+    public AccessKind Access => AccessKind.Read;
+}
 
 /// <summary>The lines that took the category, and the others with the code one line alone would have been refused with.</summary>
 public sealed record LinesCategorised(IReadOnlyList<Guid> Changed, IReadOnlyList<LineRefusal> Refused);
@@ -93,12 +104,13 @@ public sealed record BankTransactionPage(IReadOnlyList<BankTransactionView> Item
 /// <paramref name="Note"/> is a person's note; <paramref name="Parts"/> the parts of a split line (<paramref name="CategorySource"/> <c>split</c>), null otherwise.
 /// <paramref name="SuggestedPattern"/> is the pattern a rule made from the line would offer (<see cref="CategoryRules.Suggest"/>), null when none fits;
 /// <paramref name="SharedAccount"/> says whether every adult reads the line's account (<paramref name="AccountId"/>, a card's own for its lines).
+/// <paramref name="DebitedFrom"/> names, on an immediate card's line, the account its echo was debited from (#416), when the reader reads it.
 /// </summary>
 public sealed record BankTransactionView(
     Guid Id, LocalDate BookedOn, LocalDate? ValueOn, string Amount, string Currency, string Label, string? Counterparty, bool FromCard,
     string? CardName, string FetchedVia, string LinkState, LinkView? Link, string AccountName, CategoryView? Category, string? CategorySource,
     Guid AccountId, string? SuggestedPattern, bool SharedAccount, string? Note = null, IReadOnlyList<PartView>? Parts = null, Guid? PartId = null,
-    IReadOnlyList<LinkedDocumentView>? Documents = null);
+    IReadOnlyList<LinkedDocumentView>? Documents = null, string? DebitedFrom = null);
 
 /// <summary>#84: a part of a split line, <paramref name="Amount"/> signed like the line; the parts add up to it.</summary>
 public sealed record PartView(Guid Id, string Amount, CategoryView? Category, string? Note);
@@ -198,6 +210,8 @@ public sealed class BankLines(
         var parts = await splits.PartsAsync([.. lines.Select(l => l.Id)], ct);
         // #84: the receipts the reader reads, as the documents list would show them.
         var receipts = await documents.ReadableOfTargetsAsync(BankingDocumentTargets.Kind, [.. lines.Select(l => l.Id)], access.Person, ct);
+        var cardLines = lines.Where(l => all[l.Account].CardOf is not null).Select(l => l.Id).ToList();
+        var echoedOn = cardLines.Count == 0 ? new Dictionary<Guid, Guid>() : await links.EchoAccountsAsync(cardLines, ct);
         var adults = await access.AdultCountAsync(ct);
         var shared = new Dictionary<Guid, bool>();
         foreach (var id in lines.Select(l => l.Account).Distinct())
@@ -229,7 +243,8 @@ public sealed class BankLines(
                 Category(t.Category), t.CategorySource is { } source ? Wire(source) : null,
                 t.Account, CategoryRules.Suggest(t.NormalizedLabel), shared[t.Account], t.Note,
                 parts.TryGetValue(t.Id, out var own) ? [.. own.Select(x => new PartView(x.Id, TransactionLinker.Amount(x.Amount), Category(x.Category), x.Note))] : null,
-                Documents: receipts.GetValueOrDefault(t.Id));
+                Documents: receipts.GetValueOrDefault(t.Id),
+                DebitedFrom: echoedOn.TryGetValue(t.Id, out var debited) && readable.TryGetValue(debited, out var from) ? from.Name : null);
         })];
     }
 
@@ -276,7 +291,7 @@ public sealed class ListBankLinesHandler(BankLines lines)
 }
 
 [RequestHandler<LinkCandidatesQuery, IReadOnlyList<ExpectedChargeView>>]
-public sealed class LinkCandidatesHandler(IContextAccessor context, BankingAccess access, ExpectedChargeReader charges)
+public sealed class LinkCandidatesHandler(IContextAccessor context, BankingAccess access, ExpectedChargeReader charges, IWritableVehicles vehicles)
     : IRequestHandler<LinkCandidatesQuery, IReadOnlyList<ExpectedChargeView>>
 {
     public const int Days = 30;
@@ -291,6 +306,8 @@ public sealed class LinkCandidatesHandler(IContextAccessor context, BankingAcces
         var convert = await charges.ConverterAsync(own, from, to, ct);
         var stem = TransactionLabel.Stem(line.NormalizedLabel);
         var paid = Math.Abs(line.Amount);
+        // #649: an expense may pay a running cost of a vehicle the actor writes: no due date or amount of its own, the line's stand in.
+        IReadOnlyList<VehicleChoice> costs = line.Amount < 0 ? await vehicles.ForAsync(access.Person, ct) : [];
         return Result.Success<IReadOnlyList<ExpectedChargeView>>([.. own
             .Select(c => (Charge: c, Gap: paid - convert(c, line.BookedOn, line.Currency.Code)))
             // Unknown gaps (no rate) last, then a hint found in the label, then the nearest date.
@@ -298,7 +315,9 @@ public sealed class LinkCandidatesHandler(IContextAccessor context, BankingAcces
             .ThenBy(x => !x.Charge.LabelHints.Any(h => TransactionLabel.Normalize(h) is { Length: > 0 } hint && stem.Contains(hint, StringComparison.Ordinal)))
             .ThenBy(x => Math.Abs(Period.DaysBetween(line.BookedOn, x.Charge.DueOn)))
             .Take(Most)
-            .Select(x => ExpectedChargeViews.Of(x.Charge, x.Charge.Amount.Currency == line.Currency ? x.Gap : null))]);
+            .Select(x => ExpectedChargeViews.Of(x.Charge, x.Charge.Amount.Currency == line.Currency ? x.Gap : null))
+            .Concat(costs.Select(v => new ExpectedChargeView(TransactionLinker.Assets, v.Id.Value, v.Name, "vehicle_cost", "cost", line.BookedOn,
+                TransactionLinker.Amount(paid), line.Currency.Code, false, null)))]);
     }
 }
 
@@ -336,8 +355,11 @@ public sealed class LinkTransactionHandler(BankingAccess access, BankLines lines
         var checkedLine = await linker.CheckAsync(command.TransactionId, command.Module, item, ct);
         if (!checkedLine.TryGetValue(out var line))
             return BankingAccess.Failed<BankTransactionView, BankTransaction>(checkedLine);
+        if (command.Module == TransactionLinker.Assets && command.Category is not null && !AssetCostCategories.All.Contains(command.Category))
+            return Result.Failure<BankTransactionView>(FieldErrors.Shape(
+                [new FieldError("category", FieldErrors.ShapeCode, $"A cost category is one of {string.Join(", ", AssetCostCategories.All)}.")]));
 
-        var linked = await linker.LinkAsync(line!, command.Module, item, command.Key, access.Person, await calendar.TodayAsync(ct), ct);
+        var linked = await linker.LinkAsync(line!, command.Module, item, command.Key, access.Person, await calendar.TodayAsync(ct), ct, command.Module == TransactionLinker.Assets ? command.Category : null);
         return linked.IsSuccess
             ? Result.Success(await lines.ViewAsync(line!.Id, ct))
             : BankingAccess.Failed<BankTransactionView, BankLink>(linked);
@@ -346,7 +368,7 @@ public sealed class LinkTransactionHandler(BankingAccess access, BankLines lines
 
 [RequestHandler<UnlinkTransactionCommand, BankTransactionView>]
 public sealed class UnlinkTransactionHandler(
-    IContextAccessor context, BankingAccess access, BankLines lines, ILinkStore links, IAccessPolicy policy, IItemRegistry items, CategoryRuleApplier categoryRules)
+    IContextAccessor context, BankingAccess access, BankLines lines, ILinkStore links, IAccessPolicy policy, IItemRegistry items, CategoryRuleApplier categoryRules, IFlows flows)
     : IRequestHandler<UnlinkTransactionCommand, BankTransactionView>
 {
     public async ValueTask<Result<BankTransactionView>> HandleAsync(UnlinkTransactionCommand command, CancellationToken ct = default)
@@ -354,7 +376,8 @@ public sealed class UnlinkTransactionHandler(
         var line = CheckedResources.Of<BankTransaction>(context, command);
 
         // D19: a link the actor cannot see is not found, never named.
-        switch ((await links.ForTransactionsAsync([line!.Id], ct)).GetValueOrDefault(line.Id))
+        var link = (await links.ForTransactionsAsync([line!.Id], ct)).GetValueOrDefault(line.Id);
+        switch (link)
         {
             case { CounterpartAccount: { } counterpart } when !(await access.AccountAsync(counterpart, AccessKind.Read, ct)).IsSuccess:
                 return BankLines.NotFound<BankTransactionView>(line.Id);
@@ -364,6 +387,19 @@ public sealed class UnlinkTransactionHandler(
                 if (write.TryGetFailure(out var failure))
                     return failure is UnauthorizedFailure ? Result.Failure<BankTransactionView>(failure) : BankLines.NotFound<BankTransactionView>(line.Id);
                 break;
+        }
+
+        // #649: the cost a vehicle link created (its flow carries this line's `bank:` reference) goes with the link; a hand-typed cost the link
+        // reused stays. Same transaction: a refusal undoes the unlink.
+        // A correction supersedes the flow (new id, same `bank:` reference) while the link keeps the old id: find the current one by reference.
+        if (link is { TargetModule: "assets", TargetItem: { } vehicle }
+            && DateRange.Create(new LocalDate(1900, 1, 1), new LocalDate(2200, 1, 1)).TryGetValue(out var all)
+            && (await flows.ListAsync(vehicle, all, new HashSet<FlowKind> { FlowKind.Expense }, ct)).TryGetValue(out var costs)
+            && costs!.FirstOrDefault(f => f.ExternalRef == $"bank:{line.Id:D}") is { } cost)
+        {
+            var voided = await flows.VoidAsync(vehicle, cost.Id, ct);
+            if (voided.TryGetFailure(out var voidFailure))
+                return Result.Failure<BankTransactionView>(voidFailure!);
         }
 
         await links.ClearAsync(line.Id, TransactionLinkState.Unlinked, ct);
@@ -385,6 +421,22 @@ public sealed class IgnoreTransactionHandler(IContextAccessor context, BankLines
 
         await links.ClearAsync(line.Id, TransactionLinkState.Ignored, ct);
         return Result.Success(await lines.ViewAsync(line.Id, ct));
+    }
+}
+
+[RequestHandler<SameLabelLinesQuery, IReadOnlyList<Guid>>]
+public sealed class SameLabelLinesHandler(IContextAccessor context, BankingAccess access, IAccountStore accounts, ITransactionStore transactions)
+    : IRequestHandler<SameLabelLinesQuery, IReadOnlyList<Guid>>
+{
+    /// <summary>The bulk categorisation's own limit, the line itself aside.</summary>
+    public const int Most = SetTransactionsCategoryHandler.Most - 1;
+
+    public async ValueTask<Result<IReadOnlyList<Guid>>> HandleAsync(SameLabelLinesQuery query, CancellationToken ct = default)
+    {
+        var line = CheckedResources.Of<BankTransaction>(context, query);
+        var writable = (await access.ReadableAsync(await accounts.AllAsync(ct), ct)).Where(r => r.CanWrite).Select(r => r.Account.Id).ToList();
+        var same = await transactions.ListAsync(writable, null, null, 0, Most + 1, ct, uncategorised: true, normalizedLabel: line!.NormalizedLabel);
+        return Result.Success<IReadOnlyList<Guid>>([.. same.Where(l => l.Id != line.Id).Take(Most).Select(l => l.Id)]);
     }
 }
 

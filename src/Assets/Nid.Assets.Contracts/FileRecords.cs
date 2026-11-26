@@ -29,6 +29,15 @@ public sealed record AssetImportRecord
     [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString)]
     public decimal? Fineness { get; init; }
 
+    public string? RegisteredOn { get; init; }
+    public int? MileageKm { get; init; }
+    public string? MileageOn { get; init; }
+    public int? FiscalHp { get; init; }
+    public string? Energy { get; init; }
+
+    [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString)]
+    public decimal? DepreciationRate { get; init; }
+
     public string Visibility { get; set; } = "shared";
 
     /// <summary><c>view</c> when omitted, <c>edit</c> lets every adult write the shared item.</summary>

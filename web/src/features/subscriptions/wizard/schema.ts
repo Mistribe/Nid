@@ -23,6 +23,7 @@ export function wizardSchema(t: TFunction) {
     ...ownershipShape(t),
     users: z.array(z.string()),
     note: z.string(),
+    asset: z.string(),
     startsOn: z.string(),
     amount: z.string(),
     currency: z.string().trim().toUpperCase().regex(CURRENCY, t('edit.invalid_currency')),
@@ -136,6 +137,7 @@ export function toCreateBody(v: WizardValues): CreateBody {
     autoRenew: true,
     users: v.users,
     note: v.note.trim() === '' ? null : v.note,
+    ...(v.asset === '' ? {} : { assetId: v.asset }),
     ...offerBody(v),
   };
 }
@@ -144,6 +146,6 @@ export function toCreateBody(v: WizardValues): CreateBody {
 export const fieldOf = (path: string, v: Pick<WizardValues, 'offer' | 'trialVariant'>): Path<WizardValues> | undefined => {
   const owned = ownershipPath(path);
   if (owned) return owned;
-  const common = { displayName: 'displayName', providerKey: 'provider', users: 'users', note: 'note' } as const;
+  const common = { displayName: 'displayName', providerKey: 'provider', users: 'users', note: 'note', assetId: 'asset' } as const;
   return common[path as keyof typeof common] ?? offerFieldOf(path, v);
 };

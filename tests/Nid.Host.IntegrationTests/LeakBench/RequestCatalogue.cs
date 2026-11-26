@@ -335,6 +335,17 @@ public static class RequestCatalogue
             },
             SecondItemAccess = AccessKind.Read,
         },
+        new(typeof(SetSubscriptionAssetCommand), true, (_, item) => new SetSubscriptionAssetCommand(item, null))
+        {
+            // #648: a subscription links to an asset its actor reads; the bench names the asset twin of the other row. A link kept
+            // from the request before is no new link, so each request starts without one.
+            BuildNamingAnother = async (d, target, other) =>
+            {
+                await d.App.ClearAssetLinkAsync(target);
+                return new SetSubscriptionAssetCommand(target, d.AssetTwinOfSubscription(other));
+            },
+            SecondItemAccess = AccessKind.Read,
+        },
         new(typeof(SubscriptionDeletionQuery), true, (_, item) => new SubscriptionDeletionQuery(item)),
         new(typeof(DeleteSubscriptionCommand), true, (_, item) => new DeleteSubscriptionCommand(item, 1)),
         new(typeof(DeleteInsuranceCommand), true,
@@ -652,6 +663,11 @@ public static class RequestCatalogue
         new(typeof(RecordAssetValuationCommand), true, (_, item) => new RecordAssetValuationCommand(item, new LocalDate(2025, 1, 1), 1m, null)),
         // A valuation id is looked up on the route's asset only, so an id alone can never reach another item.
         new(typeof(VoidAssetValuationCommand), true, (_, item) => new VoidAssetValuationCommand(item, Guid.NewGuid())),
+        new(typeof(ListAssetCostsQuery), true, (_, item) => new ListAssetCostsQuery(item, null)),
+        new(typeof(RecordAssetCostCommand), true, (_, item) => new RecordAssetCostCommand(item, new AssetCostDraft(new LocalDate(2025, 1, 1), 1m, "service", null))),
+        new(typeof(CorrectAssetCostCommand), true, (_, item) => new CorrectAssetCostCommand(item, Guid.NewGuid(), new AssetCostDraft(new LocalDate(2025, 1, 1), 1m, "service", null))),
+        // As a valuation id: a flow id is looked up on the route's asset only, so an id alone can never reach another item.
+        new(typeof(VoidAssetCostCommand), true, (_, item) => new VoidAssetCostCommand(item, Guid.NewGuid())),
 
         new(typeof(ListChildcareQuery), false, (_, _) => new ListChildcareQuery(VisibilityScope.Me, true)),
         new(typeof(GetChildcareQuery), true, (_, item) => new GetChildcareQuery(item)),
@@ -736,6 +752,7 @@ public static class RequestCatalogue
         new(typeof(Nid.Banking.Application.Spending.ListSpendingLinesQuery), false, (_, _) => new Nid.Banking.Application.Spending.ListSpendingLinesQuery(VisibilityScope.Household, Nid.Banking.Domain.CategorySeed.Find("food.groceries")!.Id, false, new YearMonth(2025, 1), null, null, 1)),
         new(typeof(Nid.Banking.Application.Spending.ListSpendingLinesQuery), false, (_, _) => new Nid.Banking.Application.Spending.ListSpendingLinesQuery(VisibilityScope.Mine, Nid.Banking.Domain.CategorySeed.Find("food.groceries")!.Id, false, new YearMonth(2025, 1), null, null, 1)),
         new(typeof(LinkCandidatesQuery), false, (d, _) => new LinkCandidatesQuery(d.JointLine)) { BuildOn = (_, id) => new LinkCandidatesQuery(id) },
+        new(typeof(SameLabelLinesQuery), false, (d, _) => new SameLabelLinesQuery(d.JointLine)) { BuildOn = (_, id) => new SameLabelLinesQuery(id) },
         new(typeof(ListExpectedChargesQuery), false, (_, _) => new ListExpectedChargesQuery(new LocalDate(2025, 1, 1), new LocalDate(2025, 3, 31))),
         new(typeof(LinkTransactionCommand), false, (d, item) => new LinkTransactionCommand(d.JointLine, "subscriptions", item.Value, null)) { BuildOn = (_, id) => new LinkTransactionCommand(id, "subscriptions", Guid.NewGuid(), null) },
         new(typeof(UnlinkTransactionCommand), false, (d, _) => new UnlinkTransactionCommand(d.JointLine)) { BuildOn = (_, id) => new UnlinkTransactionCommand(id) },
@@ -770,6 +787,8 @@ public static class RequestCatalogue
         new(typeof(Nid.Banking.Application.Spending.SuggestBudgetsQuery), false, (_, _) => new Nid.Banking.Application.Spending.SuggestBudgetsQuery()),
         // #449: suggestions count only accounts the actor reads; a dismissal names a pattern, listed only to who reads a line of it.
         new(typeof(ListCategorySuggestionsQuery), false, (_, _) => new ListCategorySuggestionsQuery(1)),
+        // « À classer »: lines of the accounts the actor writes only, suggestions from those they read.
+        new(typeof(ListLinesToClassifyQuery), false, (_, _) => new ListLinesToClassifyQuery(null, 1)),
         new(typeof(ListSuggestionDismissalsQuery), false, (_, _) => new ListSuggestionDismissalsQuery()),
         new(typeof(DismissCategorySuggestionCommand), false, (_, _) => new DismissCategorySuggestionCommand("BENCH", "debit", Nid.Banking.Domain.CategorySeed.Find("food.groceries")!.Id)),
         new(typeof(WithdrawSuggestionDismissalCommand), false, (_, _) => new WithdrawSuggestionDismissalCommand(Guid.NewGuid())),

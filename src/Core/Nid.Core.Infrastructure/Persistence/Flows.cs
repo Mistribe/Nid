@@ -204,7 +204,7 @@ public sealed class Flows(CoreDbContext db, FactGate gate, IClock clock) : IFlow
         ImportRef = flow.Import?.Ref,
         ImportHash = flow.Import?.Hash,
         ImportedBy = flow.Import?.ImportedBy.Value,
-        DocumentId = old?.DocumentId, // a correction keeps its source
+        DocumentId = flow.DocumentId ?? (flow.ClearDocument ? null : old?.DocumentId), // a correction keeps its source unless it gives another or clears it (an invoice, #649)
     };
 
     private async Task<Result<FlowRow>> FindCurrentAsync(ItemId item, Guid id, CancellationToken ct)

@@ -12,7 +12,7 @@ namespace Nid.Investments.Application;
 /// on or before 1 January and today, the gain since excluding contributions (as the period performance).
 /// 2D2a: one <see cref="Holding"/> per envelope, named and owned as the registry says.
 /// Holding prices spec §5.4: today's value is the envelope's estimate when <see cref="TodayValue"/> picks it, estimated as the reader
-/// (the dashboard's actor) over the envelopes already read; the change since 1 January stays on the valuations.
+/// (the dashboard's actor) over the envelopes already read; the change since 1 January ends on the same value (#754).
 /// </summary>
 public sealed class EnvelopesNetWorth(
     IVisibleItems visible, IEnvelopeStore envelopes, EnvelopePerformance performance, IItemRegistry items, IHoldingStore holdingStore,
@@ -72,7 +72,7 @@ public sealed class EnvelopesNetWorth(
                     f.Envelope.Availability, today, f.Envelope.EarlyRelease),
                 estimated, figures.AsOf, EnvelopeKinds.IsRetirement(f.Envelope.Kind)));
 
-            if (SinceJanuary(f, today) is { StartValue: { } start, NetContributions: { } net, Performance: { } gain })
+            if (SinceJanuary(f, today, estimated ? value : null) is { StartValue: { } start, NetContributions: { } net, Performance: { } gain })
             {
                 Add(starts, start.Currency, start.Amount);
                 Add(nets, net.Currency, net.Amount);
@@ -86,19 +86,36 @@ public sealed class EnvelopesNetWorth(
     }
 
     /// <summary>
-    /// The gain since 1 January excluding contributions, as the period performance; null without a start value, or with one older
-    /// than the envelope's own staleness threshold (2D2b decision 3: it would fold several years into « the year's gain »; a null
-    /// threshold, no cadence, sets no limit). Shared with the investments overview (dashboard spec D3).
+    /// The gain since 1 January excluding contributions, as the period performance; null when <see cref="StartKnown"/> is not.
+    /// Shared with the investments overview (dashboard spec D3).
+    /// #754: <paramref name="estimate"/>, today's value when <see cref="TodayValue"/> picks the estimate, ends the period as on the
+    /// Performance page (its last month carries the estimate over the last valuation).
     /// </summary>
-    internal static PeriodPerformance? SinceJanuary(EnvelopePerformance.Facts f, LocalDate today)
+    internal static PeriodPerformance? SinceJanuary(EnvelopePerformance.Facts f, LocalDate today, Money? estimate = null)
     {
-        var january1 = new LocalDate(today.Year, 1, 1);
-        var period = EnvelopeMath.Period(f.Values, f.Flows, f.Currency, january1, today);
-        var limit = EnvelopeMath.StaleThreshold(f.Envelope.Cadence, f.Envelope.StaleAfterDays);
-        var recent = period.StartAsOf is { } startAsOf
-            && (limit is not { } days || NodaTime.Period.DaysBetween(startAsOf, january1) <= days);
-        return recent && period.Performance is not null ? period : null;
+        var period = EnvelopeMath.Period(f.Values, f.Flows, f.Currency, new LocalDate(today.Year, 1, 1), today);
+        if (estimate is { } e && period is { EndValue: { } end, Performance: { } gain })
+            period = period with { EndValue = e, Performance = Amounts.Of(gain.Amount + e.Amount - end.Amount, f.Currency) };
+        return StartKnown(f, period) && period.Performance is not null ? period : null;
     }
+
+    /// <summary>
+    /// 2D2b decision 3: the period's start value is older than the envelope's own staleness threshold, so it would fold several years
+    /// into the period's gain (a null threshold, no cadence, sets no limit).
+    /// </summary>
+    internal static bool StaleStart(EnvelopePerformance.Facts f, PeriodPerformance period)
+        => period.StartAsOf is { } start && EnvelopeMath.StaleThreshold(f.Envelope.Cadence, f.Envelope.StaleAfterDays) is { } days
+            && NodaTime.Period.DaysBetween(start, period.From) > days;
+
+    /// <summary>
+    /// #768: the one rule of the overview's change since 1 January and of the Performance tab: a period's gain counts when its start is
+    /// known, a recent value at the start, or none but an envelope opened during the period (nothing paid in before, money paid in by its
+    /// first value: it starts from 0). Without one it is left out, and each figure says so.
+    /// </summary>
+    internal static bool StartKnown(EnvelopePerformance.Facts f, PeriodPerformance period)
+        => period.StartAsOf is not null ? !StaleStart(f, period)
+            : !period.NoStartValue && f.Values.Where(v => v.AsOf >= period.From).MinBy(v => v.AsOf) is { } first
+                && f.Flows.Any(x => x.Kind is FlowKind.Opening or FlowKind.Contribution && x.OccurredOn <= first.AsOf);
 
     /// <summary>
     /// 2D2b spec §4: at each date, each envelope's last reading on or before it, with the net contributions up to that

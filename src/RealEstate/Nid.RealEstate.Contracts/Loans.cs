@@ -74,11 +74,14 @@ public sealed record ScheduleDiffSummary(decimal MaxGap, LocalDate? MaxGapOn, Lo
 
 public sealed record ScheduleDiff(IReadOnlyList<ScheduleGap> Rows, ScheduleDiffSummary Summary);
 
-/// <summary>loans.md §8: a loan at a date.</summary>
+/// <summary>
+/// loans.md §8: a loan at a date. <c>CapitalisedInterest</c> is the interest a total deferral added to the capital by then:
+/// <c>PrincipalRepaid</c> is measured against the principal plus it (#709).
+/// </summary>
 public sealed record LoanFigures(
     decimal Balance, decimal PrincipalRepaid, decimal InterestPaid, decimal InsurancePaid, decimal FeesPaid,
     int? CurrentPhaseSeq, decimal? CurrentRate, int PaymentsLeft, LocalDate? NextPaymentOn, decimal? NextPaymentTotal,
-    LocalDate? EndDate, decimal TotalCost, decimal CostPaid, decimal CostRemaining);
+    LocalDate? EndDate, decimal TotalCost, decimal CostPaid, decimal CostRemaining, decimal CapitalisedInterest = 0m);
 
 /// <summary>loans.md §7: one effect of a simulated early repayment, before and after.</summary>
 public sealed record RepaymentOutcome(
@@ -134,6 +137,23 @@ public static class LoanCodes
 
     /// <summary>#180: not an SCPI envelope the actor reads, or a loan that would finance a property and an SCPI at once.</summary>
     public const string InvalidEnvelope = "realestate.invalid_envelope";
+
+    /// <summary>#188: not an asset the actor reads, or a loan that would finance two items at once.</summary>
+    public const string InvalidAsset = "realestate.invalid_asset";
+}
+
+/// <summary>#188: a readable loan financing an item, with the capital still owed on it, converted to that item's currency, null when no rate converts it.</summary>
+public sealed record ItemLoanBalance(ItemId Loan, string Name, Money? Balance);
+
+/// <summary>
+/// #188: the loans financing items of another module (an asset), read by Assets for its net value. Only the loans
+/// <paramref name="reader"/> sees in <paramref name="scope"/>; a loan they cannot see is not named nor counted. One call whatever the
+/// number of items. A loan whose currency has no rate to the item's stays listed with a null <c>Balance</c> (the caller leaves it out of its deduction and says so, as a property's <c>fx_missing</c>).
+/// </summary>
+public interface IItemLoans
+{
+    Task<IReadOnlyDictionary<ItemId, IReadOnlyList<ItemLoanBalance>>> BalancesAsync(
+        PersonId reader, VisibilityScope scope, IReadOnlyCollection<ItemId> items, LocalDate on, CancellationToken ct);
 }
 
 /// <summary>

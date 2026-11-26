@@ -90,6 +90,15 @@ describe('« Dépenses » budgets', () => {
     expect(within(rowOf(await screen.findByRole('table', { name: 'Par catégorie' }), 'Loisirs')).queryByText(/dont/)).toBeNull();
   });
 
+  it('says a budget from commitments adds the usual month of the rest, and how much is committed (#722)', async () => {
+    const usual: Spending = { ...budgeted, categories: [budgeted.categories[0]!, { ...budgeted.categories[1]!, budget: { ...budgeted.categories[1]!.budget!, committed: '250.00' } }] };
+    spendingServer(usual);
+    await renderApp('/spending');
+
+    const cells = within(rowOf(await screen.findByRole('table', { name: 'Par catégorie' }), 'Loisirs')).getAllByRole('cell');
+    expect(cells[3]).toHaveTextContent(/^300,00\s€engagements \+ mois habituel\s*dont 250,00\s€ engagés$/);
+  });
+
   it('says when a commitment had no rate, apart from the lines', async () => {
     spendingServer({ ...budgeted, budgetIncomplete: true });
     await renderApp('/spending');

@@ -1,5 +1,5 @@
-// What the import format has no section for, seeded through the API as Alice: tax notices, scenarios, projection scenarios,
-// documents and the CPI series. Each step looks for what it would create first, so a second run changes nothing.
+// What the import format has no section for, seeded through the API as Alice: tax notices, birth dates, the living cost and a
+// pension, scenarios, projection scenarios, documents and the CPI series. Each step looks for what it would create first, so a second run changes nothing.
 import { shiftDates } from './generate.mjs';
 
 /** The first of the month `months` after `anchor` (`YYYY-MM`), as `YYYY-MM-DD`. */
@@ -100,6 +100,26 @@ export async function seed({ call }, anchor, shift) {
       netTax: gross(4946), withholding: gross(4890), balance: gross(56), childcareExpenses: gross(3500),
     });
     done.push(`avis ${revenue}`);
+  }
+
+  // Retirement: both birth dates, a living cost, and Alice's pension only, so Bob shows « aucune pension saisie ».
+  const born = { [alice]: '1985-06-15', [bob]: '1983-02-10' };
+  for (const person of persons.filter((p) => born[p.id] && !p.birthDate)) {
+    await call('PUT', `/api/v1/core/persons/${person.id}/retirement`, { birthDate: born[person.id], retirementAge: person.retirementAge, retirementMonths: person.retirementMonths });
+    done.push(`${person.displayName} : date de naissance`);
+  }
+  if (Number((await call('GET', '/api/v1/core/projection-assumptions')).monthlyLivingCost) === 0) {
+    await call('PATCH', '/api/v1/core/projection-assumptions', { monthlyLivingCost: '2000' });
+    done.push('coût de la vie');
+  }
+  if (!(await call('GET', '/api/v1/income/sources?scope=household&kind=pension')).items.length) {
+    // From the month after Alice's departure, as the Retraite page's pension dialog does.
+    const departure = (await call('GET', '/api/v1/core/persons')).find((p) => p.id === alice).retirementOn;
+    await call('POST', '/api/v1/income/sources', {
+      displayName: 'Pension de retraite', kind: 'pension', currency: 'EUR', visibility: 'shared', owners: [{ personId: alice, shareBp: 10000 }],
+      phases: [{ label: 'Pension', startsOn: monthAfter(departure, 1), netAmount: eur(1500), every: { count: 1, unit: 'month' } }],
+    });
+    done.push('pension d\'Alice');
   }
 
   // Scenarios: a rental purchase, the studio's sale, and two projections next to the base one.
