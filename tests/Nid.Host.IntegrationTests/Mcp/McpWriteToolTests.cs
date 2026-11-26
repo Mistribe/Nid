@@ -98,7 +98,8 @@ public class McpWriteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
         Assert.Equal(1, await ProposalCountAsync(app));
 
         await using var direct = await ClientAsync(app, TokenPresets.Direct);
-        Assert.Equal(2, (await AnswerAsync(direct, "propose_holdings_snapshot", Snapshot(apply: true))).GetProperty("appliedRefs").GetArrayLength());
+        // The snapshot, its value (#775: newer than the last one) and the fee.
+        Assert.Equal(3, (await AnswerAsync(direct, "propose_holdings_snapshot", Snapshot(apply: true))).GetProperty("appliedRefs").GetArrayLength());
         var again = await AnswerAsync(direct, "propose_holdings_snapshot", Snapshot(apply: true));
         Assert.Equal(1, again.GetProperty("appliedRefs").GetArrayLength()); // the snapshot replaced, the fee left out
         Assert.Equal("payload.movements[0]", again.GetProperty("skipped")[0].GetProperty("field").GetString());

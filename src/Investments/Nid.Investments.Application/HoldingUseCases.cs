@@ -287,14 +287,16 @@ public sealed class RecordHoldingsSnapshotHandler(
         else
             id = sameDay?.Id ?? Guid.CreateVersion7(); // spec D5: a date's snapshot is replaced
 
+        var today = await calendar.TodayAsync(ct);
         var checkedSnapshot = HoldingRules.Check(id, command.ItemId, command.Snapshot, await holdings.HoldingsAsync(command.ItemId, ct),
-            envelope.Currency, await calendar.TodayAsync(ct));
+            envelope.Currency, today);
         if (!checkedSnapshot.TryGetValue(out var snapshot))
             return Result.Failure<SnapshotRecorded>(checkedSnapshot.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
 
+        var replacedSnapshot = existing.FirstOrDefault(s => s.Id == id);
         await holdings.SaveSnapshotAsync(snapshot, ct);
         Guid? valuationId = null;
-        if (command.Snapshot.RecordValuation)
+        if (command.Snapshot.RecordValuation || (snapshot.Complete && await ValueFollowsAsync(command.ItemId, snapshot, replacedSnapshot, today, ct)))
         {
             var total = Money.Create(HoldingMath.Total(snapshot), envelope.Currency).TryGetValue(out var m) ? m
                 : throw new InvalidOperationException("A sum of four-decimal amounts has four decimals.");
@@ -306,6 +308,18 @@ public sealed class RecordHoldingsSnapshotHandler(
 
         var warnings = HoldingMath.Warnings(snapshot, await HoldingCheck.ValuationOnAsync(valuations, command.ItemId, snapshot.AsOf, ct));
         return Result.Success(new SnapshotRecorded(id, warnings.Select(HoldingWarningView.Of).ToList(), valuationId));
+    }
+
+    /// <summary>
+    /// #775: a complete snapshot newer than the envelope's last value is its value at that date, and so is one that replaces the
+    /// snapshot a same-date value was taken from (unless the total is unchanged); a value entered by hand on that date or later is kept.
+    /// </summary>
+    private async Task<bool> ValueFollowsAsync(ItemId item, HoldingSnapshot snapshot, HoldingSnapshot? replaced, LocalDate today, CancellationToken ct)
+    {
+        var last = (await valuations.LatestAsync(item, today, ct)).TryGetValue(out var latest) ? latest!.Value : null;
+        return last is null || last.AsOf < snapshot.AsOf
+            || (last.AsOf == snapshot.AsOf && replaced?.AsOf == snapshot.AsOf
+                && HoldingMath.Total(replaced) == last.Value.Amount && HoldingMath.Total(snapshot) != last.Value.Amount);
     }
 }
 

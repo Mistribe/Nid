@@ -709,7 +709,7 @@
       "value_required": "Indiquez la valeur imprimée.",
       "empty": "Saisissez la valeur d’au moins un support.",
       "record_valuation": "Enregistrer aussi la valeur de l’enveloppe",
-      "record_valuation_hint": "La somme des lignes devient la valeur de l’enveloppe à cette date.",
+      "record_valuation_hint": "La somme des lignes devient la valeur de l’enveloppe à cette date. Toujours fait quand le relevé est complet et plus récent que la dernière valeur.",
       "submit": "Enregistrer le relevé",
       "saved": "Relevé enregistré."
     },

@@ -160,7 +160,7 @@ public sealed partial class WriteTools
         [Description("The statement's date, ISO (yyyy-mm-dd).")] string asOf,
         [Description("Every holding line of the statement, at most 100.")] HoldingsLine[] lines,
         [Description("The statement's movements per holding, at most 200.")] HoldingsMovement[]? movements = null,
-        [Description("true: also record the lines' sum as the envelope's value on asOf.")] bool recordValuation = false,
+        [Description("true: also record the lines' sum as the envelope's value on asOf. Done anyway when asOf is after the envelope's last value.")] bool recordValuation = false,
         [Description("The document's name, e.g. 'Information trimestrielle 30/06/2026', 200 characters at most.")] string? sourceLabel = null,
         [Description(DocumentArgument)] Guid? documentId = null,
         [Description("true: write directly instead of proposing.")] bool apply = false,
