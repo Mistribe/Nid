@@ -28,7 +28,7 @@ describe('Placements › revenus', () => {
     expect(figures).toHaveTextContent('Dividendes900,00 €');
     expect(figures).toHaveTextContent('Loyers nets1 500,00 €');
     expect(figures).not.toHaveTextContent('Intérêts');
-    expect(figures).toHaveTextContent('d’après les 12 derniers mois');
+    expect(figures).toHaveTextContent('d’après les taux des livrets et les loyers en cours');
     expect(seen).toEqual(['?scope=household']);
     await expectNoAxeViolations(container);
   });

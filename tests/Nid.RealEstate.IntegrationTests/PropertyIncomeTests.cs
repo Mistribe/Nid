@@ -41,6 +41,8 @@ public class PropertyIncomeTests(PostgresFixture fixture) : IClassFixture<Postgr
         await FlowAsync(app, id, "income", "rent", "2025-10-05", "800");
         await FlowAsync(app, id, "expense", "property_tax", "2025-10-10", "1200");
         await FlowAsync(app, id, "expense", "works", "2025-10-10", "5000");
+        await CreatedAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Properties}/{id}/recurring-costs",
+            new { category = "property_tax", amount = "1200", every = new { count = 1, unit = "year" }, startsOn = "2025-10-10" }));
 
         var source = Assert.Single(await IncomeAsync(app, app.AdultA));
 
@@ -50,6 +52,8 @@ public class PropertyIncomeTests(PostgresFixture fixture) : IClassFixture<Postgr
         Assert.Null(source.ValueAt[new LocalDate(2025, 1, 1)]);
         Assert.True(source.LetToday);
         Assert.False(source.Archived);
+        // #777: today's rent less the planned costs a month (1 200 a year).
+        Assert.Equal(800m - 100m, source.MonthlyNetToday);
     }
 
     [Fact]
@@ -89,5 +93,6 @@ public class PropertyIncomeTests(PostgresFixture fixture) : IClassFixture<Postgr
 
         Assert.True(source.Archived);
         Assert.False(source.LetToday);
+        Assert.Null(source.MonthlyNetToday);
     }
 }

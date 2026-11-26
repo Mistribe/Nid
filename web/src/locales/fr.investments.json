@@ -420,7 +420,7 @@
     "col_total": "Revenus",
     "yield_short": "Rendement",
     "estimate": "Estimation 12 prochains mois",
-    "estimate_note": "d’après les 12 derniers mois et les loyers en cours",
+    "estimate_note": "d’après les taux des livrets et les loyers en cours, moins les charges prévues ; les 12 derniers mois pour le reste",
     "kind": { "dividend": "Dividendes", "interest": "Intérêts", "distribution": "Distributions", "rent": "Loyers nets", "other": "Autres" },
     "months_title": "Revenus mois par mois",
     "months_table": "Revenus de chaque mois",
