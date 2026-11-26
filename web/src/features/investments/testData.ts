@@ -19,7 +19,9 @@ export const summary = (over: Partial<EnvelopeSummary> = {}): EnvelopeSummary =>
   id: PEA, displayName: 'PEA', kind: 'pea', currency: 'EUR', visibility: 'shared', closed: false, canWrite: true, figures: figures(), owners: [], ...over,
 });
 
-export const list = (items: EnvelopeSummary[]): EnvelopeList => ({ items });
+// Each envelope in a group of its own unless the test names the groups: nothing gathered.
+export const list = (items: EnvelopeSummary[], groups?: EnvelopeList['groups']): EnvelopeList =>
+  ({ items, groups: groups ?? items.map((i) => ({ owners: i.owners, items: [i.id], value: i.figures.value })) });
 
 export const detail = (over: Partial<EnvelopeDetail> = {}): EnvelopeDetail => ({
   id: PEA, displayName: 'PEA', kind: 'pea', currency: 'EUR', visibility: 'shared', closed: false, canWrite: true,

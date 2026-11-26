@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApi } from '@/api/ApiProvider';
-import { ASSETS, type AssetRow } from '@/api/assets';
+import { ASSETS, type AssetList, type AssetRow } from '@/api/assets';
 import { present, toProblem } from '@/api/errors';
 import { PERSONS } from '@/api/persons';
 import type { AssetsSearch } from '@/app/router';
@@ -41,7 +41,7 @@ export function AssetsPage() {
   const people = $api.useQuery('get', PERSONS);
   const go = (change: Partial<AssetsSearch>) =>
     void navigate({ to: '.', replace: true, resetScroll: false, search: ((prev: AssetsSearch) => ({ ...prev, page: undefined, ...change })) as never });
-  const rows = answer.data?.rows ?? [];
+  const rows = answer.data ? grouped(answer.data) : [];
   const total = answer.data?.total ?? 0;
   const narrowed = Boolean(search.kind || search.owner || search.q || search.archived);
   // A page past the end (the last rows archived) steps back.
@@ -91,16 +91,27 @@ export function AssetsPage() {
   );
 }
 
-function Table({ rows }: { rows: AssetRow[] }) {
+type Row = AssetRow & { parts?: AssetRow[]; total?: AssetList['groups'][number]['value'] };
+
+/** As the income list: the assets of the same owners fold into one row, its total the server's; a group of one stays a plain row. */
+function grouped(data: AssetList): Row[] {
+  const byId = new Map(data.rows.map((r) => [r.id, r]));
+  return data.groups.flatMap((g) => {
+    const parts = g.items.flatMap((id) => byId.get(id) ?? []);
+    return parts.length > 1 ? [{ ...parts[0]!, parts, total: g.value }] : parts;
+  });
+}
+
+function Table({ rows }: { rows: Row[] }) {
   const { t } = useTranslation();
-  const name = (r: AssetRow) => (
+  const name = (r: Row) => r.parts ? <span className="font-medium">{t('assets_list.group', { count: r.parts.length })}</span> : (
     <span className="inline-flex flex-wrap items-center gap-2">
       <Link to="/other-assets/$id" params={{ id: r.id }} className="font-medium underline-offset-4 hover:underline">{r.name}</Link>
       <AccessBadge access={r.visibility === 'private' ? 'private' : 'shared'} />
       {r.archived ? <Badge variant="secondary">{t('assets_list.archived')}</Badge> : null}
     </span>
   );
-  const value = (r: AssetRow) => r.value ? (
+  const value = (r: Row) => r.parts ? (r.total ? <Money value={r.total} tabular /> : <span className="text-muted-foreground">{t('assets_list.dash')}</span>) : r.value ? (
     <span className="inline-flex flex-col items-end">
       <span className="inline-flex items-center gap-2">
         {r.valueEstimated ? <Badge variant="secondary">{t('assets_list.estimated')}</Badge> : r.valueFromPurchase ? <Badge variant="secondary">{t('assets_list.purchase_price')}</Badge> : null}
@@ -110,17 +121,19 @@ function Table({ rows }: { rows: AssetRow[] }) {
     </span>
   ) : <span className="text-muted-foreground">{t('assets_list.no_value')}</span>;
   return (
-    <SortableTable<AssetRow> caption={t('assets_list.list')} rows={rows} rowKey={(r) => r.id}
+    <SortableTable<Row> caption={t('assets_list.list')} rows={rows} rowKey={(r) => (r.parts ? `group:${r.id}` : r.id)}
+      subRows={(r) => r.parts} expandLabel={() => t('assets_list.expand_group')}
+      rowClassName={(r) => (r.parts ? 'bg-muted/50' : undefined)}
       columns={[
         { id: 'name', header: t('lists.col.name'), sort: (r) => r.name, cell: name },
-        { id: 'kind', header: t('lists.col.kind'), sort: (r) => kindText(t, r.kind), cell: (r) => kindText(t, r.kind) },
+        { id: 'kind', header: t('lists.col.kind'), sort: (r) => kindText(t, r.kind), cell: (r) => (r.parts ? null : kindText(t, r.kind)) },
         { id: 'owner', header: t('lists.col.owner'), cell: (r) => <OwnerChips owners={r.owners} /> },
-        { id: 'value', header: t('lists.col.value'), align: 'end', sort: (r) => amountKey(r.value?.amount), cell: value },
+        { id: 'value', header: t('lists.col.value'), align: 'end', sort: (r) => amountKey((r.parts ? r.total : r.value)?.amount), cell: value },
       ]}
       mobile={(r) => (
         <div className="space-y-1">
           <div className="flex items-center justify-between gap-2">{name(r)}<OwnerChips owners={r.owners} /></div>
-          <div className="flex flex-wrap items-center justify-between gap-2 text-sm"><span className="text-muted-foreground">{kindText(t, r.kind)}</span>{value(r)}</div>
+          <div className="flex flex-wrap items-center justify-between gap-2 text-sm"><span className="text-muted-foreground">{r.parts ? null : kindText(t, r.kind)}</span>{value(r)}</div>
         </div>
       )} />
   );

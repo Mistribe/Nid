@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { unfoldAll } from './controls';
 import { signIn } from './session';
 
 // The glass layers need a real browser: jsdom computes no backdrop-filter, no media query and no focus scrolling.
@@ -72,8 +73,13 @@ test('a focused element is never hidden under the floating top bar', async ({ pa
   }
   await page.goto('/investments?tab=list&scope=me'); // private envelopes: alice's own view lists them, the household's does not
   // The table's links: the phone list below it holds the same links, hidden on a wide screen.
-  const links = page.locator('main').getByRole('table').getByRole('link');
-  await expect(links.first()).toBeVisible();
+  const table = page.locator('main').getByRole('table');
+  const links = table.getByRole('link');
+  // The twenty envelopes are alice's alone: folded into one row until unfolded.
+  await expect(async () => {
+    await unfoldAll(table);
+    expect(await links.count()).toBeGreaterThanOrEqual(20);
+  }).toPass();
   const viewport = page.viewportSize()!;
   const state = () =>
     page.evaluate<{ top: number; toolbarBottom: number; scrollY: number }>(
