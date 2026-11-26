@@ -118,7 +118,8 @@ public class ListGroupingTests
     public void Groups_sort_by_monthly_cost_descending_then_name()
     {
         var groups = ListGrouping.Group(ListGroup.Provider,
-            [Sub("5", Provider("b")), Sub("5", Provider("a")), Sub("9", Provider("c")), Sub(null, Provider("d"))]);
+            // #711: by « Par mois », a twelfth of the year.
+            [Sub("5", Provider("b"), annual: "60"), Sub("5", Provider("a"), annual: "60"), Sub("9", Provider("c"), annual: "108"), Sub(null, Provider("d"))]);
 
         Assert.Equal(["c", "a", "b", "d"], groups.Select(g => g.Key));
     }

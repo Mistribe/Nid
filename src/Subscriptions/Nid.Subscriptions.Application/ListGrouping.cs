@@ -14,10 +14,11 @@ public enum ListGroup { None, Provider, Label, Person }
 public sealed record GroupView(
     string Key, string? Name, IReadOnlyList<Guid> ItemIds, IReadOnlyList<GroupItemView> Items,
     MoneyView? AmortizedCostConverted, MoneyView? AnnualCostConverted, bool ConvertedIsEstimate,
-    MoneyView? SpentTotal = null, bool SpentPartial = false);
+    MoneyView? SpentTotal = null, bool SpentPartial = false, MoneyView? MonthlyCostConverted = null);
 
 /// <summary>A subscription inside a group: its full converted figures, or the person's share of them under a person group.</summary>
-public sealed record GroupItemView(Guid Id, MoneyView? AmortizedCostConverted, MoneyView? AnnualCostConverted, MoneyView? SpentTotal = null);
+public sealed record GroupItemView(Guid Id, MoneyView? AmortizedCostConverted, MoneyView? AnnualCostConverted, MoneyView? SpentTotal = null,
+    MoneyView? MonthlyCostConverted = null);
 
 public static class ListGrouping
 {
@@ -58,8 +59,10 @@ public static class ListGrouping
             .Select(b => (Key: b.Key, b.Value.Name, Group: b.Value.Members))
             .Select(b =>
             {
-                var monthly = Sum(b.Group, i => i.AmortizedCostConverted);
+                var amortized = Sum(b.Group, i => i.AmortizedCostConverted);
                 var annual = Sum(b.Group, i => i.AnnualCostConverted);
+                // #711: « Par mois », a twelfth of the group's year, as each member's.
+                var monthly = MoneyView.Twelfth(annual?.View);
                 // An item appears once per group (an owner holds one share), so Items and ItemIds line up.
                 var members = b.Group.DistinctBy(m => m.Item.Id).ToList();
                 var spent = spentOf is not null && by != ListGroup.Person
@@ -69,14 +72,15 @@ public static class ListGrouping
                 return (b.Key, b.Name, Monthly: monthly, View: new GroupView(
                     b.Key, b.Name, members.Select(m => m.Item.Id.Value).ToList(),
                     members.Select(m => m.Bp == 10_000
-                        ? new GroupItemView(m.Item.Id.Value, m.Item.AmortizedCostConverted, m.Item.AnnualCostConverted, m.Item.Spent?.Total)
+                        ? new GroupItemView(m.Item.Id.Value, m.Item.AmortizedCostConverted, m.Item.AnnualCostConverted, m.Item.Spent?.Total,
+                            m.Item.MonthlyCostConverted)
                         : new GroupItemView(m.Item.Id.Value,
                             Sum([m], i => i.AmortizedCostConverted)?.View, Sum([m], i => i.AnnualCostConverted)?.View,
-                            Sum([m], i => i.Spent?.Total)?.View)).ToList(),
-                    monthly?.View, annual?.View, b.Group.Any(m => m.Item.ConvertedIsEstimate),
-                    spent.Total, spent.Partial));
+                            Sum([m], i => i.Spent?.Total)?.View, MoneyView.Twelfth(Sum([m], i => i.AnnualCostConverted)?.View))).ToList(),
+                    amortized?.View, annual?.View, b.Group.Any(m => m.Item.ConvertedIsEstimate),
+                    spent.Total, spent.Partial, monthly));
             })
-            .OrderByDescending(g => g.Monthly is not null).ThenByDescending(g => g.Monthly?.Total ?? 0m)
+            .OrderByDescending(g => g.Monthly is not null).ThenByDescending(g => g.Monthly is { } m ? decimal.Parse(m.Amount, CultureInfo.InvariantCulture) : 0m)
             .ThenBy(g => g.Name ?? g.Key, StringComparer.Ordinal)
             .Select(g => g.View)
             .ToList();

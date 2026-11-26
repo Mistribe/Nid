@@ -553,6 +553,8 @@
     "count_other": "{{count}} abonnements",
     "per_month": "Par mois",
     "per_year": "Par an",
+    "per_month_tip": "Un douzième de « Par an » : un abonnement annuel compte pour un douzième chaque mois, un essai gratuit une fois terminé.",
+    "per_year_tip": "Ce que vos abonnements prélèveront ce mois-ci et les 11 suivants, au prix de chaque échéance : la somme des 12 mois du graphique.",
     "cash_month": "Décaissé du mois",
     "spent_total": "Dépensé au total",
     "provider_filter": "Fournisseur : {{name}}",

@@ -41954,6 +41954,7 @@ export interface components {
             amortizedCostConverted?: null | components["schemas"]["MoneyView"];
             annualCostConverted?: null | components["schemas"]["MoneyView"];
             spentTotal?: null | components["schemas"]["MoneyView"];
+            monthlyCostConverted?: null | components["schemas"]["MoneyView"];
         };
         GroupView: {
             key: string;
@@ -41966,6 +41967,7 @@ export interface components {
             spentTotal?: null | components["schemas"]["MoneyView"];
             /** @default false */
             spentPartial: boolean;
+            monthlyCostConverted?: null | components["schemas"]["MoneyView"];
         };
         GuaranteeBody: {
             label?: null | string;
@@ -46128,6 +46130,7 @@ export interface components {
             groups: components["schemas"]["GroupView"][];
             findings: components["schemas"]["FindingView"][];
             householdAnnualCostConverted?: null | components["schemas"]["MoneyView"];
+            householdMonthlyCostConverted?: null | components["schemas"]["MoneyView"];
         };
         SubscriptionPriceChangeView: {
             /** Format: uuid */
@@ -46201,6 +46204,7 @@ export interface components {
             owners: components["schemas"]["ItemOwnerView"][];
             annualCostConverted?: null | components["schemas"]["MoneyView"];
             spent?: null | components["schemas"]["SpentView"];
+            monthlyCostConverted?: null | components["schemas"]["MoneyView"];
         };
         SuggestionDismissalBody: {
             pattern?: null | string;

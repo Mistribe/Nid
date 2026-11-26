@@ -52881,6 +52881,16 @@
                 "$ref": "#/components/schemas/MoneyView"
               }
             ]
+          },
+          "monthlyCostConverted": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MoneyView"
+              }
+            ]
           }
         }
       },
@@ -52952,6 +52962,16 @@
           "spentPartial": {
             "type": "boolean",
             "default": false
+          },
+          "monthlyCostConverted": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MoneyView"
+              }
+            ]
           }
         }
       },
@@ -71054,6 +71074,16 @@
                 "$ref": "#/components/schemas/MoneyView"
               }
             ]
+          },
+          "householdMonthlyCostConverted": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MoneyView"
+              }
+            ]
           }
         }
       },
@@ -71432,6 +71462,16 @@
               },
               {
                 "$ref": "#/components/schemas/SpentView"
+              }
+            ]
+          },
+          "monthlyCostConverted": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MoneyView"
               }
             ]
           }

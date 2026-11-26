@@ -53,7 +53,8 @@ public class OverviewMathTests
             Monthly(5, 17.20m),
             Built([Phase(new LocalDate(2025, 5, 10), null, 216.00m, every: Years(1))]));
 
-        Assert.Equal(Enumerable.Range(0, 12).Select(i => new LocalDate(2025, 11, 1).PlusMonths(i).ToString("yyyy-MM", CultureInfo.InvariantCulture)),
+        // #711: this month and the 11 after.
+        Assert.Equal(Enumerable.Range(0, 12).Select(i => new LocalDate(2025, 10, 1).PlusMonths(i).ToString("yyyy-MM", CultureInfo.InvariantCulture)),
             overview.Months.Select(m => m.Month));
         Assert.All(overview.Months, m => Assert.Equal(17.20m, Amount(m.Recurring)));
         Assert.All(overview.Months, m => Assert.Equal(m.Month == "2026-05" ? 216.00m : 0m, Amount(m.LongCycle)));
@@ -68,7 +69,7 @@ public class OverviewMathTests
 
         var overview = Overview(Built([], [purchase], id: a), Built([], [purchase], id: b));
 
-        Assert.Equal(120m, Amount(overview.Months[0].LongCycle));
+        Assert.Equal(120m, Amount(overview.Months[1].LongCycle));
         var line = Assert.Single(overview.Upcoming);
         Assert.Equal((new LocalDate(2025, 11, 5), 120m), (line.Date, Amount(line.Converted)!.Value));
         Assert.Contains(overview.Findings, f => f.Code == HouseholdCost.AmortizedDoubleCountCode);
@@ -212,7 +213,9 @@ public class OverviewMathTests
         Assert.All(overview.Months, m =>
             Assert.Equal(string.CompareOrdinal(m.Month, "2026-03") < 0 ? 17.20m : null, Amount(m.Recurring)));
         Assert.All(overview.Months, m => Assert.Equal(0m, Amount(m.LongCycle)));
-        Assert.NotNull(overview.MonthlyAmortized); // the USD phase starts later: this month needs no USD rate
+        // #711: « Par mois » is a twelfth of the year, which the USD charges are in: without their rate, neither is known.
+        Assert.Null(overview.MonthlyAmortized);
+        Assert.NotNull(overview.MonthCash); // the USD phase starts later: this month's cash needs no USD rate
         Assert.Contains(overview.Findings, f => f.Code == FxCodes.RateMissing);
         Assert.Single(overview.Findings, f => f.Code == FxCodes.RateMissing); // one per rate, however many figures lack it
     }
