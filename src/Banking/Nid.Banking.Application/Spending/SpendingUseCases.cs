@@ -56,7 +56,7 @@ public sealed record SpendingCategoryView(
 /// <summary>
 /// #85 decisions 7 and 8: a category's budget for the month. <paramref name="Planned"/> is the typed amount (a yearly one ÷ 12), or, with
 /// <paramref name="Source"/> <c>committed</c>, what the household's expected charges of the month commit there (<paramref name="Committed"/>,
-/// null when none). <paramref name="Period"/>: <c>month</c> or <c>year</c>. <paramref name="Left"/> = planned − spent, negative once over.
+/// null when none) plus the usual month of the lines no commitment covers there (#722). <paramref name="Period"/>: <c>month</c> or <c>year</c>. <paramref name="Left"/> = planned − spent, negative once over.
 /// <paramref name="ExpectedSoFar"/>, for the current month only: the committed charges due on or before today, plus what planned leaves
 /// over the month's commitment × days elapsed (today included) ÷ days in the month.
 /// <paramref name="State"/>: <c>over</c> past the planned amount, <c>ahead</c> (current month) more than 10 % past the expected so far, else
@@ -215,7 +215,7 @@ public sealed class GetSpendingHandler(
         var picked = query.Accounts is { Count: > 0 };
         // Decision 7: the budget is the household's, set against « Foyer » one month at a time, never against some accounts.
         var (plans, uncommitted) = query is { Scope: VisibilityScope.Household, From: null, To: null } && !picked
-            ? await PlansAsync(from, reference, today, byId, ct)
+            ? await PlansAsync(sums, byId, ct)
             : ([], false);
         SpendingBudgetView? Budget(Guid id, decimal range) => plans.TryGetValue(id, out var plan) ? Pace(plan, Round(range), from, today) : null;
 
@@ -301,16 +301,17 @@ public sealed class GetSpendingHandler(
     private sealed record Plan(decimal Planned, decimal? Committed, decimal CommittedToDate, string Source, string Period);
 
     /// <summary>
-    /// Each active expense category's plan for <paramref name="month"/>: its budget's typed amount, else what is committed there; none
-    /// without either. One budget per branch, the parent's first (both can exist after an unarchive): a child under a budgeted parent, and
-    /// a parent over a budgeted child, have none.
+    /// Each active expense category's plan for the month of <paramref name="sums"/>: its budget's typed amount, else what is committed there
+    /// plus (#722) the usual month of the spending no commitment covers there, so a variable line does not run it over; none without a typed
+    /// amount or a commitment. One budget per branch, the parent's first (both can exist after an unarchive): a child under a budgeted
+    /// parent, and a parent over a budgeted child, have none.
     /// </summary>
-    private async Task<(Dictionary<Guid, Plan> Plans, bool Incomplete)> PlansAsync(
-        YearMonth month, Currency reference, LocalDate today, Dictionary<Guid, BankCategory> byId, CancellationToken ct)
+    private async Task<(Dictionary<Guid, Plan> Plans, bool Incomplete)> PlansAsync(Spent sums, Dictionary<Guid, BankCategory> byId, CancellationToken ct)
     {
         static bool Active(BankCategory c) => c is { Kind: CategoryKind.Expense, ArchivedAt: null, MergedInto: null };
         var rows = (await budgets.AllAsync(ct)).Where(b => byId.TryGetValue(b.Category, out var c) && Active(c)).ToDictionary(b => b.Category);
-        var (commitments, incomplete) = await committed.ForAsync(month, reference, today, byId, ct);
+        var (commitments, incomplete) = await committed.ForAsync(sums.From, sums.Reference, sums.Today, byId, ct);
+        var usual = commitments.Count == 0 ? [] : await UsualUncommittedAsync(sums, byId, ct);
         var plans = new Dictionary<Guid, Plan>();
         foreach (var category in byId.Values.Where(Active))
         {
@@ -324,11 +325,35 @@ public sealed class GetSpendingHandler(
             decimal? typed = row?.Amount is { } amount ? Round(row.Period == BudgetPeriod.Year ? amount / 12 : amount) : null;
             if (typed is null && commitment <= 0m)
                 continue;
-            plans[category.Id] = new Plan(typed ?? commitment, commitment > 0m ? commitment : null, Round(toDate), typed is null ? "committed" : "typed",
+            plans[category.Id] = new Plan(typed ?? commitment + Round(Math.Max(usual.GetValueOrDefault(category.Id), 0m)),
+                commitment > 0m ? commitment : null, Round(toDate), typed is null ? "committed" : "typed",
                 // « Annuel » describes a typed yearly amount; a commitment is the month's.
                 typed is not null && row!.Period == BudgetPeriod.Year ? "year" : "month");
         }
         return (plans, incomplete);
+    }
+
+    /// <summary>
+    /// #722: per category (a child's also in its parent's), the lines no commitment covers (none linked to an item) averaged over the months
+    /// <see cref="SpendingView.Average"/> covers, each at its month-end rate; empty without that average or when a line has no rate.
+    /// </summary>
+    private async Task<Dictionary<Guid, decimal>> UsualUncommittedAsync(Spent sums, Dictionary<Guid, BankCategory> byId, CancellationToken ct)
+    {
+        var usual = new Dictionary<Guid, decimal>();
+        if (sums.AverageMissing || sums.Covered < MinHistoryMonths)
+            return usual;
+        foreach (var sum in await lines.SpendingAsync(sums.Accounts, sums.From.PlusMonths(-sums.Covered).ToDateInterval().Start,
+                     sums.From.PlusMonths(-1).ToDateInterval().End, ct, withLinked: false))
+        {
+            if (sum.Category is not { } id || Spending(sum, byId) is not { } amount || amount == 0m)
+                continue;
+            if (!sums.Rates.TryConvert(amount, sum.Currency, sums.Reference, sum.Month.ToDateInterval().End, projected: true, out var converted, out _))
+                return [];
+            Guid[] counted = byId[id].Parent is { } parent ? [id, parent] : [id];
+            foreach (var target in counted)
+                usual[target] = usual.GetValueOrDefault(target) + converted / sums.Covered;
+        }
+        return usual;
     }
 
     /// <summary>
