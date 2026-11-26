@@ -199,8 +199,9 @@ export function DeclarantTable({ result, detail = [], adults = [], children }: {
     { title: t('tax.declarant.allowance'), amount: (d) => d.allowance, tip: tipText(t, 'allowance') },
     { title: t('tax.declarant.pensions'), amount: (d) => d.pensions, tip: tipText(t, 'pensions') },
     { title: t('tax.declarant.pension_allowance'), amount: (d) => d.pensionAllowance, tip: tipText(t, 'pension_allowance') },
-    { title: t('tax.declarant.per'), amount: (d) => d.perDeducted, tip: tipText(t, 'per_deduction') },
     { title: t('tax.declarant.taxable'), amount: (d) => d.taxable, strong: true },
+    // #781: after « Imposable », which is the notice's salaries line: the PER comes off the household's global income, later.
+    { title: t('tax.declarant.per'), amount: (d) => d.perDeducted, tip: tipText(t, 'per_deduction') },
   ];
   // A column is a person by id: two adults may share a display name.
   const columnKey = (d: TaxResult['declarants'][number], i: number) => d.person ?? `${i}`;
