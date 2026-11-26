@@ -365,7 +365,7 @@
     "unknown": "Inconnu",
     "unknown_rate": "taux {{codes}} manquant",
     "debt_ratio": "Taux d’endettement",
-    "debt_ratio_tip": "La part de vos revenus nets du mois qui part dans les mensualités de prêt, assurance comprise. Les banques refusent en général un nouveau prêt au-delà de 35 % (règle du HCSF).",
+    "debt_ratio_tip": "La part de vos revenus nets du mois qui part dans les mensualités de prêt, assurance comprise. Comme les banques, Nid compte les loyers perçus à 70 % (le reste couvre la vacance et les charges). Les banques refusent en général un nouveau prêt au-delà de 35 % (règle du HCSF).",
     "debt_ratio_under": "raisonnable : sous les {{ceiling}} des banques",
     "debt_ratio_over": "élevé : au-dessus des {{ceiling}} des banques, un nouveau prêt serait sans doute refusé",
     "debt_ratio_room": "encore {{amount}} / mois de mensualités possibles",
