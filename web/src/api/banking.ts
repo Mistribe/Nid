@@ -83,6 +83,8 @@ export const CATEGORY_MERGE = '/api/v1/banking/categories/{id}/merge' as const;
 export const TRANSACTION_CATEGORY = '/api/v1/banking/transactions/{id}/category' as const;
 /** #426: one category for several lines; the server answers the lines changed and the refused ones with their code. */
 export const TRANSACTIONS_CATEGORY = '/api/v1/banking/transactions/category' as const;
+/** #721: the other lines of a line's label nothing classified yet, on the accounts the person writes. */
+export const SAME_LABEL_LINES = '/api/v1/banking/transactions/{id}/same-label' as const;
 
 /** Every bank category of the household, archived and merged ones included. */
 export function useCategories() {

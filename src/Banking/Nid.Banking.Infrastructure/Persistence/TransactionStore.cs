@@ -95,11 +95,13 @@ public sealed class TransactionStore(BankingDbContext db, IClock clock) : ITrans
 
     public async Task<IReadOnlyList<BankTransaction>> ListAsync(
         IReadOnlyList<Guid> accounts, LocalDate? from, LocalDate? to, int skip, int take, CancellationToken ct, string? state = null,
-        IReadOnlyList<Guid>? readable = null, bool uncategorised = false)
+        IReadOnlyList<Guid>? readable = null, bool uncategorised = false, string? normalizedLabel = null)
     {
         var query = db.Transactions.AsNoTracking().Where(t => accounts.Contains(t.AccountId));
         if (uncategorised)
             query = query.Where(t => t.CategoryId == null && t.CategorySource == null && t.LinkState != "ignored");
+        if (normalizedLabel is not null)
+            query = query.Where(t => t.NormalizedLabel == normalizedLabel);
         query = ByState(query, state, readable);
         if (from is { } f)
             query = query.Where(t => t.BookedOn >= f);
