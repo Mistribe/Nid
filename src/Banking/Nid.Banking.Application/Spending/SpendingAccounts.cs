@@ -7,7 +7,7 @@ namespace Nid.Banking.Application.Spending;
 /// <summary>
 /// #85 decision 2: the bank accounts whose lines a spending figure counts for the actor. « Foyer » (<see cref="VisibilityScope.Household"/>):
 /// the accounts on a shared envelope, and those on no envelope that every adult reads. « Moi »: every account the actor reads, less (for
-/// <see cref="VisibilityScope.Mine"/>) those on an envelope only dependents own. A card follows its account; an ignored account never counts.
+/// <see cref="VisibilityScope.Mine"/>) those on an envelope only dependents own. A card follows its account, ignored or not (#780); an ignored account never counts.
 /// </summary>
 public sealed class SpendingAccounts(BankingAccess access, IAccountStore accounts, IVisibleItems visible, ITransactionStore lines)
 {
@@ -23,7 +23,8 @@ public sealed class SpendingAccounts(BankingAccess access, IAccountStore account
     /// </summary>
     public async Task<(IReadOnlyList<BankAccount> Counted, IReadOnlyList<BankAccount> Unattached)> ReadAsync(VisibilityScope scope, CancellationToken ct)
     {
-        var all = (await access.ReadableAsync(await accounts.AllAsync(ct), ct)).Where(r => !r.Account.Ignored).ToList();
+        // #780: an attached card is ignored only with its account (its account's echoes of its purchases are internal).
+        var all = (await access.ReadableAsync(await accounts.AllAsync(ct), ct)).Where(r => !r.Account.Ignored || r.Account.CardOf is not null).ToList();
         var readable = all.Select(r => r.Account).ToList();
         // Archived envelopes too: their accounts' past months still count.
         var envelopes = await visible.ForAsync(access.Person, scope, includeArchived: true, ct);

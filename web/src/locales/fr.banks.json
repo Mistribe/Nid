@@ -208,6 +208,7 @@
       "recent": "Dernières opérations",
       "no_recent": "Aucune opération lue pour l’instant.",
       "ignored": "Ne pas suivre ce compte",
+      "ignored_card_hint": "Une carte rattachée compte avec son compte : ses achats restent dans les dépenses tant que son compte est suivi.",
       "auto": "Appliquer les soldes automatiquement",
       "auto_hint": "Sinon, chaque solde de fin de mois arrive dans À valider.",
       "save": "Enregistrer",

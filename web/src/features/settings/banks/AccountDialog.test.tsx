@@ -401,6 +401,16 @@ describe('the account dialog', () => {
     await waitFor(() => expect(sent).toEqual([{ id: CHECKING, body: { ignored: true } }]));
   });
 
+  it('says an attached card counts with its account, followed or not (#780)', async () => {
+    serveBanks([connection({ accounts: [account(), account({ id: CARD, name: 'Visa Premier', ibanMasked: null, kind: 'card', cardOfAccountId: CHECKING })] })], envelopes);
+    const { user } = await renderApp('/settings/banks');
+
+    await user.click((await screen.findAllByRole('button', { name: 'Régler Visa Premier' }))[0]!);
+    const dialog = await screen.findByRole('dialog', { name: 'Régler Visa Premier' });
+    expect(within(dialog).getByRole('switch', { name: 'Ne pas suivre ce compte' }))
+      .toHaveAccessibleDescription('Une carte rattachée compte avec son compte : ses achats restent dans les dépenses tant que son compte est suivi.');
+  });
+
   it('clears the envelope of an account associated with one', async () => {
     serveBanks([connection({ accounts: [connection().accounts[0]!].map((a) => ({ ...a, envelopeId: JOINT })) })], envelopes);
     const sent = patches();

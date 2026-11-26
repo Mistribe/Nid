@@ -198,7 +198,8 @@ export function AccountDialog({ account, envelopes, taken = [], bank, parents, o
               ) : null}
             </div>
           ) : null}
-          <SwitchField label={t('banks.account_dialog.ignored')} checked={ignored} onCheckedChange={setIgnored} />
+          <SwitchField label={t('banks.account_dialog.ignored')} checked={ignored} onCheckedChange={setIgnored}
+            hint={card && cardOf ? t('banks.account_dialog.ignored_card_hint') : undefined} />
           <SwitchField label={t('banks.account_dialog.auto')} hint={t('banks.account_dialog.auto_hint')} checked={auto} onCheckedChange={setAuto} />
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => done()}>{t('common.cancel')}</Button>

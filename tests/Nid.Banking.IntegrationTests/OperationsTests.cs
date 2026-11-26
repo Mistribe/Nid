@@ -362,6 +362,43 @@ public class OperationsTests(PostgresFixture fixture) : IClassFixture<PostgresFi
         Assert.Equal(echo, Assert.Single(joint.GetProperty("items").EnumerateArray()).GetProperty("id").GetGuid());
     }
 
+    /// <summary>
+    /// #780: an attached card set « Non suivi » still counts with its account, its echo internal: the purchase counts once, in the figure,
+    /// Opérations' totals and its category's use. A card attached to an ignored account is left out with it.
+    /// </summary>
+    [Fact]
+    public async Task An_ignored_card_attached_to_a_counted_account_still_counts()
+    {
+        var w = await StartAsync(BankingApi.Account("uid-4", "hash-4", null, "Carte", "CARD", debit: CardDebit.Immediate),
+            BankingApi.Account("uid-5", "hash-5", null, "Ancien"), BankingApi.Account("uid-6", "hash-6", null, "Carte Ancien", "CARD"));
+        await using var _ = w.App;
+        var accounts = await SpendingTests.AccountsAsync(w.App, w.App.AdultA);
+        await SpendingTests.PatchAsync(w.App, w.App.AdultA, accounts["Carte"], new { cardOfAccountId = w.Joint, ignored = true });
+        await SpendingTests.PatchAsync(w.App, w.App.AdultA, accounts["Carte Ancien"], new { cardOfAccountId = accounts["Ancien"] });
+        await SpendingTests.PatchAsync(w.App, w.App.AdultA, accounts["Ancien"], new { ignored = true });
+        var purchase = await LineAsync(w.App, accounts["Carte"], new(2025, 10, 12), -42m, "CARTE 12/10 SHOP", category: "food.groceries");
+        var echo = await LineAsync(w.App, w.Joint, new(2025, 10, 13), -42m, "CARTE 12/10 SHOP CB*0000");
+        await LineAsync(w.App, accounts["Carte Ancien"], new(2025, 10, 14), -10m, "CARTE 14/10 BOULANGERIE", category: "food.groceries");
+        await using (var scope = w.App.Services.CreateAsyncScope())
+        {
+            scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
+            await scope.ServiceProvider.GetRequiredService<ILinkStore>().SetAsync(
+                new BankLink(echo, null, null, CardEchoes.Key(purchase), accounts["Carte"], LinkOutcome.CardSettlement, null, "job", Instant.FromUtc(2025, 10, 15, 12, 0)),
+                TransactionLinkState.Internal, Ct);
+        }
+        var food = Seed("food");
+
+        var figure = await BankingApi.JsonAsync(await w.App.RawAsync(w.App.AdultA, HttpMethod.Get,
+            $"{BankingApi.Root}/spending/lines?scope=household&categoryId={food}&month=2025-10"));
+        Assert.Equal(("42.00", 1), (figure.GetProperty("total").GetString(), figure.GetProperty("count").GetInt32()));
+        var counted = await GetAsync(w.App, w.App.AdultA, $"?state=counted&from=2025-10-01&to=2025-10-31");
+        Assert.Equal(purchase, Assert.Single(counted.GetProperty("items").EnumerateArray()).GetProperty("id").GetGuid());
+        Assert.Equal("42.00", (await GetAsync(w.App, w.App.AdultA)).GetProperty("totals").GetProperty("out").GetString());
+        var used = (await BankingApi.JsonAsync(await w.App.RawAsync(w.App.AdultA, HttpMethod.Get, $"{BankingApi.Root}/categories"))).EnumerateArray()
+            .Single(c => c.GetProperty("key").GetString() == "food.groceries");
+        Assert.Equal(1, used.GetProperty("lines").GetInt32());
+    }
+
     [Fact]
     public async Task Totals_are_converted_and_flagged_without_a_rate()
     {
