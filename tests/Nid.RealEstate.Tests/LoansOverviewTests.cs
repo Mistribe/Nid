@@ -421,18 +421,31 @@ public class LoansOverviewTimelineTests
         var overview = Build(Home(), Ptz(), Car());
 
         var car = Assert.Single(overview.Loans, l => l.Name == "Voiture").MonthlyPayment!;
-        // The car's last payment absorbs its rounding (loans.md §3.2): a payment that changes is a step of its own (D3).
+        // The car's last payment absorbs its rounding (loans.md §3.2), a move of a few cents: no step of its own (#757).
         Assert.Equal(
             [
-                ("2026-10", "2026-12", 1159.92m + decimal.Parse(car, CultureInfo.InvariantCulture)),
-                ("2027-01", "2027-01", 1519.59m),
+                ("2026-10", "2027-01", 1159.92m + decimal.Parse(car, CultureInfo.InvariantCulture)),
                 ("2027-02", "2029-01", 1159.92m),
+                ("2029-02", "2044-01", 1159.92m + 222.22m),
             ],
-            overview.Steps.Take(3).Select(s => (s.From, s.To, D(s.Amount))));
-        Assert.Equal(("2029-02", 1159.92m + 222.22m), (overview.Steps[3].From, D(overview.Steps[3].Amount)));
+            overview.Steps.Select(s => (s.From, s.To, D(s.Amount))));
         // The last payments absorb the rounding: the steps run on to the last month.
         Assert.Equal("2044-01", overview.Steps[^1].To);
-        Assert.All(overview.Steps.Zip(overview.Steps.Skip(1)), p => Assert.NotEqual(p.First.Amount, p.Second.Amount));
+        Assert.All(overview.Steps.Zip(overview.Steps.Skip(1)), p => Assert.True(Math.Abs(D(p.First.Amount) - D(p.Second.Amount)) >= 1m));
+    }
+
+    [Fact]
+    public void A_payment_that_moves_by_less_than_a_euro_starts_no_step()
+    {
+        // #757: two phases at one rate, the second's payment is the first's give or take a rounding cent, and the last payment absorbs the rounding.
+        var smoothed = Loan("Lissé", Loans.Annuity(12_000m, 0.05m, 48) with
+        {
+            Phases = [new LoanPhase(1, PhaseMode.Annuity, 0.05m, RateType.Fixed, 36), new LoanPhase(2, PhaseMode.Annuity, 0.05m, RateType.Fixed)],
+        });
+
+        var step = Assert.Single(Build(smoothed).Steps);
+
+        Assert.Equal("2026-10", step.From);
     }
 
     [Fact]
