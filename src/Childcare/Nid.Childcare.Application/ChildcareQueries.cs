@@ -29,7 +29,9 @@ public sealed class ListChildcareHandler(IVisibleItems visible, IItemRegistry it
 }
 
 [RequestHandler<GetChildcareQuery, ChildcareDetail>]
-public sealed class GetChildcareHandler(IItemRegistry items, IChildcareStore store, ChildcareReader reader, IActorAccessor actor)
+public sealed class GetChildcareHandler(
+    IItemRegistry items, IChildcareStore store, ChildcareReader reader, StatementAssembly assembly, IHouseholdSettings household,
+    IHouseholdCalendar calendar, IActorAccessor actor)
     : IRequestHandler<GetChildcareQuery, ChildcareDetail>
 {
     public async ValueTask<Result<ChildcareDetail>> HandleAsync(GetChildcareQuery query, CancellationToken ct = default)
@@ -38,6 +40,14 @@ public sealed class GetChildcareHandler(IItemRegistry items, IChildcareStore sto
         if (loaded.TryGetFailure(out var failure))
             return Result.Failure<ChildcareDetail>(failure!);
         loaded.TryGetValue(out var found);
-        return Result.Success((await reader.ReadAsync(actor.Current!.PersonId!.Value, [(found.Arrangement, found.Item)], ct))[0]);
+        var detail = (await reader.ReadAsync(actor.Current!.PersonId!.Value, [(found.Arrangement, found.Item)], ct))[0];
+        // #723: this month's cost, the figure the dashboard's « Garde » counts; none outside the arrangement's months.
+        var month = (await calendar.TodayAsync(ct)).ToYearMonth();
+        if (!(await assembly.ContextsAsync([(found.Arrangement, month)], ct)).TryGetValue(query.ItemId, out var context))
+            return Result.Success(detail);
+        var (cost, estimated) = await ChildcareCommitments.MonthCostAsync(assembly, context, ct);
+        return Result.Success(cost is { } c
+            ? detail with { MonthCost = ChildcareMoneyView.Of(c, await household.ReferenceCurrencyAsync(ct)), MonthCostEstimated = estimated }
+            : detail);
     }
 }

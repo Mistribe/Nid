@@ -87,7 +87,12 @@ export function ChildcareDetailPage() {
         )}>
         <section aria-label={t('childcare_detail.figures')}>
           <StatLine items={[
-            { label: t('childcare_list.col_pay'), value: <Money value={summary.monthlyBasePay} tabular /> },
+            { label: t('childcare_list.col_pay'), tip: t('childcare_list.pay_tip'), value: <Money value={summary.monthlyBasePay} tabular /> },
+            // #723: the dashboard's « Garde », named the same way.
+            ...(detail.monthCost ? [{
+              label: t('childcare_list.month_cost'), tip: t('childcare_list.month_cost_tip'), value: <Money value={detail.monthCost} tabular />,
+              hint: detail.monthCostEstimated ? t('childcare_list.month_cost_estimated') : undefined,
+            }] : []),
             { label: t('childcare_detail.weekly_hours'), value: t('childcare_detail.hours', { value: hoursText(summary.weeklyHours) }) },
             { label: t('childcare_form.weeks'), value: String(terms.programmedWeeks) },
             { label: t('childcare_detail.monthly_hours'), value: t('childcare_detail.hours', { value: hoursText(terms.monthlyHours) }) },

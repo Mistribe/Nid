@@ -40228,6 +40228,9 @@ export interface components {
             belowMinimums?: null | components["schemas"]["LegalMinimumView"][];
             end?: null | components["schemas"]["ContractEndView"];
             leave?: null | components["schemas"]["LeaveCounterView"];
+            monthCost?: null | components["schemas"]["ChildcareMoneyView"];
+            /** @default false */
+            monthCostEstimated: boolean;
         };
         ChildcareList: {
             items: components["schemas"]["ChildcareSummary"][];

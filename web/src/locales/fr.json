@@ -215,6 +215,7 @@
       "per_month": "{{amount}} / mois",
       "income": "Revenus",
       "rest_name": "Reste",
+      "childcare": "Garde, coût net du mois",
       "other": "Autres",
       "pct": "{{value}} %",
       "col_per_month": "Par mois",
@@ -262,7 +263,7 @@
       "loans": "Crédits {{amount}}",
       "property_costs": "Charges des biens {{amount}}",
       "tax": "Impôts estimés {{amount}}",
-      "childcare": "Garde {{amount}}"
+      "childcare": "Garde, coût net du mois {{amount}}"
     },
     "commitment_name": {
       "subscriptions": "Abonnements",
@@ -272,6 +273,8 @@
       "childcare": "Garde"
     },
     "estimated": "(estimation)",
+    "childcare_tip": "Ce que la garde vous coûte ce mois-ci, après la CMG : le salaire, les cotisations et les frais laissés au foyer, moins l’aide. Estimé d’après les jours prévus tant que le mois n’est pas validé, puis celui du relevé validé. C’est le « Coût net du mois » de la page Garde ; le prélèvement Pajemploi, lui, tombe le mois suivant.",
+    "see_childcare": "Voir la garde",
     "income_unknown": "Inconnu : aucun revenu déclaré",
     "smoothed_per_month": "par mois, lissé sur l’année",
     "margin_unknown_rate": "Marge inconnue : taux de change manquant ({{code}})",

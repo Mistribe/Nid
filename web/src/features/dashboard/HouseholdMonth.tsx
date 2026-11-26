@@ -70,7 +70,11 @@ export function HouseholdMonth({ d, scope, compact = false }: { d: DashboardView
     ...d.commitmentSources.flatMap((s) => {
       const source = SOURCES.find((x) => x.key === s.source);
       return source && s.amortized
-        ? [mark(source.key, t(`dashboard.commitment_name.${source.key}`), formatMoney(s.amortized), s.pct, toPlot(s.amortized.amount), source.color)]
+        ? [source.key === 'childcare'
+          // #723: the same figure as « Coût net du mois » on the Garde page, which it opens.
+          ? mark(source.key, t('dashboard.month.childcare'), formatMoney(s.amortized), s.pct, toPlot(s.amortized.amount), source.color,
+            (children) => <Link to="/childcare">{children}</Link>)
+          : mark(source.key, t(`dashboard.commitment_name.${source.key}`), formatMoney(s.amortized), s.pct, toPlot(s.amortized.amount), source.color)]
         : [];
     }),
     // #85 decision 10: with everyday spending the « Reste » splits into its categories (one tone: the commitments hold

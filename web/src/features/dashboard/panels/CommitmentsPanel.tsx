@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { useSession } from '@/app/Providers';
+import { InfoTip } from '@/components/InfoTip';
 import { formatMoney } from '@/components/Money';
 import type { DashboardView } from '@/api/dashboard';
 import { percent } from '@/lib/format';
@@ -27,6 +28,8 @@ export function CommitmentsPanel({ d }: { d: DashboardView }) {
           return key && s.amortized ? [
             <li key={key} className="tabular-nums">
               {t(`dashboard.commitment_source.${key}`, { amount: formatMoney(s.amortized) })}{s.estimated ? ` ${t('dashboard.estimated')}` : ''}
+              {/* #723: four childcare figures exist; this one names itself and says where the same figure is. */}
+              {key === 'childcare' ? <InfoTip label={t('dashboard.commitment_name.childcare')}>{t('dashboard.childcare_tip')}</InfoTip> : null}
             </li>,
           ] : [];
         })}
@@ -34,6 +37,7 @@ export function CommitmentsPanel({ d }: { d: DashboardView }) {
       <div className="flex flex-wrap gap-4 text-sm">
         {has('subscriptions') ? <Link to="/subscriptions" className="underline">{t('dashboard.see_subscriptions')}</Link> : null}
         {has('realestate') ? <Link to="/loans" className="underline">{t('dashboard.see_loans')}</Link> : null}
+        {has('childcare') && d.commitmentSources.some((s) => s.source === 'childcare' && s.amortized) ? <Link to="/childcare" className="underline">{t('dashboard.see_childcare')}</Link> : null}
       </div>
     </div>
   );

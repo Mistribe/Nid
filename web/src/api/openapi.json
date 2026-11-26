@@ -45281,7 +45281,8 @@
           "version",
           "weeks",
           "allocation",
-          "gapYears"
+          "gapYears",
+          "monthCostEstimated"
         ],
         "type": "object",
         "properties": {
@@ -45390,6 +45391,20 @@
                 "$ref": "#/components/schemas/LeaveCounterView"
               }
             ]
+          },
+          "monthCost": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ChildcareMoneyView"
+              }
+            ]
+          },
+          "monthCostEstimated": {
+            "type": "boolean",
+            "default": false
           }
         }
       },

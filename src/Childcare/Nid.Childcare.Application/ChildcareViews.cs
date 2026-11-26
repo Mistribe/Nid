@@ -93,13 +93,15 @@ public sealed record ContractEndView(string Reason, LocalDate Notified, int Seni
 /// <c>ChildSickDaysUsed</c>: sick-child days deducted this contract year (validated months) out of <c>ChildSickQuota</c> (decision 15).
 /// <c>BelowMinimums</c>: the minimums the terms in force fall below today or at the latest revaluation known, empty once the contract has ended.
 /// <c>Leave</c>: the leave counter of a full year in force, null in an incomplete year.
+/// <c>MonthCost</c> (#723): this month's net cost after the CMG as the dashboard's « Garde » counts it, <c>MonthCostEstimated</c> until the
+/// month is validated; null when none is known (the list leaves it out).
 /// </summary>
 public sealed record ChildcareDetail(
     ChildcareSummary Summary, string? CarerPajemploi, string? CarerApproval, IReadOnlyList<ChildcareTermsView> Terms, IReadOnlyList<CareGapView> Gaps,
     int GapWeeksToPlace, int LeaveDaysAccrued, uint Version, IReadOnlyList<ContractWeekView> Weeks, IReadOnlyList<WeekTypeCountView> Allocation,
     IReadOnlyList<GapYearView> GapYears, ChildcareMoneyView? CmgEstimate = null, int ChildSickDaysUsed = 0, int ChildSickQuota = ChildcareRules.ChildSickQuotaDays,
     IReadOnlyList<LegalMinimumView>? BelowMinimums = null,
-    ContractEndView? End = null, LeaveCounterView? Leave = null) : IExposesItems
+    ContractEndView? End = null, LeaveCounterView? Leave = null, ChildcareMoneyView? MonthCost = null, bool MonthCostEstimated = false) : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems() => [new ItemId(Summary.Id)];
 }
