@@ -26,12 +26,14 @@ describe('ChildcarePage', () => {
   it('opens on the overview of the current arrangement', async () => {
     const seen: string[] = [];
     serve(list([summary({ id: 'a', name: 'Ancienne garde', closed: true, end: '2025-06-30' }), summary({ toPrepare: ['2025-09'] })]), seen);
-    server.use(http.get('*/api/v1/childcare/:id', () => HttpResponse.json(detail({ cmgEstimate: eur('300.00') }))));
+    server.use(http.get('*/api/v1/childcare/:id', () => HttpResponse.json(detail({ cmgEstimate: eur('300.00'), monthCost: eur('560.00'), monthCostEstimated: true }))));
     const { container } = await renderApp('/childcare');
     const hero = await screen.findByRole('region', { name: 'Salaire mensualisé · Garde de Léa' });
     expect(hero).toHaveTextContent('626,37');
     expect(await within(hero).findByText('3 jours')).toBeInTheDocument();
     expect(within(hero).getByText('300,00 €')).toBeInTheDocument();
+    // #723: the dashboard's « Garde », named the same way, an estimate until the month is validated.
+    expect(hero).toHaveTextContent(/Coût net du mois.*560,00\s€.*estimation/);
     expect(within(hero).getByRole('link', { name: 'Ouvrir la fiche' })).toHaveAttribute('href', `/childcare/${summary().id}`);
     const months = screen.getByRole('region', { name: 'Mois à préparer · Garde de Léa' });
     expect(within(months).getByRole('link', { name: /septembre 2025/ })).toHaveAttribute('href', `/childcare/${summary().id}/statements/2025-09`);

@@ -88,6 +88,11 @@ public class ChildcareIntegrationTests(PostgresFixture fixture) : IClassFixture<
         var source = (await ChildcareSourceAsync(app))!.Value;
         Assert.True(source.GetProperty("estimated").GetBoolean());
         Assert.Equal(october.GetProperty("figures").GetProperty("cost").GetProperty("amount").GetString(), source.GetProperty("amortized").GetProperty("amount").GetString());
+
+        // #723: the arrangement's page shows the same figure, an estimate too.
+        var detail = await GetAsync(app, arrangement);
+        Assert.Equal(source.GetProperty("amortized").GetProperty("amount").GetString(), detail.GetProperty("monthCost").GetProperty("amount").GetString());
+        Assert.True(detail.GetProperty("monthCostEstimated").GetBoolean());
     }
 
     /// <summary>#30, #31: the contributions the CMG leaves to the household count in the cost, the year and the next months' estimate.</summary>

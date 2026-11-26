@@ -70,7 +70,7 @@
       "loan_instalment": "Échéance de prêt",
       "property_cost": "Charge du bien",
       "rent": "Loyer",
-      "childcare": "Pajemploi",
+      "childcare": "Pajemploi du mois précédent",
       "income": "Versement"
     }
   }

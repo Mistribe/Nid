@@ -25,23 +25,28 @@ public sealed class ChildcareCommitments(IVisibleItems visible, IChildcareStore 
         // A month outside the arrangement's (ended before it, or before the rules) counts nothing: it has no context.
         foreach (var context in (await assembly.ContextsAsync([.. arrangements.Select(a => (a, month))], ct)).Values)
         {
-            // Only the months known by then: a past month read for the review takes no later month's figures.
-            var validated = context.Stored.Where(s => s is { Validated: true, Figures: not null } && s.Month <= month).OrderBy(s => s.Month).ToList();
-            decimal? cost;
-            if (context.StoredMonth is { Validated: true, Figures: { } frozen })
-                cost = frozen.Cost;
-            else
-            {
-                var evaluation = await assembly.EstimateAsync(context, ct);
-                cost = evaluation.Figures?.Cost ?? (validated.Count > 0 ? validated[^1].Figures!.Cost : null);
-                estimated |= cost is not null;
-            }
+            var (cost, isEstimate) = await MonthCostAsync(assembly, context, ct);
             if (cost is not { } c)
                 continue;
+            estimated |= isEstimate;
             total += c;
             count++;
         }
         IReadOnlyDictionary<Currency, decimal> amounts = count == 0 ? new Dictionary<Currency, decimal>() : new Dictionary<Currency, decimal> { [currency] = total };
         return Result.Success(new CommitmentsPart(CommitmentSources.Childcare, count, amounts, amounts, estimated));
+    }
+
+    /// <summary>
+    /// The context's month cost as « Garde » counts it, and whether it is an estimate: frozen once validated, else computed, else the last
+    /// validated cost; null when none is known. #723: the arrangement's page shows the same figure.
+    /// </summary>
+    public static async Task<(decimal? Cost, bool Estimated)> MonthCostAsync(StatementAssembly assembly, MonthContext context, CancellationToken ct)
+    {
+        if (context.StoredMonth is { Validated: true, Figures: { } frozen })
+            return (frozen.Cost, false);
+        // Only the months known by then: a past month read for the review takes no later month's figures.
+        var validated = context.Stored.Where(s => s is { Validated: true, Figures: not null } && s.Month <= context.Month).OrderBy(s => s.Month).ToList();
+        var cost = (await assembly.EstimateAsync(context, ct)).Figures?.Cost ?? (validated.Count > 0 ? validated[^1].Figures!.Cost : null);
+        return (cost, cost is not null);
     }
 }
