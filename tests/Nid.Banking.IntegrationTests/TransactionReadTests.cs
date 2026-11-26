@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Nid.Banking.Application;
 using Nid.Banking.Application.Sync;
 using Nid.Banking.Contracts;
+using Nid.Banking.Domain;
 using Nid.Banking.Infrastructure.Persistence;
 using Nid.Core.Contracts;
 using Nid.Core.Infrastructure.Persistence;
@@ -86,6 +87,29 @@ public class TransactionReadTests(PostgresFixture fixture) : IClassFixture<Postg
         Assert.Equal([false, true, false], items.Select(i => i.GetProperty("fromCard").GetBoolean()));
         Assert.Equal([null, "Carte A", null], items.Select(i => i.GetProperty("cardName").GetString()));
         Assert.Equal(("2026-10-03", "EUR", "api"), (items[0].GetProperty("bookedOn").GetString(), items[0].GetProperty("currency").GetString(), items[0].GetProperty("fetchedVia").GetString()));
+    }
+
+    [Fact]
+    public async Task A_card_purchase_and_its_echo_are_one_row_in_the_envelope()
+    {
+        var (app, _) = await StartAsync(fixture);
+        await using var _app = app;
+        var (envelope, account, card) = await SetUpAsync(app);
+        await AddAsync(app, card, Line("p", D(2026, 10, 2), -20m, "CARTE 01/10 SHOP"));
+        await AddAsync(app, account, Line("e", D(2026, 10, 3), -20m, "CARTE 01/10 SHOP CB*0000"));
+        var ids = (await ReadAsync(app, app.AdultA, envelope)).GetProperty("items").EnumerateArray()
+            .ToDictionary(i => i.GetProperty("label").GetString()!, i => i.GetProperty("id").GetGuid());
+        await using (var scope = app.Services.CreateAsyncScope())
+        {
+            scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
+            await scope.ServiceProvider.GetRequiredService<ILinkStore>().SetAsync(
+                new BankLink(ids["CARTE 01/10 SHOP CB*0000"], null, null, CardEchoes.Key(ids["CARTE 01/10 SHOP"]), card, LinkOutcome.CardSettlement, null, "job",
+                    At(D(2026, 10, 4))), TransactionLinkState.Internal, TestContext.Current.CancellationToken);
+        }
+
+        var row = Assert.Single((await ReadAsync(app, app.AdultA, envelope)).GetProperty("items").EnumerateArray());
+        Assert.Equal(("CARTE 01/10 SHOP", "Courant A"), (row.GetProperty("label").GetString(), row.GetProperty("debitedFrom").GetString()));
+        Assert.Equal(["CARTE 01/10 SHOP CB*0000"], Labels(await ReadAsync(app, app.AdultA, envelope, "?state=internal")));
     }
 
     [Fact]
