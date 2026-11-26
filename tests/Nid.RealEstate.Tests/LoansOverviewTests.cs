@@ -207,6 +207,20 @@ public class LoansOverviewTests
     }
 
     [Fact]
+    public void A_phase_end_that_moves_the_households_payment_by_less_than_a_euro_is_no_event()
+    {
+        // Two phases at one rate: the second's payment is the first's, give or take a rounding cent.
+        var smoothed = Loan("Lissé", Loans.Annuity(12_000m, 0.05m, 48) with
+        {
+            Phases = [new LoanPhase(1, PhaseMode.Annuity, 0.05m, RateType.Fixed, 36), new LoanPhase(2, PhaseMode.Annuity, 0.05m, RateType.Fixed)],
+        });
+
+        var overview = Build(smoothed);
+
+        Assert.Equal([LoanOverviewCodes.LoanEnds], overview.Events.Select(e => e.Code));
+    }
+
+    [Fact]
     public void A_repayment_that_reduces_the_payment_lowers_this_months_payment()
     {
         var repaid = Loan("Maison", Loans.Golden(),
