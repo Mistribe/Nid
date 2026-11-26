@@ -12,6 +12,7 @@
     "unauthenticated": "Votre session a expiré. Reconnectez-vous pour continuer.",
     "not_found": "Cet élément est introuvable.",
     "forbidden": "Vous n'avez pas le droit de faire cette action.",
+    "demo": "Cette action n'est pas disponible dans la démo, pour qu'un visiteur ne la change pas pour les autres. Installez Nid pour l'essayer avec vos données.",
     "conflict": "Cet élément a changé entre-temps. Rechargez la page pour voir sa dernière version.",
     "validation": "La saisie a été refusée. Corrigez les valeurs signalées puis réessayez.",
     "bad_request": "La demande n'a pas pu être lue. Rechargez la page puis réessayez.",

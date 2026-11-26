@@ -12,6 +12,12 @@ public sealed class DemoOptions
 
     public bool Enabled { get; set; }
 
+    /// <summary>
+    /// <c>Nid__Demo__SeedKey</c>: the secret the nightly reset sends to add the demo's documents, which visitors may not
+    /// upload (<see cref="DemoGuardMiddleware"/>). Unset, nobody can.
+    /// </summary>
+    public string? SeedKey { get; set; }
+
     public static DemoOptions Load(IConfiguration configuration)
         => configuration.GetSection(Section).Get<DemoOptions>() ?? new DemoOptions();
 }

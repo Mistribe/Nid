@@ -6,7 +6,8 @@ name: demo-reset
 # variable DEMO_CONTAINER_APP is set.
 #
 # Credentials: Azure through OIDC, federated with the `demo` environment (as the `demo` job of ci.yml); the Neon API key is a
-# secret of that environment only, readable by no other workflow and by no pull request.
+# secret of that environment only, readable by no other workflow and by no pull request; so is DEMO_SEED_KEY, the instance's
+# Nid__Demo__SeedKey, without which the demo refuses the documents finish.mjs adds.
 on:
   schedule:
     - cron: '0 3 * * *'
@@ -97,4 +98,5 @@ jobs:
         if: env.URL != ''
         env:
           NID_URL: ${{ vars.DEMO_URL }}
+          NID_DEMO_SEED_KEY: ${{ secrets.DEMO_SEED_KEY }}
         run: node deploy/local/demo/finish.mjs | tee -a "$GITHUB_STEP_SUMMARY"
