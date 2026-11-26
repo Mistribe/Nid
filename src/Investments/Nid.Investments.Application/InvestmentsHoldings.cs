@@ -300,10 +300,12 @@ internal static class InvestmentsHoldingsMath
                     watch.Add(new EnvelopeWatchView(HoldingWarnings.UcShareBelowFloor, f.Item.Id, null, snapshot.AsOf));
             }
 
-            // As the envelope's own tab, on its latest snapshot only: the warnings of older ones were read then.
-            watch.AddRange(HoldingMath.UnexplainedUnits(snapshots.Where(s => s.AsOf <= today).ToList(), movements, f.Currency)
-                .Where(w => w.On == snapshot.AsOf)
-                .Select(w => new EnvelopeWatchView(HoldingWarnings.UnexplainedUnits, f.Item.Id, w.HoldingId, w.On)));
+            // As the envelope's own tab, on its latest snapshot only: the warnings of older ones were read then. #728: one line for
+            // the statement, naming its holding only when it is the only one.
+            var unexplained = HoldingMath.UnexplainedUnits(snapshots.Where(s => s.AsOf <= today).ToList(), movements, f.Currency)
+                .Where(w => w.On == snapshot.AsOf).Select(w => w.HoldingId).Distinct().ToList();
+            if (unexplained.Count > 0)
+                watch.Add(new EnvelopeWatchView(HoldingWarnings.UnexplainedUnits, f.Item.Id, unexplained.Count == 1 ? unexplained[0] : null, snapshot.AsOf));
             watch.AddRange(HoldingMath.Warnings(snapshot, null).Where(w => w.Code == HoldingWarnings.ValueMismatch)
                 .Select(w => new EnvelopeWatchView(HoldingWarnings.ValueMismatch, f.Item.Id, w.HoldingId, snapshot.AsOf)));
             watch.AddRange(export.Holdings.Where(h => h.Envelope == f.Item.Id && h.ClosedOn is null

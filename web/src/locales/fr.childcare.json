@@ -191,6 +191,8 @@
     "cmg_estimate_none": "après un mois validé avec un CMG",
     "tab_documents": "Documents",
     "no_payslip": "Pas de bulletin",
+    "no_payslip_count_one": "{{count}} mois validé sans bulletin de salaire",
+    "no_payslip_count_other": "{{count}} mois validés sans bulletin de salaire",
     "tab_summary": "Récapitulatif",
     "contracts": "Contrats",
     "other_contracts": "Changer de contrat",

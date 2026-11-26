@@ -118,23 +118,23 @@ public class OverviewMathTests
     }
 
     [Fact]
-    public void Watch_flags_an_end_without_renewal_within_a_year()
+    public void Watch_flags_an_end_without_renewal_within_60_days()
     {
-        var ends = Prepaid(12, autoRenew: false);
+        var ends = Prepaid(1, autoRenew: false);
 
         var watch = Assert.Single(Overview(ends).Watch);
 
         Assert.Equal(OverviewCodes.EndsWithoutRenewal, watch.Code);
         Assert.Equal([ends.Input.Subscription.Id.Value], watch.ItemIds);
-        Assert.Equal(Today.PlusMonths(12), watch.Date);
+        Assert.Equal(Today.PlusMonths(1), watch.Date);
         Assert.Null(watch.Amount);
     }
 
     [Fact]
-    public void Watch_does_not_flag_an_end_in_thirteen_months_or_a_renewing_one()
+    public void Watch_does_not_flag_an_end_in_three_months_or_a_renewing_one()
     {
-        Assert.Empty(Overview(Prepaid(13, autoRenew: false)).Watch);
-        Assert.Empty(Overview(Prepaid(12, autoRenew: true)).Watch);
+        Assert.Empty(Overview(Prepaid(3, autoRenew: false)).Watch);
+        Assert.Empty(Overview(Prepaid(1, autoRenew: true)).Watch);
     }
 
     [Fact]
@@ -172,10 +172,10 @@ public class OverviewMathTests
     public void Watch_sorts_by_date_with_undated_last()
     {
         var netflix = Provider("netflix");
-        var overview = Overview(Monthly(1, 8m, netflix), Monthly(1, 12m, netflix), Prepaid(6, autoRenew: false),
+        var overview = Overview(Monthly(1, 8m, netflix), Monthly(1, 12m, netflix), Prepaid(1, autoRenew: false),
             Built([Phase(new LocalDate(2025, 1, 13), null, 99m, every: Years(1))]));
 
-        Assert.Equal([OverviewCodes.LongCycleChargeSoon, OverviewCodes.EndsWithoutRenewal, OverviewCodes.SameProvider],
+        Assert.Equal([OverviewCodes.EndsWithoutRenewal, OverviewCodes.LongCycleChargeSoon, OverviewCodes.SameProvider],
             overview.Watch.Select(w => w.Code));
     }
 

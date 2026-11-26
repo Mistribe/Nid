@@ -14,6 +14,7 @@ public static class OverviewMath
 {
     private const int UpcomingDays = 30; // P4: today and the next 29 days
     private const int LongCycleSoonDays = 90; // spec §4.1: today + 90 included
+    private const int EndsSoonDays = 60; // #728: an end without renewal is worth an alert two months ahead, not a year
 
     public static SubscriptionsOverview Build(
         IReadOnlyList<BuiltSubscription> set, IReadOnlyList<PersonInfo> persons, Currency reference, RateTable rates, LocalDate today, InflationSeries inflation)
@@ -169,7 +170,7 @@ public static class OverviewMath
         foreach (var b in active)
         {
             var id = b.Input.Subscription.Id.Value;
-            if (!b.Input.Subscription.AutoRenew && b.Timeline.ExpiresOn() is { } end && end > today && end <= today.PlusMonths(12))
+            if (!b.Input.Subscription.AutoRenew && b.Timeline.ExpiresOn() is { } end && end > today && end <= today.PlusDays(EndsSoonDays))
                 yield return new WatchView(OverviewCodes.EndsWithoutRenewal, [id], end, null);
             foreach (var charge in ChargeCycles.FirstLongCycleCharges(b.Input, b.Timeline, today, today.PlusDays(LongCycleSoonDays)))
                 yield return new WatchView(OverviewCodes.LongCycleChargeSoon, [id], charge.Date, view([SpendingHistory.Piece(charge)]));

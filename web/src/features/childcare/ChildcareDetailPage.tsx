@@ -332,10 +332,13 @@ function Statements({ id }: { id: string }) {
   // Server order (latest first), one grid per calendar year.
   const years = new Map<string, StatementRow[]>();
   for (const r of answer.data.months) years.set(r.month.slice(0, 4), [...(years.get(r.month.slice(0, 4)) ?? []), r]);
+  const missingCount = answer.data.months.filter(missing).length;
   return (
     <Section title={t('childcare_detail.tab_statements')} srTitle
       actions={answer.data.months.some((r) => r.cost) ? <SeriesLink keys={[`childcare:${id}:monthly`]} /> : undefined}>
       <div className="space-y-5">
+        {/* #728: the missing payslips said once, as a count; each month keeps a quiet mark. */}
+        {missingCount > 0 ? <p className="text-sm text-status-warning-text">{t('childcare_detail.no_payslip_count', { count: missingCount })}</p> : null}
         {[...years].map(([year, months]) => (
           <section key={year} aria-labelledby={`statements-${year}`} className="space-y-2">
             <h3 id={`statements-${year}`} className="text-sm font-medium text-muted-foreground">{year}</h3>
@@ -369,7 +372,7 @@ function MonthTile({ id, row, missing }: { id: string; row: StatementRow; missin
       {' '}
       <span className="text-lg font-semibold">{row.cost ? <Money value={row.cost} tabular /> : <span className="text-muted-foreground">{t('childcare_detail.dash')}</span>}</span>
       {' '}
-      {missing ? <span className="text-xs text-status-warning-text">{t('childcare_detail.no_payslip')}</span> : null}
+      {missing ? <span className="text-xs text-muted-foreground">{t('childcare_detail.no_payslip')}</span> : null}
     </Link>
   );
 }

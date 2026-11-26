@@ -247,6 +247,28 @@ public class InvestmentsHoldingsTests
         Assert.Equal((peaWorld, D(2026, 9, 30)), (o.Watch[1].HoldingId!.Value, o.Watch[1].On!.Value));
     }
 
+    [Fact]
+    public void One_line_to_watch_per_statement_with_unexplained_units()
+    {
+        var (h, _, _) = Fixture();
+        var pea = h.Facts[1].Item.Id;
+        var emerging = h.Holdings.Single(x => x.Name == "Amundi Emerging").Id;
+        // Units of the emerging fund go missing too, on the same statement.
+        var june = h.Snapshots.Single(s => s.Envelope == pea && s.AsOf == D(2026, 6, 30));
+        h.Snapshots[h.Snapshots.IndexOf(june)] = june with { Lines = [.. june.Lines, Line(emerging, 9_000m, 50m, 180m)] };
+        var september = h.Snapshots.Single(s => s.Envelope == pea && s.AsOf == D(2026, 9, 30));
+        h.Snapshots[h.Snapshots.IndexOf(september)] = september with
+        {
+            Lines = [.. september.Lines.Select(l => l.HoldingId == emerging ? Line(emerging, 9_600m, 48m, 200m) : l)],
+        };
+
+        var o = h.Build();
+
+        // #728: one line for the statement, no holding named: the envelope's tab lists them.
+        var units = Assert.Single(o.Watch, w => w.Code == "unexplained_units");
+        Assert.Equal((pea, (Guid?)null, D(2026, 9, 30)), (units.EnvelopeId, units.HoldingId, units.On!.Value));
+    }
+
     /// <summary>
     /// Holding prices spec §5.4: the life insurance estimated on 21/10, its ETF at 41 400 instead of 31 400. The detail follows the
     /// estimate; the share of units of account and the fees stay on the statement, as the floor's warning.
