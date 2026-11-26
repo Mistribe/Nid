@@ -62,7 +62,6 @@
     "balance_tip": "Les entrées prévues moins les sorties prévues de ce mois-ci, converties dans la devise du foyer. Les dépenses courantes n’y sont pas.",
     "day_out": "Sorties",
     "day_in": "Entrées",
-    "refreshing": "Mise à jour du mois…",
     "heavy": "Jour chargé",
     "unknown": "Inconnu",
     "charge": {
