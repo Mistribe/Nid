@@ -2,13 +2,20 @@
 // this adds what the files cannot hold, as load.mjs does on a local stack: Léa's childcare months validated, then seed.mjs
 // (documents, tax notices, scenarios, the CPI). Signed in as Alice through /auth/demo/alice: no identity provider, no
 // browser. Running it again changes nothing. The nightly reset of the public demo runs it (.github/workflows/demo-reset.yml).
-//   NID_URL=https://demo.example.org node deploy/local/demo/finish.mjs
+// The demo refuses document uploads and household settings to visitors: NID_DEMO_SEED_KEY, the instance's
+// Nid__Demo__SeedKey, lets this script through.
+//   NID_URL=https://demo.example.org NID_DEMO_SEED_KEY=… node deploy/local/demo/finish.mjs
 import { offset } from './generate.mjs';
 import { seed, validateChildcare } from './seed.mjs';
 
 const NID = (process.env.NID_URL ?? '').replace(/\/$/, '');
 if (!NID.startsWith('https://')) {
   console.error('Set NID_URL to the https address of a demo-mode instance.');
+  process.exit(1);
+}
+const SEED_KEY = process.env.NID_DEMO_SEED_KEY ?? '';
+if (!SEED_KEY) {
+  console.error("Set NID_DEMO_SEED_KEY to the instance's Nid__Demo__SeedKey: the demo refuses document uploads without it.");
   process.exit(1);
 }
 
@@ -26,7 +33,7 @@ if (!session.demo || !session.authenticated) fail(`${NID} is not a demo-mode ins
 
 /** The `call` of load.mjs, over fetch: JSON or multipart, a failure stops everything unless its status is allowed. */
 async function call(method, path, data, { multipart, allow = [] } = {}) {
-  const headers = { Cookie: cookie, 'X-Nid-Csrf': session.csrf, Origin: NID };
+  const headers = { Cookie: cookie, 'X-Nid-Csrf': session.csrf, Origin: NID, 'X-Nid-Demo-Seed': SEED_KEY };
   let body;
   if (multipart) {
     body = new FormData();

@@ -110,6 +110,11 @@ public class DemoModeTests(PostgresFixture postgres) : IClassFixture<PostgresFix
                      (HttpMethod.Put, $"/api/v1/ai/workers/{Guid.NewGuid()}/safe/", new { safe = true }),
                      (HttpMethod.Put, "/api/v1/ai/cloud/keys/anthropic", new { key = "sk-x" }),
                      (HttpMethod.Delete, "/api/v1/ai/cloud/keys/anthropic", new { }),
+                     (HttpMethod.Post, "/api/v1/platform/imports", new { format = "nid.data", version = 1 }),
+                     (HttpMethod.Post, "/api/v1/core/me/revoke-sessions", new { }),
+                     (HttpMethod.Post, $"/api/v1/admin/users/{Guid.NewGuid()}/revoke-sessions", new { }),
+                     (HttpMethod.Put, $"/api/v1/admin/users/{Guid.NewGuid()}/admin", new { admin = false }),
+                     (HttpMethod.Patch, "/api/v1/admin/household", new { referenceCurrency = "USD" }),
                  })
         {
             using var request = new HttpRequestMessage(method, path) { Content = JsonContent.Create(body) };
@@ -117,7 +122,60 @@ public class DemoModeTests(PostgresFixture postgres) : IClassFixture<PostgresFix
             request.Headers.Add("X-Nid-Csrf", csrf);
             var response = await client.SendAsync(request, Ct);
             Assert.True(response.StatusCode == HttpStatusCode.Forbidden, $"{method} {path} answered {response.StatusCode}");
+            Assert.Equal(DemoGuardMiddleware.RefusedCode, (await response.Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("code").GetString());
         }
+    }
+
+    [Fact]
+    public async Task Only_the_nightly_reset_with_the_seed_key_uploads_a_document_or_changes_the_household_settings()
+    {
+        var connectionString = await postgres.NewConnectionStringAsync();
+        await using var factory = DemoFactory(connectionString, seedKey: "the-seed-key");
+        using var client = Client(factory);
+        var cookie = await SignInAsync(client, "alice", "/");
+        var csrf = (await SessionAsync(client, cookie)).GetProperty("csrf").GetString()!;
+
+        async Task<HttpStatusCode> SendAsync(HttpMethod method, string path, HttpContent content, string? key)
+        {
+            using var request = new HttpRequestMessage(method, path) { Content = content };
+            request.Headers.Add("Cookie", cookie);
+            request.Headers.Add("X-Nid-Csrf", csrf);
+            if (key is not null)
+                request.Headers.Add(DemoGuardMiddleware.SeedKeyHeader, key);
+            return (await client.SendAsync(request, Ct)).StatusCode;
+        }
+        HttpContent Upload(string name)
+        {
+            var form = new MultipartFormDataContent();
+            var file = new ByteArrayContent("%PDF-1.4\n%demo\n"u8.ToArray().Concat(System.Text.Encoding.UTF8.GetBytes(name)).ToArray());
+            file.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/pdf");
+            form.Add(file, "file", name + ".pdf");
+            return form;
+        }
+
+        foreach (var key in new string?[] { null, "a-wrong-key" })
+        {
+            Assert.Equal(HttpStatusCode.Forbidden, await SendAsync(HttpMethod.Post, "/api/v1/documents", Upload("visitor-" + key), key));
+            Assert.Equal(HttpStatusCode.Forbidden, await SendAsync(HttpMethod.Patch, "/api/v1/admin/household", JsonContent.Create(new { inflationEnabled = true }), key));
+        }
+        Assert.Equal(HttpStatusCode.Created, await SendAsync(HttpMethod.Post, "/api/v1/documents", Upload("reset"), "the-seed-key"));
+        Assert.Equal(HttpStatusCode.OK, await SendAsync(HttpMethod.Patch, "/api/v1/admin/household", JsonContent.Create(new { inflationEnabled = true }), "the-seed-key"));
+    }
+
+    [Fact]
+    public async Task Without_a_seed_key_configured_an_empty_key_opens_nothing()
+    {
+        var connectionString = await postgres.NewConnectionStringAsync();
+        await using var factory = DemoFactory(connectionString);
+        using var client = Client(factory);
+        var cookie = await SignInAsync(client, "alice", "/");
+        var csrf = (await SessionAsync(client, cookie)).GetProperty("csrf").GetString()!;
+
+        using var request = new HttpRequestMessage(HttpMethod.Patch, "/api/v1/admin/household") { Content = JsonContent.Create(new { inflationEnabled = true }) };
+        request.Headers.Add("Cookie", cookie);
+        request.Headers.Add("X-Nid-Csrf", csrf);
+        request.Headers.Add(DemoGuardMiddleware.SeedKeyHeader, "");
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.SendAsync(request, Ct)).StatusCode);
     }
 
     [Fact]
@@ -264,11 +322,13 @@ public class DemoModeTests(PostgresFixture postgres) : IClassFixture<PostgresFix
         public Task<ImportAuditView?> FindAsync(Guid session, CancellationToken ct) => inner.FindAsync(session, ct);
     }
 
-    private static WebApplicationFactory<Program> DemoFactory(string connectionString, Action<IServiceCollection>? services = null)
+    private static WebApplicationFactory<Program> DemoFactory(string connectionString, Action<IServiceCollection>? services = null, string? seedKey = null)
         => new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
             Common(builder, connectionString);
             builder.UseSetting("Nid:Demo:Enabled", "true");
+            if (seedKey is not null)
+                builder.UseSetting("Nid:Demo:SeedKey", seedKey);
             if (services is not null)
                 builder.ConfigureServices(services);
         });

@@ -10,7 +10,7 @@ export type Problem = { status: number; code?: string | null; detail?: string | 
 /** #250: a refused field as the API sends it (RFC 9457 §3): the field as a JSON Pointer, the sentence in `detail`. */
 type WireFieldError = { detail?: string | null; pointer?: string | null; code?: string | null };
 
-export type ProblemKind = 'unauthenticated' | 'not_found' | 'forbidden' | 'conflict' | 'validation' | 'bad_request' | 'unexpected';
+export type ProblemKind = 'unauthenticated' | 'not_found' | 'forbidden' | 'demo' | 'conflict' | 'validation' | 'bad_request' | 'unexpected';
 
 export type Presentation = { kind: ProblemKind; detail?: string; requestId?: string };
 
@@ -67,7 +67,8 @@ export function present(problem: Problem): Presentation {
   const detail = problem.detail ?? undefined;
   switch (problem.status) {
     case 401: return { kind: 'unauthenticated', requestId };
-    case 403: return { kind: 'forbidden', detail, requestId };
+    // DemoGuardMiddleware: what the public demo refuses, said in the app's own words rather than the server's.
+    case 403: return problem.code === 'demo.unavailable' ? { kind: 'demo', requestId } : { kind: 'forbidden', detail, requestId };
     case 404: return { kind: 'not_found', requestId }; // never why: absent and invisible look the same
     case 409: return { kind: 'conflict', requestId };
     case 422: return { kind: 'validation', detail, requestId };

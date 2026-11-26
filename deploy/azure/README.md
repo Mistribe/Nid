@@ -35,11 +35,14 @@ Dans un environnement Container Apps existant. L'image vient de `ghcr.io` (publi
 az containerapp create --name <app> --resource-group <groupe> --environment <environnement> \
   --image ghcr.io/mistribe/nid:latest --target-port 8080 --ingress external \
   --min-replicas 0 --max-replicas 1 --cpu 0.5 --memory 1Gi \
-  --secrets "db=<chaîne de connexion Neon>" "csrf=$(openssl rand -hex 32)" \
+  --secrets "db=<chaîne de connexion Neon>" "csrf=$(openssl rand -hex 32)" "seed=<clé de remise à zéro>" \
   --env-vars Nid__Demo__Enabled=true Auth__PublicUrl=https://<domaine de la démo> \
-             ConnectionStrings__nid=secretref:db Auth__CsrfKey=secretref:csrf Jobs__Enabled=false
+             ConnectionStrings__nid=secretref:db Auth__CsrfKey=secretref:csrf Nid__Demo__SeedKey=secretref:seed \
+             Jobs__Enabled=false
 ```
 
+- **La clé de remise à zéro** (`openssl rand -hex 32`, gardée pour le §6) : la démo refuse aux visiteurs le dépôt de
+  documents et les réglages du foyer, et ne les accepte que de `finish.mjs` qui l'envoie.
 - **Une réplica au plus.** Les clés qui signent le cookie de session sont propres à chaque réplica : avec deux, un
   visiteur serait déconnecté dès qu'une requête tombe sur l'autre.
 - `Jobs__Enabled=false` : les tâches planifiées (taux de change, cours) garderaient la base de Neon éveillée pour rien.
@@ -131,6 +134,7 @@ Il lui faut, en plus des variables du §4 :
 | Variable du dépôt | `NEON_DEMO_BRANCH_ID` | l'identifiant de la branche de la démo (`br-…`) |
 | Variable du dépôt | `NEON_PARENT_BRANCH_ID` | l'identifiant de sa branche parente vide (`br-…`) |
 | Secret de l'environnement `demo` | `NEON_API_KEY` | une clé d'API Neon (**Settings › Environments › demo › Environment secrets**) |
+| Secret de l'environnement `demo` | `DEMO_SEED_KEY` | la clé de remise à zéro du §2, la même que le secret `seed` du Container App |
 
 La clé n'est lisible que par les jobs de l'environnement `demo`, que seule la branche `main` peut utiliser : jamais par
 une pull request.

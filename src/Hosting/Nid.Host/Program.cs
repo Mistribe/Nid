@@ -222,7 +222,7 @@ app.Use((context, next) =>
 });
 app.MapNidHealth();
 app.UseForwardedHeaders();
-if (demo.Enabled) app.UseMiddleware<DemoGuardMiddleware>();
+if (demo.Enabled) app.UseMiddleware<DemoGuardMiddleware>(demo);
 // Before authentication: the SPA and its files need no session; routing has run, so endpoints keep their own answers.
 if (webApp is not null) app.UseNidWebApp(webApp);
 app.UseMiddleware<TokenFailureGateMiddleware>();
