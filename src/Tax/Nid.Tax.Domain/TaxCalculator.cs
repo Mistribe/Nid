@@ -120,7 +120,11 @@ public sealed record TaxResult(
     decimal RentalDeficitCarriedForward = 0m, bool CapitalScale = false, decimal? CapitalOptionGap = null, decimal DividendAllowance = 0m,
     decimal DeductibleCsgNextYear = 0m, decimal HighIncomeContribution = 0m, bool HighIncomeSmoothed = false, decimal AlimonyDeducted = 0m,
     decimal RealisedGainsTaxable = 0m, decimal CapitalLossesCarriedForward = 0m, decimal AgeDisabilityAllowance = 0m,
-    IReadOnlyList<TaxStep>? Steps = null, TaxBracketPosition? Bracket = null);
+    IReadOnlyList<TaxStep>? Steps = null, TaxBracketPosition? Bracket = null)
+{
+    /// <summary>#717, #759: the safe cut as asked on <paramref name="today"/>, over the months of the year it still reaches.</summary>
+    public TaxResult CutFrom(LocalDate today) => this with { Withholding = Withholding with { Cut = Withholding.Cut?.AppliedFrom(today, Year) } };
+}
 
 /// <summary>
 /// Spec §4bis: the withholding rate the year's income gives, and what « Actualiser suite à une hausse ou une baisse de vos revenus »

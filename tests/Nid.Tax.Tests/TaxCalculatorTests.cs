@@ -830,6 +830,27 @@ public class TaxCalculatorTests
         Assert.Equal(cut, cut.AppliedFrom(new NodaTime.LocalDate(2024, 10, 1), 2025)); // asked by October before: the whole year
     }
 
+    private sealed class Calendar(NodaTime.LocalDate today) : IHouseholdCalendar
+    {
+        public Task<NodaTime.LocalDate> TodayAsync(CancellationToken ct) => Task.FromResult(today);
+        public Task<NodaTime.LocalDateTime> NowAsync(CancellationToken ct) => Task.FromResult(today.AtMidnight());
+        public Task<NodaTime.DateTimeZone> ZoneAsync(CancellationToken ct) => Task.FromResult(NodaTime.DateTimeZone.Utc);
+    }
+
+    [Theory]
+    [InlineData(3, "143.13", 8)]
+    [InlineData(11, "0.00", 0)]
+    public async Task The_simulation_counts_the_cut_over_the_months_the_estimate_counts(int month, string less, int months)
+    {
+        // #759: the simulation of the estimate's own inputs shows the « Baisse sans risque » saving of this year, not the whole year's.
+        var handler = new Nid.Tax.Application.SimulateTaxHandler(new Calendar(new NodaTime.LocalDate(2025, month, 15)), null!);
+
+        var view = await handler.HandleAsync(new Nid.Tax.Application.SimulateTaxQuery(YoungCouple()), TestContext.Current.CancellationToken);
+
+        Assert.True(view.TryGetValue(out var result));
+        Assert.Equal((less, months), (result!.Withholding.Cut!.Less, result.Withholding.Cut.Months));
+    }
+
     private static TaxInputs YoungCouple() => Inputs([
         new("A", 50_000m, EmploymentStatus.NonExecutive, 0m, 0m),
         new("B", 40_000m, EmploymentStatus.Executive, 0m, 0m)], dependents: 2) with { ChildrenUnder6 = 2, ChildcareOutsideHome = 6_000m };

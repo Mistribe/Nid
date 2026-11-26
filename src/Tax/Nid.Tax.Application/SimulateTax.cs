@@ -19,7 +19,8 @@ public sealed class SimulateTaxHandler(IHouseholdCalendar calendar, TaxEstimates
         var today = await calendar.TodayAsync(ct);
         if ((TaxEstimates.CheckYear(inputs.Year, today) ?? TaxEstimates.CheckInputs(inputs)) is { } failure)
             return Result.Failure<TaxResultView>(failure);
-        var simulated = TaxCalculator.Compute(inputs);
+        // #759: the safe cut over the months a rate asked today still reaches, as the estimate's « Baisse sans risque ».
+        var simulated = TaxCalculator.Compute(inputs).CutFrom(today);
         var view = TaxResultView.Of(simulated);
         if (query.Scope is not { } scope) return Result.Success(view);
         var estimate = await estimates.ComputeAsync(inputs.Year, scope, today, ct);

@@ -55,7 +55,7 @@ public sealed partial class TaxEstimates(
         return Result.Success(new TaxEstimateView(
             year, TaxProfileView.Of(stored?.Profile ?? TaxProfile.Empty), stored is { } s && s.Year != year ? s.Year : null,
             TaxInputsView.Of(inputs, perEnvelopes),
-            TaxResultView.Of(result with { Withholding = result.Withholding with { Cut = result.Withholding.Cut?.AppliedFrom(today, year) } },
+            TaxResultView.Of(result.CutFrom(today),
                 adults.Select(a => a.Id.Value).ToList()), notices,
             adults.Select(a => new TaxAdultView(a.Id.Value, a.DisplayName)).ToList(),
             people.Count(p => p.Kind == PersonKind.Dependent),
