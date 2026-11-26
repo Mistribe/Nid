@@ -63,6 +63,8 @@ export default function OperationsTab({ envelope, writable }: { envelope: Envelo
       {l.counterparty || l.cardName ? (
         <span className="block text-sm text-muted-foreground">{[l.counterparty, l.cardName].filter(Boolean).join(' · ')}</span>
       ) : null}
+      {/* #416: an immediate card's purchase stands for its echo on the account, which the list leaves out. */}
+      {l.debitedFrom ? <span className="block text-xs text-muted-foreground">{t('banks.operations.debited_from', { name: l.debitedFrom })}</span> : null}
       {l.note ? <span className="block text-sm italic text-muted-foreground">{l.note}</span> : null}
     </span>
   );
