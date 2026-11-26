@@ -171,6 +171,7 @@
         "stay_flat": "Rester au prélèvement forfaitaire",
         "stay_scale": "Rester au barème"
       },
+      "refund": "votre impôt deviendrait un remboursement de {{amount}}",
       "cut": {
         "title": "Être prélevé de {{amount}} de moins cette année",
         "detail": "Taux de {{rate}}, sans majoration"

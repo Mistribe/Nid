@@ -193,6 +193,20 @@ public sealed record TaxPerView(bool Pooled, string Remaining, string TaxSaved, 
     public static TaxPerView Of(PerHousehold p) => new(p.Pooled, Amount(p.Remaining), Amount(p.TaxSaved), Amount(p.RoomInBracket), Amount(p.RemainingTaxSaved));
 }
 
+/// <summary>
+/// #726: when a tip's saving exceeds the year's total tax, the refund the tax would turn into (the saving less the total tax); null
+/// otherwise. <c>Per</c>: paying the PER room left in; <c>RentalRegime</c> and <c>CapitalOption</c>: switching when it saves.
+/// </summary>
+public sealed record TaxTipRefundsView(string? Per, string? RentalRegime, string? CapitalOption)
+{
+    public static TaxTipRefundsView? Of(TaxResult r)
+    {
+        string? Refund(decimal? saving) => saving is { } s && s > r.TotalTax ? Amount(s - r.TotalTax) : null;
+        var view = new TaxTipRefundsView(Refund(r.Per?.RemainingTaxSaved), Refund(-r.RentalRegimeGap), Refund(-r.CapitalOptionGap));
+        return view is { Per: null, RentalRegime: null, CapitalOption: null } ? null : view;
+    }
+}
+
 /// <summary>One step of the walk from the income to the tax (<c>TaxStep</c>).</summary>
 public sealed record TaxStepView(string Code, string Group, string Amount, string From, string To);
 
@@ -231,7 +245,8 @@ public sealed record TaxResultView(
     string RentalDeficitCarriedForward = "0.00", bool CapitalScale = false, string? CapitalOptionGap = null, string DividendAllowance = "0.00",
     string DeductibleCsgNextYear = "0.00", string HighIncomeContribution = "0.00", bool HighIncomeSmoothed = false, string AlimonyDeducted = "0.00",
     string RealisedGainsTaxable = "0.00", string CapitalLossesCarriedForward = "0.00", string AgeDisabilityAllowance = "0.00",
-    IReadOnlyList<TaxStepView>? Steps = null, TaxBracketView? Bracket = null, TaxDifferencesView? Differences = null)
+    IReadOnlyList<TaxStepView>? Steps = null, TaxBracketView? Bracket = null, TaxDifferencesView? Differences = null,
+    TaxTipRefundsView? TipRefunds = null)
 {
     /// <summary><paramref name="persons"/>: the adults' ids in the order of the declarants (the estimate's); a simulation passes none.</summary>
     public static TaxResultView Of(TaxResult r, IReadOnlyList<Guid>? persons = null) => new(
@@ -248,7 +263,7 @@ public sealed record TaxResultView(
         r.CapitalScale, r.CapitalOptionGap is { } option ? Amount(option) : null, Amount(r.DividendAllowance), Amount(r.DeductibleCsgNextYear),
         Amount(r.HighIncomeContribution), r.HighIncomeSmoothed, Amount(r.AlimonyDeducted), Amount(r.RealisedGainsTaxable), Amount(r.CapitalLossesCarriedForward), Amount(r.AgeDisabilityAllowance),
         (r.Steps ?? []).Select(s => new TaxStepView(s.Code, s.Group, Amount(s.Amount), Amount(s.From), Amount(s.To))).ToList(),
-        r.Bracket is { } b ? TaxBracketView.Of(b) : null);
+        r.Bracket is { } b ? TaxBracketView.Of(b) : null, TipRefunds: TaxTipRefundsView.Of(r));
 
     private static string? WireMethod(SalaryMethod method) => method switch
     {

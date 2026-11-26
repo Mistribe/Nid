@@ -46924,6 +46924,7 @@ export interface components {
             steps?: null | components["schemas"]["TaxStepView"][];
             bracket?: null | components["schemas"]["TaxBracketView"];
             differences?: null | components["schemas"]["TaxDifferencesView"];
+            tipRefunds?: null | components["schemas"]["TaxTipRefundsView"];
         };
         TaxReviewView: {
             totalTax?: null | components["schemas"]["DashboardMoneyView"];
@@ -46950,6 +46951,11 @@ export interface components {
             amount: string;
             from: string;
             to: string;
+        };
+        TaxTipRefundsView: {
+            per?: null | string;
+            rentalRegime?: null | string;
+            capitalOption?: null | string;
         };
         TaxYearView: {
             /** Format: int32 */

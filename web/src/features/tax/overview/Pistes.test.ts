@@ -73,6 +73,13 @@ describe('pistesOf', () => {
     expect(late.map((x) => x.key)).not.toContain('cut');
   });
 
+  it('a saving above the tax says the refund it turns into (#726)', () => {
+    const per = of({ per: { pooled: false, remaining: '5000.00', taxSaved: '0.00', roomInBracket: '0.00', remainingTaxSaved: '1100.00' }, tipRefunds: { per: '800.00', rentalRegime: null, capitalOption: null } })[0]!;
+    expect([per.key, per.detail?.replace(/\s/g, ' ')]).toEqual(['per', 'votre impôt deviendrait un remboursement de 800 €']);
+    const plain = of({ per: { pooled: false, remaining: '5000.00', taxSaved: '0.00', roomInBracket: '0.00', remainingTaxSaved: '100.00' } })[0]!;
+    expect(plain.detail).toBeUndefined();
+  });
+
   it("an estimated ceiling asks for the notice's", () => {
     const p = of({ warnings: ['per_ceiling_estimated'], declarants: alice({ source: 'estimated' }) })[0]!;
     expect([p.key, p.link.hash, p.detail]).toEqual(['ceiling', 'retraite', 'Plafond estimé pour Alice']);

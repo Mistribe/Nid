@@ -74106,6 +74106,16 @@
                 "$ref": "#/components/schemas/TaxDifferencesView"
               }
             ]
+          },
+          "tipRefunds": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TaxTipRefundsView"
+              }
+            ]
           }
         }
       },
@@ -74228,6 +74238,29 @@
           },
           "to": {
             "type": "string"
+          }
+        }
+      },
+      "TaxTipRefundsView": {
+        "type": "object",
+        "properties": {
+          "per": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "rentalRegime": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "capitalOption": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
