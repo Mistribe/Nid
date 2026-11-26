@@ -112,6 +112,30 @@ public class InvestmentsOverviewTests
     }
 
     [Fact]
+    public void Since_january_counts_the_envelopes_and_the_rates_of_the_performance_tab()
+    {
+        // #768: a CTO first valued this year is left out of both; one closed in March counts in both (+50); dollars convert the
+        // 1 January value at that date's rate (1 000 × 0.9) and the rest at today's (1 200 × 0.8): +60, not 200 × 0.8.
+        var rates = new RateTable([new FxRate(D(2025, 12, 31), Currency.Eur, 0.9m, FxRateSource.Ecb), new FxRate(Today, Currency.Eur, 0.8m, FxRateSource.Ecb)], Today, 7);
+        var entered = new EnvelopeFacts("CTO", EnvelopeKind.Brokerage).Flow(D(2025, 3, 1), FlowKind.Opening, 1_000m).Value(D(2026, 9, 30), 1_800m).Build();
+        var closed = new EnvelopeFacts("Ancien", EnvelopeKind.Other) { ClosedOn = D(2026, 3, 31) }
+            .Flow(D(2024, 12, 31), FlowKind.Opening, 2_000m).Flow(D(2026, 3, 31), FlowKind.Withdrawal, 2_050m)
+            .Value(D(2025, 12, 31), 2_000m).Value(D(2026, 3, 31), 0m).Build();
+        var dollars = new EnvelopeFacts("Brokerage", EnvelopeKind.Brokerage, "USD")
+            .Flow(D(2025, 1, 1), FlowKind.Opening, 1_000m).Value(D(2025, 12, 31), 1_000m).Value(D(2026, 9, 30), 1_200m).Build();
+        EnvelopePerformance.Facts[] facts = [Life(), entered, closed, dollars];
+
+        var o = InvestmentsOverviewMath.Build(facts, Currency.Eur, rates, Today, InvestmentsOverviewMath.Grid(OverviewSpan.TwelveMonths, Today),
+            OverviewSpan.TwelveMonths, [], Persons);
+        var p = InvestmentsPerformanceMath.Build(facts, Currency.Eur, rates, Today, D(2026, 1, 1), Today).ToView();
+
+        Assert.Equal(2_000m + 50m + 60m, N(o.SinceJanuary));
+        Assert.Equal(N(p.Performance), N(o.SinceJanuary));
+        Assert.Equal(1, o.WithoutStartCount);
+        Assert.True(p.Envelopes.Single(e => e.Name == "CTO").NoStartValue);
+    }
+
+    [Fact]
     public void One_envelopes_annual_return_is_the_households()
     {
         var life = Life();

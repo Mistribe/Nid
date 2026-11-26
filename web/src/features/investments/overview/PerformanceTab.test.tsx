@@ -56,7 +56,7 @@ describe('Placements › performance', () => {
     expect(within(earned).getByRole('link', { name: 'PEA' })).toHaveAttribute('href', `/investments/${PEA}`);
     expect(earned).toHaveTextContent('PEA+1 700,00 €');
     // An old start value is marked, the envelope still counted.
-    expect(within(earned).getByRole('link', { name: /CTO/ })).toHaveTextContent('CTOvaleur de départ ancienne');
+    expect(within(earned).getByRole('link', { name: /CTO/ })).toHaveTextContent('CTOvaleur de départ ancienne : hors total');
     expect(within(earned).getByRole('link', { name: 'Livret A' })).not.toHaveTextContent('valeur de départ ancienne');
     expect(await region('Rendement annuel depuis l’ouverture')).toHaveTextContent('Vos livrets +2,6 %');
   });
@@ -75,7 +75,7 @@ describe('Placements › performance', () => {
     await renderApp('/investments?tab=performance');
 
     const earned = await region('Ce qui a rapporté');
-    expect(within(earned).getByRole('link', { name: /Livret A/ })).toHaveTextContent('Livret Asans valeur au début : compté au montant versé');
+    expect(within(earned).getByRole('link', { name: /Livret A/ })).toHaveTextContent('Livret Asans valeur au début : hors total');
     expect(within(earned).getByRole('link', { name: 'PEA' })).not.toHaveTextContent('sans valeur au début');
   });
 

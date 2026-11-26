@@ -131,7 +131,9 @@ public sealed class InvestmentsOverviewReader(
         var reference = await household.ReferenceCurrencyAsync(ct);
         var foreign = facts.Select(f => f.Currency).Where(c => c != reference).Distinct().ToList();
         // The reference's own quote is needed too: rates are per USD. The loader reaches back MaxGapDays before the first date.
-        var rates = foreign.Count == 0 ? RateTable.Empty(today, 0) : await fx.LoadAsync([.. foreign, reference], grid[0], today, ct);
+        // #768: the change since 1 January converts each start value at that date's rate, as the Performance tab.
+        var rates = foreign.Count == 0 ? RateTable.Empty(today, 0)
+            : await fx.LoadAsync([.. foreign, reference], LocalDate.Min(grid[0], new LocalDate(today.Year, 1, 1)), today, ct);
         return InvestmentsOverviewMath.Build(facts, reference, rates, today, grid, span, watch, people, estimates);
     }
 }
@@ -215,10 +217,19 @@ internal static class InvestmentsOverviewMath
             .Sum(f => f.Amount.Amount), v.Facts.Currency, today)));
         var gain = SumOrNull(invested.Select(v => v.Gain));
 
-        // D3: the dashboard's « since 1 January ».
-        var since = invested.Select(v => (v.Facts, Period: EnvelopesNetWorth.SinceJanuary(v.Facts, today, v.Estimate))).Where(x => x.Period is not null).ToList();
-        var sinceGain = SumOrNull(since.Select(x => convert.Of(x.Period!.Performance!.Value.Amount, x.Facts.Currency, today)));
-        var sinceBase = SumOrNull(since.Select(x => convert.Of(x.Period!.StartValue!.Value.Amount + x.Period.NetContributions!.Value.Amount, x.Facts.Currency, today)));
+        // D3: the dashboard's « since 1 January ». #768: over the Performance tab's envelopes (closed this year included) and with its
+        // rates (the start at 1 January's, the rest at today's), so « Cette année » there gives the same figure.
+        var january1 = new LocalDate(today.Year, 1, 1);
+        var estimateOf = valued.ToDictionary(v => v.Facts.Item.Id, v => v.Estimate);
+        var year = facts.Where(f => !EnvelopeAllocation.IsAvailable(f.Envelope.Kind) && (f.Envelope.ClosedOn is not { } closed || closed > january1)
+                && f.Values.Any(v => v.AsOf <= today))
+            .ToList();
+        var since = year.Select(f => (Facts: f, Period: EnvelopesNetWorth.SinceJanuary(f, today, estimateOf.GetValueOrDefault(f.Item.Id))))
+            .Where(x => x.Period is not null).ToList();
+        var sinceStart = SumOrNull(since.Select(x => convert.Of(x.Period!.StartValue!.Value.Amount, x.Facts.Currency, january1)));
+        var sinceNet = SumOrNull(since.Select(x => convert.Of(x.Period!.NetContributions!.Value.Amount, x.Facts.Currency, today)));
+        var sinceGain = SumOrNull(since.Select(x => convert.Of(x.Period!.EndValue!.Value.Amount, x.Facts.Currency, today))) - sinceStart - sinceNet;
+        var sinceBase = sinceStart + sinceNet;
 
         var rows = valued.Select(v => (Facts: v.Facts, v.Figures, v.Value, v.Gain, v.Estimate, v.EstimatedOn))
             .Concat(figures.Where(x => x.Figures.Value is null)
@@ -252,7 +263,7 @@ internal static class InvestmentsOverviewMath
             gain is { } g && paidIn is { } p && p > 0m ? EnvelopeMath.RoundPercent(g / p * 100m) : null,
             AnnualReturn(invested, convert, today),
             convert.View(sinceGain), sinceGain is { } sg && sinceBase is { } sb && sb > 0m ? EnvelopeMath.RoundPercent(sg / sb * 100m) : null,
-            invested.Count - since.Count,
+            year.Count - since.Count,
             byKind, People(valued, persons, value, convert), rows,
             Points(facts, grid, span, convert, today, valued.Where(v => v.Estimate is not null).ToDictionary(v => v.Facts.Item.Id, v => v.Estimate!.Value)),
             watch, convert.Missing, valued.Count(v => v.Estimate is not null),

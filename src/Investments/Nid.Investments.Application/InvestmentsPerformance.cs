@@ -22,7 +22,8 @@ public sealed record MonthPerformanceView(string Month, AmountView? Performance)
 /// An envelope of the period: its performance in its currency and converted, its values and net contributions converted (the start at
 /// the rate of <c>From</c>, the rest at the rate of <c>To</c>), its money-weighted return over the period, and its annual return since its
 /// opening (D2). <c>StaleStart</c>: its value at the start is older than its staleness threshold. <c>NoStartValue</c>: it has no value at the
-/// start but flows before it, its start counted at the amount paid in by then.
+/// start and was not opened during the period (flows before it, or no money paid in by its first value), its start counted at the amount
+/// paid in by then. Either leaves it out of the period's totals (#768).
 /// </summary>
 public sealed record EnvelopePeriodRow(
     ItemId Id, string Name, string Kind, string Currency, string? Performance, AmountView? PerformanceConverted, decimal? AnnualReturnPct,
@@ -34,8 +35,8 @@ public sealed record ReturnReferenceView(decimal AnnualReturnPct);
 /// <summary>
 /// Spec §4.2. D13: <c>EndValue = StartValue + Contributions − Withdrawals + Transfers + Performance</c>, the transfers being the legs
 /// with an envelope out of the period. Every figure in <c>Currency</c>, the start value at the rate of <c>From</c> and the rest at the
-/// rate of <c>To</c>; null when a rate is missing. An envelope without a value at the start counts from 0, or from the amount paid in by
-/// then when it has older flows.
+/// rate of <c>To</c>; null when a rate is missing. An envelope opened during the period counts from 0; one whose start is not known (no
+/// value at the start but older flows, or a stale one) is listed but left out of the totals, as the overview's change since 1 January (#768).
 /// </summary>
 public sealed record InvestmentsPerformance(
     string Currency, LocalDate From, LocalDate To,
@@ -106,16 +107,16 @@ internal static class InvestmentsPerformanceMath
         {
             var period = EnvelopeMath.Period(f.Values, f.Flows, f.Currency, from, to);
             if (period.EndValue is not { } end) continue;
-            var limit = EnvelopeMath.StaleThreshold(f.Envelope.Cadence, f.Envelope.StaleAfterDays);
-            var stale = period.StartAsOf is { } start && limit is { } days && Period.DaysBetween(start, from) > days;
             var value = to == today && (f.Envelope.ClosedOn is not { } closedOn || today < closedOn) && estimates?.GetValueOrDefault(f.Item.Id) is { } estimate
                 ? TodayValue.Pick(EnvelopeMath.At(f.Envelope.Kind, f.Values, f.Flows, f.Currency, f.Envelope.Cadence, f.Envelope.StaleAfterDays, today), estimate).Value.Amount
                 : end.Amount;
-            counted.Add(new Counted(f, period, value, stale));
+            counted.Add(new Counted(f, period, value, EnvelopesNetWorth.StaleStart(f, period)));
         }
+        // #768: as the overview's change since 1 January, an envelope without a known start is listed, flagged, out of the totals.
+        var known = counted.Where(c => EnvelopesNetWorth.StartKnown(c.Facts, c.Period)).ToList();
 
         decimal Window(Counted c, Func<Flow, bool> which) => c.Window.Where(which).Sum(f => f.Amount.Amount);
-        decimal? Household(Func<Counted, decimal?> amount) => SumOrNull(counted.Select(amount));
+        decimal? Household(Func<Counted, decimal?> amount) => SumOrNull(known.Select(amount));
 
         var startValue = Household(c => AtStart(c.Start, c.Facts.Currency));
         var endValue = Household(c => At(c.End, c.Facts.Currency));
@@ -129,18 +130,18 @@ internal static class InvestmentsPerformanceMath
         var performance = endValue - startValue - contributions + withdrawals - transfers;
         var engaged = startValue + contributions;
         // Converted as the figures; one that cannot convert leaves the return unknown.
-        var cash = counted.SelectMany(c => c.Cash(from, to).Select(x => (x.On, Amount: x.AtStart ? AtStart(x.Amount, c.Facts.Currency) : At(x.Amount, c.Facts.Currency))))
+        var cash = known.SelectMany(c => c.Cash(from, to).Select(x => (x.On, Amount: x.AtStart ? AtStart(x.Amount, c.Facts.Currency) : At(x.Amount, c.Facts.Currency))))
             .ToList();
 
-        var months = Months(counted, from, to, At);
-        var known = months.Where(m => m.Performance is not null).ToList();
+        var months = Months(known, from, to, At);
+        var rated = months.Where(m => m.Performance is not null).ToList();
         var rows = counted
             .Select(c =>
             {
                 var (start, end, net) = (AtStart(c.Start, c.Facts.Currency), At(c.End, c.Facts.Currency), At(c.Net, c.Facts.Currency));
                 return new PeriodFigures.Row(c.Facts, c.End - c.Start - c.Net, start, end, net, end - start - net,
                     EnvelopeMath.At(c.Facts.Envelope.Kind, c.Facts.Values, c.Facts.Flows, c.Facts.Currency, c.Facts.Envelope.Cadence, c.Facts.Envelope.StaleAfterDays, today).AnnualReturnPct,
-                    Xirr.PeriodPercent(c.Cash(from, to).Select(x => (x.On, x.Amount)), from, to), c.StaleStart, c.Period.NoStartValue);
+                    Xirr.PeriodPercent(c.Cash(from, to).Select(x => (x.On, x.Amount)), from, to), c.StaleStart, !c.StaleStart && !EnvelopesNetWorth.StartKnown(c.Facts, c.Period));
             })
             .OrderBy(r => r.PerformanceConverted is null).ThenByDescending(r => r.PerformanceConverted)
             .ThenBy(r => r.Facts.Item.DisplayName, French).ThenBy(r => r.Facts.Item.Id.Value)
@@ -150,8 +151,8 @@ internal static class InvestmentsPerformanceMath
             performance is { } p && engaged is { } e && e > 0m ? EnvelopeMath.RoundPercent(p / e * 100m) : null,
             cash.All(x => x.Amount is not null) ? Xirr.PeriodPercent(cash.Select(x => (x.On, x.Amount!.Value)), from, to) : null,
             months,
-            known.Count >= 2 ? known.MaxBy(m => m.Performance)!.Month : null,
-            known.Count >= 2 ? known.MinBy(m => m.Performance)!.Month : null,
+            rated.Count >= 2 ? rated.MaxBy(m => m.Performance)!.Month : null,
+            rated.Count >= 2 ? rated.MinBy(m => m.Performance)!.Month : null,
             rows, Reference(facts, convert, today), convert.Missing);
     }
 

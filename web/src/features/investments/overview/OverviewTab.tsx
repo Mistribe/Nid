@@ -130,7 +130,7 @@ function Estimated({ on }: { on: string }) {
 function ValueHero({ d, aside }: { d: InvestmentsOverview; aside?: ReactNode }) {
   const { t } = useTranslation();
   const figure = useFigure(d);
-  // #712: an envelope without a recent 1 January value is left out of the change, the Performance tab counts it.
+  // #712, #768: an envelope without a recent 1 January value is left out of the change, as on the Performance tab.
   const withoutStart = d.sinceJanuary ? d.withoutStartCount : 0;
   const notes = d.oldestAsOf || d.staleCount > 0 || d.estimatedCount > 0 || d.withoutValueCount > 0 || withoutStart > 0;
   return (
