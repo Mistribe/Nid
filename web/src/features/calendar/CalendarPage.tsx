@@ -138,6 +138,8 @@ function MonthView({ scope, chosen, month: asked, amounts }: {
         : !answer.data ? <Loading label={t('calendar_page.loading')}><Skeleton className="h-96 w-full" /></Loading>
         : (
           <>
+            {/* #714: a month kept on screen while it is read again says so, rather than changing under the reader's eyes. */}
+            {answer.isFetching ? <p role="status" className="text-sm text-muted-foreground">{t('calendar_page.refreshing')}</p> : null}
             {money ? (
               <StatLine items={[
                 { label: t('calendar_page.out'), value: <FigureText figure={money.out} /> },

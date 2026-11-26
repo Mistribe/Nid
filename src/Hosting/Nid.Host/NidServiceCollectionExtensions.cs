@@ -290,6 +290,7 @@ public static class NidServiceCollectionExtensions
         services.AddSingleton<IUpcomingKinds, Nid.Income.Application.IncomeUpcomingKinds>();
         services.AddScoped<Nid.Platform.Contracts.INotificationSource, Nid.Income.Application.IncomeNotificationSource>();
         services.AddScoped<IExpectedIncome, Nid.Income.Application.IncomeSourcesNext>();
+        services.AddScoped<IProjectedCharges, Nid.Income.Application.IncomeSourcesPayments>();
         services.AddScoped<ITaxContribution, Nid.Income.Application.IncomeSourcesTax>();
         services.AddScoped<IProposalHandler, Nid.Income.Application.PayslipProposal>();
 
@@ -464,6 +465,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ITaxContribution, Nid.Childcare.Application.ChildcareTax>();
         services.AddScoped<ICommitmentsContribution, Nid.Childcare.Application.ChildcareCommitments>();
         services.AddScoped<IExpectedCharges, Nid.Childcare.Application.ChildcareCharges>();
+        services.AddScoped<IProjectedCharges, Nid.Childcare.Application.ChildcareProjectedCharges>();
         services.AddScoped<IImportSection, Nid.Childcare.Application.Import.ChildcareImportSection>();
         services.AddScoped<IImportSection, Nid.Childcare.Application.Import.NannyImportSection>();
         services.AddScoped<Nid.Platform.Contracts.INotificationSource, Nid.Childcare.Application.ChildcareNotificationSource>();
