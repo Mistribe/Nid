@@ -699,7 +699,8 @@ de passe.
 - Chaque écran affiche un bandeau « Démo : les données sont inventées et réinitialisées chaque nuit ».
 - Les fichiers d'import ne contiennent pas tout :
   `NID_URL=https://<domaine de la démo> NID_DEMO_SEED_KEY=<clé> node local/demo/finish.mjs` valide les mois de garde,
-  ajoute les documents, les avis d'impôt, les scénarios et l'indice des prix, connecté en Alice. La clé est celle de
+  ajoute les documents, les avis d'impôt, la retraite (dates de naissance, coût de la vie, une pension), les scénarios et
+  l'indice des prix, connecté en Alice. La clé est celle de
   `Nid__Demo__SeedKey` : sans elle, la démo refuse les documents et les réglages du foyer que le script ajoute. Le
   relancer ne change rien.
 
