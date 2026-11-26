@@ -113,7 +113,7 @@ describe('the routine', () => {
     const { user } = await renderApp('/routine');
 
     const due = await screen.findByRole('region', { name: 'À relever' });
-    expect(await within(due).findByText('Solde bancaire du 30/09')).toBeInTheDocument();
+    expect(await within(due).findByText('Solde bancaire du 30/09 : 1 100,00 €')).toBeInTheDocument();
     expect(within(due).queryByLabelText('Valeur de PEA')).toBeNull();
     expect(within(due).getByLabelText('Valeur de Livret A')).toHaveValue('');
     await user.type(screen.getByLabelText('Versements du mois sur PEA'), '20');

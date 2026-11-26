@@ -4,13 +4,13 @@ using Nid.TestSupport;
 
 namespace Nid.Subscriptions.IntegrationTests;
 
-/// <summary>The annual cost: amortized over the 12 months from the 1st of the current month (the app clock is fixed at 2025-10-15).</summary>
+/// <summary>#711: the annual cost, what the 12 months from the 1st of the current month charge (the app clock is fixed at 2025-10-15).</summary>
 public class AnnualCostTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 {
     public sealed record Money(string Amount, string Currency);
     public sealed record FindingResponse(string Code, string? Reference);
-    public sealed record Summary(Guid Id, Money? AmortizedCostConverted, Money? AnnualCostConverted, List<FindingResponse> Findings);
-    public sealed record ListResponse(List<Summary> Items, Money? HouseholdAnnualCostConverted, List<FindingResponse> Findings);
+    public sealed record Summary(Guid Id, Money? AmortizedCostConverted, Money? AnnualCostConverted, List<FindingResponse> Findings, Money? MonthlyCostConverted = null);
+    public sealed record ListResponse(List<Summary> Items, Money? HouseholdAnnualCostConverted, List<FindingResponse> Findings, Money? HouseholdMonthlyCostConverted = null);
 
     private static decimal Value(Money? m) => decimal.Parse(Assert.IsType<Money>(m).Amount, CultureInfo.InvariantCulture);
 

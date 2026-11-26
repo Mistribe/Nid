@@ -160,6 +160,24 @@ realestate.property_tax_due — recurring, milestone: False
   management_fees | Taxe foncière à payer · Maison | Taxe foncière à payer · Alice
   other | Taxe foncière à payer · Maison | Taxe foncière à payer · Alice
   unknown | Taxe foncière à payer · Maison | Taxe foncière à payer · Alice
+realestate.rent_arrears — milestone, milestone: True
+  (none) |  | 
+  Phase 2 |  | 
+  household |  | 
+  department_unknown |  | 
+  life_insurance_8y |  | 
+  pea_5y |  | 
+  per_retirement |  | 
+  works |  | 
+  construction_works |  | 
+  property_tax |  | 
+  condo_fees |  | 
+  insurance |  | 
+  energy |  | 
+  maintenance |  | 
+  management_fees |  | 
+  other |  | 
+  unknown |  | 
 realestate.tenancy_end — milestone, milestone: True
   (none) | Fin du bail «  » · Maison | Fin du bail «  » · Alice
   Phase 2 | Fin du bail « Phase 2 » · Maison | Fin du bail « Phase 2 » · Alice

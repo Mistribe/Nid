@@ -217,6 +217,23 @@ public class PropertiesCostsTests
     }
 
     [Fact]
+    public void No_change_from_a_year_too_small_to_compare()
+    {
+        var home = Home() with
+        {
+            Flows =
+            [
+                Fact(HomeItem, new LocalDate(2023, 10, 1), FlowKind.Expense, "maintenance", 20m),
+                Fact(HomeItem, new LocalDate(2024, 10, 1), FlowKind.Expense, "maintenance", 120m),
+                Fact(HomeItem, new LocalDate(2025, 10, 1), FlowKind.Expense, "maintenance", 1_000m),
+            ],
+        };
+
+        // #718: +500 % is the most a change says; beyond it, the earlier year is too small to compare.
+        Assert.Equal([null, null, "5.0000", null, null], Assert.Single(Build(home).ByYear.Categories).Cells.Select(c => c.Change));
+    }
+
+    [Fact]
     public void A_year_an_archived_property_was_held_is_partial()
     {
         var home = Home();

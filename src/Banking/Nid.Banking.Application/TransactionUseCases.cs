@@ -66,6 +66,16 @@ public sealed record SetTransactionCategoryCommand(Guid TransactionId, Guid? Cat
 /// </summary>
 public sealed record SetTransactionsCategoryCommand(IReadOnlyList<Guid> TransactionIds, Guid? CategoryId) : ICommand<LinesCategorised>, ITransactional, IRequiresBanking;
 
+/// <summary>
+/// #721: the other lines of <paramref name="TransactionId"/>'s normalised label that nothing classified yet (no category, no category source,
+/// not ignored), on the accounts the actor writes, newest first; at most <see cref="SameLabelLinesHandler.Most"/>, so they take a category
+/// with it in one <see cref="SetTransactionsCategoryCommand"/>.
+/// </summary>
+public sealed record SameLabelLinesQuery(Guid TransactionId) : IQuery<IReadOnlyList<Guid>>, IBankLineScoped
+{
+    public AccessKind Access => AccessKind.Read;
+}
+
 /// <summary>The lines that took the category, and the others with the code one line alone would have been refused with.</summary>
 public sealed record LinesCategorised(IReadOnlyList<Guid> Changed, IReadOnlyList<LineRefusal> Refused);
 
@@ -94,12 +104,13 @@ public sealed record BankTransactionPage(IReadOnlyList<BankTransactionView> Item
 /// <paramref name="Note"/> is a person's note; <paramref name="Parts"/> the parts of a split line (<paramref name="CategorySource"/> <c>split</c>), null otherwise.
 /// <paramref name="SuggestedPattern"/> is the pattern a rule made from the line would offer (<see cref="CategoryRules.Suggest"/>), null when none fits;
 /// <paramref name="SharedAccount"/> says whether every adult reads the line's account (<paramref name="AccountId"/>, a card's own for its lines).
+/// <paramref name="DebitedFrom"/> names, on an immediate card's line, the account its echo was debited from (#416), when the reader reads it.
 /// </summary>
 public sealed record BankTransactionView(
     Guid Id, LocalDate BookedOn, LocalDate? ValueOn, string Amount, string Currency, string Label, string? Counterparty, bool FromCard,
     string? CardName, string FetchedVia, string LinkState, LinkView? Link, string AccountName, CategoryView? Category, string? CategorySource,
     Guid AccountId, string? SuggestedPattern, bool SharedAccount, string? Note = null, IReadOnlyList<PartView>? Parts = null, Guid? PartId = null,
-    IReadOnlyList<LinkedDocumentView>? Documents = null);
+    IReadOnlyList<LinkedDocumentView>? Documents = null, string? DebitedFrom = null);
 
 /// <summary>#84: a part of a split line, <paramref name="Amount"/> signed like the line; the parts add up to it.</summary>
 public sealed record PartView(Guid Id, string Amount, CategoryView? Category, string? Note);
@@ -199,6 +210,8 @@ public sealed class BankLines(
         var parts = await splits.PartsAsync([.. lines.Select(l => l.Id)], ct);
         // #84: the receipts the reader reads, as the documents list would show them.
         var receipts = await documents.ReadableOfTargetsAsync(BankingDocumentTargets.Kind, [.. lines.Select(l => l.Id)], access.Person, ct);
+        var cardLines = lines.Where(l => all[l.Account].CardOf is not null).Select(l => l.Id).ToList();
+        var echoedOn = cardLines.Count == 0 ? new Dictionary<Guid, Guid>() : await links.EchoAccountsAsync(cardLines, ct);
         var adults = await access.AdultCountAsync(ct);
         var shared = new Dictionary<Guid, bool>();
         foreach (var id in lines.Select(l => l.Account).Distinct())
@@ -230,7 +243,8 @@ public sealed class BankLines(
                 Category(t.Category), t.CategorySource is { } source ? Wire(source) : null,
                 t.Account, CategoryRules.Suggest(t.NormalizedLabel), shared[t.Account], t.Note,
                 parts.TryGetValue(t.Id, out var own) ? [.. own.Select(x => new PartView(x.Id, TransactionLinker.Amount(x.Amount), Category(x.Category), x.Note))] : null,
-                Documents: receipts.GetValueOrDefault(t.Id));
+                Documents: receipts.GetValueOrDefault(t.Id),
+                DebitedFrom: echoedOn.TryGetValue(t.Id, out var debited) && readable.TryGetValue(debited, out var from) ? from.Name : null);
         })];
     }
 
@@ -407,6 +421,22 @@ public sealed class IgnoreTransactionHandler(IContextAccessor context, BankLines
 
         await links.ClearAsync(line.Id, TransactionLinkState.Ignored, ct);
         return Result.Success(await lines.ViewAsync(line.Id, ct));
+    }
+}
+
+[RequestHandler<SameLabelLinesQuery, IReadOnlyList<Guid>>]
+public sealed class SameLabelLinesHandler(IContextAccessor context, BankingAccess access, IAccountStore accounts, ITransactionStore transactions)
+    : IRequestHandler<SameLabelLinesQuery, IReadOnlyList<Guid>>
+{
+    /// <summary>The bulk categorisation's own limit, the line itself aside.</summary>
+    public const int Most = SetTransactionsCategoryHandler.Most - 1;
+
+    public async ValueTask<Result<IReadOnlyList<Guid>>> HandleAsync(SameLabelLinesQuery query, CancellationToken ct = default)
+    {
+        var line = CheckedResources.Of<BankTransaction>(context, query);
+        var writable = (await access.ReadableAsync(await accounts.AllAsync(ct), ct)).Where(r => r.CanWrite).Select(r => r.Account.Id).ToList();
+        var same = await transactions.ListAsync(writable, null, null, 0, Most + 1, ct, uncategorised: true, normalizedLabel: line!.NormalizedLabel);
+        return Result.Success<IReadOnlyList<Guid>>([.. same.Where(l => l.Id != line.Id).Take(Most).Select(l => l.Id)]);
     }
 }
 

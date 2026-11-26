@@ -309,6 +309,15 @@ describe('DashboardPage', () => {
     expect(text(month)).not.toContain('-200');
   });
 
+  it('says which cards no spending counts, each linking to its « Régler » (#720)', async () => {
+    serve({ ...spending('200.00'), unattachedCards: [{ id: 'card-1', name: 'Carte Bob' }] });
+    await renderApp('/dashboard');
+
+    const month = await screen.findByRole('region', { name: 'Où part le revenu du mois' });
+    expect(within(month).getByRole('note')).toHaveTextContent('1 carte non rattachée à son compte : ses opérations ne comptent pas.');
+    expect(within(month).getByRole('link', { name: 'Rattacher Carte Bob' })).toHaveAttribute('href', '/settings/banks?account=card-1');
+  });
+
   it('keeps the month as it was without everyday spending', async () => {
     serve(dashboard());
     await renderApp('/dashboard');
@@ -342,6 +351,21 @@ describe('DashboardPage', () => {
 
     expect(await screen.findByRole('link', { name: 'Renseigner la suite de 2 revenus' })).toHaveAttribute('href', '/income');
     expect(screen.queryByRole('link', { name: /à faire/ })).not.toBeInTheDocument();
+  });
+
+  const unpaid = (id: string, name: string) => todoItem({ kind: 'realestate.rent_arrears', module: 'properties', id, name, on: '2025-11-15' });
+
+  it('links an unpaid rent to its property’s rental tab (#716)', async () => {
+    serve(dashboard({ todo: [unpaid('00000000-0000-7000-8000-0000000000f1', 'Studio')] }));
+    await renderApp('/dashboard');
+    expect(await screen.findByRole('link', { name: 'Loyer impayé : Studio' })).toHaveAttribute('href', '/properties/00000000-0000-7000-8000-0000000000f1?tab=rental');
+    expect(screen.queryByRole('link', { name: /à faire/ })).not.toBeInTheDocument();
+  });
+
+  it('links several unpaid rents to the rental list (#716)', async () => {
+    serve(dashboard({ todo: [unpaid('00000000-0000-7000-8000-0000000000f1', 'Studio'), unpaid('00000000-0000-7000-8000-0000000000f2', 'T2')] }));
+    await renderApp('/dashboard');
+    expect(await screen.findByRole('link', { name: 'Loyers impayés sur 2 biens' })).toHaveAttribute('href', '/properties?tab=rental');
   });
 
   it('counts the expected documents in one line to the documents page (#414)', async () => {

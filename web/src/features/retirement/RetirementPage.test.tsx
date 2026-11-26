@@ -48,6 +48,7 @@ describe('the retirement page', () => {
     expect(within(figures).getByText(/300\s000,00\s€/)).toBeInTheDocument();
     expect(within(figures).getByText('juin 2040')).toBeInTheDocument();
     expect(within(figures).getByText('Revenu aujourd’hui')).toBeInTheDocument();
+    expect(within(hero).queryByText(/couvre l’écart/)).not.toBeInTheDocument();
     expect(screen.getByText(/Chiffres indicatifs/)).toBeInTheDocument();
     expect(screen.queryByRole('table', { name: 'Départs à la retraite' })).not.toBeInTheDocument();
 
@@ -67,6 +68,23 @@ describe('the retirement page', () => {
     expect(within(rows[2]!).getByText('64 ans')).toBeInTheDocument();
   });
 
+  it('names the adults leaving without a pension and links to Départs', async () => {
+    serve(view());
+    const { user } = await renderApp('/retirement?scope=me');
+
+    const notice = await screen.findByText(/Aucune pension saisie pour Bob : l’écart est calculé sans sa pension\./);
+    await user.click(within(notice).getByRole('link', { name: 'Saisir dans Départs' }));
+    expect(await screen.findByRole('table', { name: 'Départs à la retraite' })).toBeInTheDocument();
+  });
+
+  it('says nothing of pensions when every adult leaving has one', async () => {
+    serve(view({ departures: view().departures.slice(0, 1) }));
+    await renderApp('/retirement');
+
+    await screen.findByRole('region', { name: 'Écart mensuel' });
+    expect(screen.queryByText(/Aucune pension saisie/)).not.toBeInTheDocument();
+  });
+
   it('shows the need at retirement in place of today\'s income when the living cost is set', async () => {
     serve(view({ figures: { month: '2033-02', incomeNow: '4000.00', incomeAtRetirement: '3000.00', need: '3200.00', gap: '200.00', capitalNeeded: '60000.00', capitalAtRetirement: '250000.00' } }));
     await renderApp('/retirement');
@@ -76,6 +94,7 @@ describe('the retirement page', () => {
     expect(within(figures).getByText('Besoin à la retraite')).toBeInTheDocument();
     expect(within(figures).getByText(/3\s200,00\s€/)).toBeInTheDocument();
     expect(within(figures).queryByText('Revenu aujourd’hui')).not.toBeInTheDocument();
+    expect(within(hero).getByText('Le capital projeté couvre l’écart dès juin 2040')).toBeInTheDocument();
   });
 
   it('lists the adults without a figure when nobody has a birth date', async () => {

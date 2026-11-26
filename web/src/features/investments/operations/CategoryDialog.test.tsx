@@ -31,7 +31,7 @@ let previews: unknown[] = [];
  * The line (`over` on top), the categories, a draft rule's `preview`, and every write to a line's category or a rule as
  * `[method, line or rule id, body]`.
  */
-function serve(over: Partial<BankTransaction> = {}, preview: CategoryRuleDraftPreview = nothing) {
+function serve(over: Partial<BankTransaction> = {}, preview: CategoryRuleDraftPreview = nothing, sameLabel: string[] = []) {
   const writes: [string, unknown, unknown][] = [];
   previews = [];
   server.use(
@@ -41,6 +41,12 @@ function serve(over: Partial<BankTransaction> = {}, preview: CategoryRuleDraftPr
     http.get('*/api/v1/banking/categories', () => HttpResponse.json(categories)),
     http.put('*/api/v1/banking/transactions/:id/category', async ({ request, params }) => { writes.push(['PUT', params.id, await request.json()]); return HttpResponse.json(line); }),
     http.delete('*/api/v1/banking/transactions/:id/category', ({ params }) => { writes.push(['DELETE', params.id, null]); return HttpResponse.json(line); }),
+    http.get('*/api/v1/banking/transactions/:id/same-label', () => HttpResponse.json(sameLabel)),
+    http.post('*/api/v1/banking/transactions/category', async ({ request }) => {
+      const body = await request.json() as { transactionIds: string[] };
+      writes.push(['BULK', null, body]);
+      return HttpResponse.json({ changed: body.transactionIds, refused: [] });
+    }),
     http.post('*/api/v1/banking/category-rules', async ({ request }) => { writes.push(['RULE', null, await request.json()]); return HttpResponse.json({ id: 'r1' }, { status: 201 }); }),
     http.post('*/api/v1/banking/category-rules/preview', async ({ request }) => { previews.push(await request.json()); return HttpResponse.json(preview); }),
     http.post('*/api/v1/banking/category-rules/:id/apply', ({ params }) => { writes.push(['APPLY', params.id, null]); return HttpResponse.json({ changed: 2 }); }),
@@ -72,6 +78,27 @@ describe('« Catégoriser… »', () => {
     await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
 
     await waitFor(() => expect(writes).toEqual([['PUT', 't1', { categoryId: 'groceries' }]]));
+  });
+
+  it('classifies the other lines of the same label with it, when asked (#721)', async () => {
+    const writes = serve({ suggestedPattern: null }, nothing, ['t8', 't9']);
+    const user = await open();
+
+    await pick(user, 'Catégorie', 'Alimentation › Courses');
+    await user.click(await screen.findByRole('checkbox', { name: 'Appliquer aussi aux 2 opérations au même libellé' }));
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+    await waitFor(() => expect(writes).toEqual([['BULK', null, { transactionIds: ['t1', 't8', 't9'], categoryId: 'groceries' }]]));
+    expect(await screen.findByText('3 opérations classées.')).toBeInTheDocument();
+  });
+
+  it('offers no other line for « Sans catégorie »', async () => {
+    serve({}, nothing, ['t8']);
+    const user = await open();
+    await pick(user, 'Catégorie', 'Alimentation');
+    expect(await screen.findByRole('checkbox', { name: 'Appliquer aussi à l’autre opération au même libellé' })).toBeInTheDocument();
+    await pick(user, 'Catégorie', 'Sans catégorie');
+    expect(screen.queryByRole('checkbox', { name: /même libellé/ })).toBeNull();
   });
 
   it('opens on the line’s category', async () => {

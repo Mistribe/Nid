@@ -215,6 +215,7 @@
       "per_month": "{{amount}} / mois",
       "income": "Revenus",
       "rest_name": "Reste",
+      "childcare": "Garde, coût net du mois",
       "other": "Autres",
       "pct": "{{value}} %",
       "col_per_month": "Par mois",
@@ -224,12 +225,17 @@
       "everyday": "Dépenses courantes",
       "everyday_tip": "Les dépenses de vos comptes ce mois-ci, remboursements déduits. Les impôts et les opérations rapprochées d’un abonnement, d’un crédit, d’une charge de bien ou de la garde n’y sont pas : ils sont déjà dans les engagements. Une opération pas encore rapprochée y compte encore. Les virements entre vos comptes n’y sont pas.",
       "left": "Reste réel",
-      "overspent": "Dépassement de {{amount}}"
+      "overspent": "Dépassement de {{amount}}",
+      "unattached_one": "{{count}} carte non rattachée à son compte : ses opérations ne comptent pas.",
+      "unattached_other": "{{count}} cartes non rattachées à leur compte : leurs opérations ne comptent pas.",
+      "attach": "Rattacher {{name}}"
     },
     "notice_one": "{{count}} chose à faire",
     "notice_other": "{{count}} choses à faire",
     "notice_income_gap_one": "Renseigner la suite de {{count}} revenu",
     "notice_income_gap_other": "Renseigner la suite de {{count}} revenus",
+    "notice_rent_arrears_one": "Loyer impayé : {{name}}",
+    "notice_rent_arrears_other": "Loyers impayés sur {{count}} biens",
     "notice_expected_documents_one": "{{count}} document attendu",
     "notice_expected_documents_other": "{{count}} documents attendus",
     "empty_title": "Bienvenue dans Nid",
@@ -262,7 +268,7 @@
       "loans": "Crédits {{amount}}",
       "property_costs": "Charges des biens {{amount}}",
       "tax": "Impôts estimés {{amount}}",
-      "childcare": "Garde {{amount}}"
+      "childcare": "Garde, coût net du mois {{amount}}"
     },
     "commitment_name": {
       "subscriptions": "Abonnements",
@@ -272,6 +278,8 @@
       "childcare": "Garde"
     },
     "estimated": "(estimation)",
+    "childcare_tip": "Ce que la garde vous coûte ce mois-ci, après la CMG : le salaire, les cotisations et les frais laissés au foyer, moins l’aide. Estimé d’après les jours prévus tant que le mois n’est pas validé, puis celui du relevé validé. C’est le « Coût net du mois » de la page Garde ; le prélèvement Pajemploi, lui, tombe le mois suivant.",
+    "see_childcare": "Voir la garde",
     "income_unknown": "Inconnu : aucun revenu déclaré",
     "smoothed_per_month": "par mois, lissé sur l’année",
     "margin_unknown_rate": "Marge inconnue : taux de change manquant ({{code}})",
@@ -553,6 +561,8 @@
     "count_other": "{{count}} abonnements",
     "per_month": "Par mois",
     "per_year": "Par an",
+    "per_month_tip": "Un douzième de « Par an » : un abonnement annuel compte pour un douzième chaque mois, un essai gratuit une fois terminé.",
+    "per_year_tip": "Ce que vos abonnements prélèveront ce mois-ci et les 11 suivants, au prix de chaque échéance : la somme des 12 mois du graphique.",
     "cash_month": "Décaissé du mois",
     "spent_total": "Dépensé au total",
     "provider_filter": "Fournisseur : {{name}}",

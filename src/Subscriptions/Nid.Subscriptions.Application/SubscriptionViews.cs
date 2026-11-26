@@ -46,7 +46,8 @@ public static class SubscriptionViews
             timeline.Warnings.Select(FindingView.From).Concat(FxFindings(converted, annual, spent.Missing)).ToList(),
             owners,
             annual.Total is { } m ? MoneyView.From(m) : null,
-            spent.View);
+            spent.View,
+            MoneyView.Twelfth(annual.Total is { } y ? MoneyView.From(y) : null));
 
     public static SubscriptionDetail Detail(
         SubscriptionInput input, Timeline timeline, string displayName, ProviderSummaryView? provider, DateRange window, Converted converted,

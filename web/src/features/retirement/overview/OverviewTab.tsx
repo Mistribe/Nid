@@ -35,7 +35,10 @@ export function OverviewTab({ scope }: { scope: Scope }) {
           <>
             {f ? (
               <>
-                <Hero label={t('retirement.gap')} figure={money(f.gap)} note={t('retirement.gap_note', { month: month(f.month) })} aside={(
+                <Hero label={t('retirement.gap')} figure={money(f.gap)} note={t('retirement.gap_note', { month: month(f.month) })}
+                  // #708: the gap alone reads as a shortfall; the independence month is when the projected capital covers it.
+                  change={f.need && data.financialIndependence ? t('retirement.gap_covered', { month: month(data.financialIndependence) }) : undefined}
+                  aside={(
                   <StatLine className="xl:grid-cols-4" items={[
                     // With a living cost the gap is the need beyond the income at retirement; without one, the income it loses.
                     f.need ? { label: t('retirement.need'), tip: t('retirement.need_tip'), value: money(f.need) } : { label: t('retirement.income_now'), value: money(f.incomeNow) },
@@ -55,6 +58,7 @@ export function OverviewTab({ scope }: { scope: Scope }) {
                 action={<Link to="/settings/persons" className={buttonVariants({ variant: 'outline' })}>{t('retirement.open_settings')}</Link>} />
             )}
             {missing ? <p className="text-sm"><Link to="/settings/projection" className="underline underline-offset-2">{t('retirement.living_cost_missing')}</Link></p> : null}
+            <NoPension data={data} scope={scope} />
             <Warnings data={data} />
             {data.independence.length > 0 ? (
               <SectionCard title={t('retirement.independence_curve')}>
@@ -100,6 +104,20 @@ export function AnalysisTab({ scope }: { scope: Scope }) {
         );
       }}
     </Answer>
+  );
+}
+
+/** #727: an adult leaving without a pension in view is named, so the gap does not read as complete; the link opens Départs. */
+function NoPension({ data, scope }: { data: RetirementView; scope: Scope }) {
+  const { t, i18n } = useTranslation();
+  const without = data.figures ? data.departures.filter((d) => d.departure && d.sources.length === 0).map((d) => d.name) : [];
+  if (without.length === 0) return null;
+  const names = new Intl.ListFormat(i18n.language, { type: 'conjunction' }).format(without);
+  return (
+    <p className="text-sm text-status-warning-text">
+      {t('retirement.no_pension', { count: without.length, names })}{' '}
+      <Link to="/retirement" search={{ tab: 'departures', scope: scope === 'me' ? 'me' : undefined }} className="underline underline-offset-2">{t('retirement.no_pension_link')}</Link>
+    </p>
   );
 }
 

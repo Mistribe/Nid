@@ -46,8 +46,8 @@ export function OverviewTab({ scope }: { scope: Scope }) {
       {(d) => (
         <>
           <StatLine items={[
-            { label: tc('subscriptions.per_month'), value: text(d.monthlyAmortized) },
-            { label: tc('subscriptions.per_year'), value: text(d.annualAmortized) },
+            { label: tc('subscriptions.per_month'), value: text(d.monthlyAmortized), tip: tc('subscriptions.per_month_tip') },
+            { label: tc('subscriptions.per_year'), value: text(d.annualAmortized), tip: tc('subscriptions.per_year_tip') },
             // #376: the figure on its line, what it is read against under it.
             { label: t('overview.remaining'), value: text(d.monthCashRemaining), hint: t('overview.remaining_of', { total: text(d.monthCash) }) },
             { label: t('overview.count'), value: t('overview.active', { count: d.activeCount }), hint: t('overview.ended', { count: d.endedCount }) },

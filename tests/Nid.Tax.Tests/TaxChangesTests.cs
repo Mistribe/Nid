@@ -53,6 +53,20 @@ public class TaxChangesTests
         Assert.Equal(-145m, r.Remainder);
     }
 
+    [Theory]
+    [InlineData(5_000)]
+    [InlineData(null)] // the notice prints the deficit only as a negative net rental income
+    public void Last_years_rental_deficit_counts_once(int? setAgainstIncome)
+    {
+        var notice = Notice(30_000m, 2_500m, A) with { RentalIncomeNet = -5_000m, RentalDeficitOnGlobalIncome = setAgainstIncome };
+
+        var r = TaxChanges.Of(Estimate(2026, 30_000m), null, [notice], [A])!;
+
+        var rental = Assert.Single(r.Lines, l => l.Code.StartsWith("rental", StringComparison.Ordinal));
+        Assert.Equal(("rental_deficit", 5_000m, 0m, true), (rental.Code, rental.Before, rental.Now, rental.FromNotice));
+        Assert.True(rental.Effect > 0m);
+    }
+
     [Fact]
     public void Nothing_to_compare_without_an_estimate_or_a_notice_of_these_adults()
     {

@@ -14,6 +14,7 @@ import type { DashboardView } from '@/api/dashboard';
 import { band, spread, stack, type Span } from './flow';
 import { percent } from '@/lib/format';
 import { TableToggle } from '@/components/page/TableToggle';
+import { UnattachedCards } from '@/components/UnattachedCards';
 
 // The InfoTip's tooltip is not in the initial bundle: the figures load with their own chunk (banking households only).
 const MonthSpending = lazy(() => import('./MonthSpending').then((m) => ({ default: m.MonthSpending })));
@@ -70,7 +71,11 @@ export function HouseholdMonth({ d, scope, compact = false }: { d: DashboardView
     ...d.commitmentSources.flatMap((s) => {
       const source = SOURCES.find((x) => x.key === s.source);
       return source && s.amortized
-        ? [mark(source.key, t(`dashboard.commitment_name.${source.key}`), formatMoney(s.amortized), s.pct, toPlot(s.amortized.amount), source.color)]
+        ? [source.key === 'childcare'
+          // #723: the same figure as « Coût net du mois » on the Garde page, which it opens.
+          ? mark(source.key, t('dashboard.month.childcare'), formatMoney(s.amortized), s.pct, toPlot(s.amortized.amount), source.color,
+            (children) => <Link to="/childcare">{children}</Link>)
+          : mark(source.key, t(`dashboard.commitment_name.${source.key}`), formatMoney(s.amortized), s.pct, toPlot(s.amortized.amount), source.color)]
         : [];
     }),
     // #85 decision 10: with everyday spending the « Reste » splits into its categories (one tone: the commitments hold
@@ -111,6 +116,7 @@ export function HouseholdMonth({ d, scope, compact = false }: { d: DashboardView
       {known && d.everydaySpending && d.left
         ? <Suspense fallback={null}><MonthSpending margin={compact ? null : d.margin!} everyday={d.everydaySpending} left={d.left} /></Suspense>
         : null}
+      <UnattachedCards cards={d.unattachedCards} />
     </SectionCard>
   );
 }

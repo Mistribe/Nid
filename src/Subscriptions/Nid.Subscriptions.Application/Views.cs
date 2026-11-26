@@ -1,3 +1,4 @@
+using System.Globalization;
 using Nid.Core.Contracts;
 using Nid.Subscriptions.Application.Catalog;
 using Nid.Subscriptions.Contracts;
@@ -15,6 +16,11 @@ public sealed record MoneyView(string Amount, string Currency)
 
     public static IReadOnlyList<MoneyView> From(CostBreakdown breakdown)
         => breakdown.Totals.Select(From).ToList();
+
+    /// <summary>#711: « Par mois », a twelfth of a year's amount, to the cent.</summary>
+    public static MoneyView? Twelfth(MoneyView? year) => year is null ? null : new(
+        Math.Round(decimal.Parse(year.Amount, CultureInfo.InvariantCulture) / 12m, 2, MidpointRounding.AwayFromZero).ToString("0.00", CultureInfo.InvariantCulture),
+        year.Currency);
 }
 
 public sealed record FindingView(string Code, string Message, string? Reference)
@@ -28,9 +34,10 @@ public sealed record ChargeView(LocalDate Date, MoneyView Price, bool IsProjecte
 
 /// <param name="Spent">#395: what it has cost since its first charge; null before any charge.</param>
 /// <param name="AnnualCostConverted">
-/// The 12 months from the 1st of the current month, converted; charges past the walk horizon (<c>?horizon=</c>) are not
-/// projected, so a horizon under 12 months understates it.
+/// #711: what the 12 months from the 1st of the current month charge, converted (a free trial counts once it ends, a yearly charge
+/// once); charges past the walk horizon (<c>?horizon=</c>) are not projected, so a horizon under 12 months understates it.
 /// </param>
+/// <param name="MonthlyCostConverted">#711: « Par mois », a twelfth of <paramref name="AnnualCostConverted"/>.</param>
 public sealed record SubscriptionSummary(
     ItemId Id,
     string DisplayName,
@@ -49,7 +56,8 @@ public sealed record SubscriptionSummary(
     IReadOnlyList<FindingView> Findings,
     IReadOnlyList<ItemOwnerView> Owners,
     MoneyView? AnnualCostConverted,
-    SpentView? Spent = null);
+    SpentView? Spent = null,
+    MoneyView? MonthlyCostConverted = null);
 
 /// <summary>
 /// The household totals are NOT the sum of the rows: a purchase granting to several subscriptions shows in
@@ -71,7 +79,8 @@ public sealed record SubscriptionList(
     IReadOnlyList<Guid> SharedPurchaseIds,
     IReadOnlyList<GroupView> Groups,
     IReadOnlyList<FindingView> Findings,
-    MoneyView? HouseholdAnnualCostConverted) : IExposesItems
+    MoneyView? HouseholdAnnualCostConverted,
+    MoneyView? HouseholdMonthlyCostConverted = null) : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems() => Items.Select(i => i.Id);
 }

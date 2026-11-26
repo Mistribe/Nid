@@ -58,6 +58,27 @@ public class LoansOverviewTests
     private static decimal D(LoanMoneyView? money) => D(money!.Amount);
 
     [Fact]
+    public void Interest_capitalised_by_a_total_deferral_counts_in_the_capital_repaid_against()
+    {
+        var deferred = Loan("Différé", Loans.Annuity(12_000m, 0.06m, 48) with
+        {
+            Phases = [new LoanPhase(1, PhaseMode.DeferredTotal, 0.06m, RateType.Fixed, 2), new LoanPhase(2, PhaseMode.Annuity, 0.06m, RateType.Fixed)],
+        });
+        var car = Car();
+        var figures = Figures(deferred);
+
+        var overview = Build(deferred, car);
+
+        Assert.Equal(120.30m, figures.CapitalisedInterest);
+        Assert.Equal(12_000m + 12_000m, D(overview.Principal));
+        Assert.Equal(12_000m + 120.30m + 12_000m, D(overview.CapitalToRepay));
+        Assert.Equal(120.30m, D(overview.CapitalisedInterest));
+        var row = overview.Loans.Single(r => r.Id == deferred.Item.Id);
+        Assert.Equal(Math.Round(figures.PrincipalRepaid / 12_120.30m, 4).ToString("0.0000", CultureInfo.InvariantCulture), row.RepaidShare);
+        Assert.Null(Build(car).CapitalisedInterest);
+    }
+
+    [Fact]
     public void The_household_figures_add_up_the_running_loans_figures_today()
     {
         OverviewLoan[] loans = [Home(), Ptz(), Car(), Ended()];
@@ -186,6 +207,20 @@ public class LoansOverviewTests
     }
 
     [Fact]
+    public void A_phase_end_that_moves_the_households_payment_by_less_than_a_euro_is_no_event()
+    {
+        // Two phases at one rate: the second's payment is the first's, give or take a rounding cent.
+        var smoothed = Loan("Lissé", Loans.Annuity(12_000m, 0.05m, 48) with
+        {
+            Phases = [new LoanPhase(1, PhaseMode.Annuity, 0.05m, RateType.Fixed, 36), new LoanPhase(2, PhaseMode.Annuity, 0.05m, RateType.Fixed)],
+        });
+
+        var overview = Build(smoothed);
+
+        Assert.Equal([LoanOverviewCodes.LoanEnds], overview.Events.Select(e => e.Code));
+    }
+
+    [Fact]
     public void A_repayment_that_reduces_the_payment_lowers_this_months_payment()
     {
         var repaid = Loan("Maison", Loans.Golden(),
@@ -263,6 +298,19 @@ public class LoansOverviewTests
         Assert.Equal(Math.Round(DebtRatio.Of(payments, 5_000m)!.Value, 4).ToString("0.0000", CultureInfo.InvariantCulture), ratio.Ratio);
         Assert.Equal(("0.3500", 1_750m - payments, (string?)null), (ratio.Ceiling, D(ratio.Room), ratio.Unknown));
         Assert.Equal("under_ceiling", ratio.Reading);
+    }
+
+    [Fact]
+    public void The_debt_ratio_counts_rents_at_70_percent_as_banks_do()
+    {
+        var income = LoansOverviewMath.RatioIncome([
+            ("income", new IncomePart(1, Eur(3_000m), Eur(2_000m))),
+            (IncomeModules.Rents, new IncomePart(1, Eur(1_000m), Eur(500m))),
+        ]);
+
+        Assert.Equal((2, 3_700m, 2_350m), (income.Sources, income.MonthlyEquivalent[Currency.Eur], income.ReaderShare![Currency.Eur]));
+        var ratio = WithIncome(VisibilityScope.Household, income, Home()).DebtRatio!;
+        Assert.Equal((3_700m, 0.35m * 3_700m - 1_159.92m), (D(ratio.Income), D(ratio.Room)));
     }
 
     [Fact]

@@ -16,7 +16,7 @@ import { toPlot } from '@/lib/plot';
 import { PERSONS } from '@/api/persons';
 import { todayIso } from '@/lib/today';
 import type { LoansOverview } from '@/api/loans';
-import { modeText, percent } from '../format';
+import { modeText, money, percent } from '../format';
 import { monthAfter, timeAxis, yearsLater } from './axis';
 import { monthText, useLoanNames } from './BalanceChart';
 import { loanColor } from './colors';
@@ -83,9 +83,17 @@ const place = (axis: Axis, start: string, end: string) => {
   return { left: `${left}%`, width: `${Math.max(0, axis.at(end) * 100 - left)}%` };
 };
 
-function phaseName(t: TFunction, phase: Phase): string {
-  return phase.mode === 'annuity' ? t('loans_overview.phase_line', { mode: modeText(t, phase.mode), rate: percent(t, phase.annualRate) }) : modeText(t, phase.mode);
+/** #724: a phase is named by its payment, so two phases of one loan at one rate read apart; a deferral says so. */
+function phaseName(t: TFunction, phase: Phase, currency?: string): string {
+  const payment = phase.monthlyPayment && currency ? money(currency, phase.monthlyPayment) : null;
+  if (phase.mode !== 'annuity')
+    return payment ? t('loans_overview.phase_deferred_payment', { mode: modeText(t, phase.mode), payment }) : modeText(t, phase.mode);
+  return payment
+    ? t('loans_overview.phase_payment', { payment, rate: percent(t, phase.annualRate) })
+    : t('loans_overview.phase_line', { mode: modeText(t, phase.mode), rate: percent(t, phase.annualRate) });
 }
+
+const currencyOf = (d: LoansOverview, loanId: string) => d.loans.find((l) => l.id === loanId)?.currency;
 
 /** The phase running today, else the next one, else the last. */
 const currentPhase = (span: Span, today: string) =>
@@ -118,7 +126,7 @@ function Timeline({ d, axis, today }: { d: LoansOverview; axis: Axis; today: str
             {span.phases.map((phase) => (
               <span key={phase.seq} data-phase-label={phase.mode} style={place(axis, phase.from, monthAfter(phase.to.slice(0, 7)))}
                 className="absolute inset-y-0 flex items-center overflow-hidden px-1.5">
-                <span className="truncate rounded-sm bg-background/80 px-1 text-xs font-medium text-foreground">{phaseName(t, phase)}</span>
+                <span className="truncate rounded-sm bg-background/80 px-1 text-xs font-medium text-foreground">{phaseName(t, phase, currencyOf(d, span.loanId))}</span>
               </span>
             ))}
           </Link>,
@@ -185,7 +193,7 @@ function TimelineList({ d, today }: { d: LoansOverview; today: string }) {
               <span className="space-y-0.5">
                 <span className="block font-medium">{nameOf(span.loanId)}</span>
                 <span className="block text-muted-foreground">{t('loans_overview.step_line', { from: formatLocalDate(span.start), to: formatLocalDate(span.end) })}</span>
-                {phase ? <span className="block">{t('loans_overview.current_phase', { phase: phaseName(t, phase) })}</span> : null}
+                {phase ? <span className="block">{t('loans_overview.current_phase', { phase: phaseName(t, phase, currencyOf(d, span.loanId)) })}</span> : null}
               </span>
             </Link>
           </li>
@@ -234,7 +242,7 @@ function SpansTable({ d }: { d: LoansOverview }) {
               <TableCell>{formatLocalDate(s.start)}</TableCell>
               <TableCell>{formatLocalDate(s.end)}</TableCell>
               <TableCell>
-                {s.phases.map((p) => t('loans_overview.phase_dates', { phase: phaseName(t, p), from: formatLocalDate(p.from), to: formatLocalDate(p.to) })).join(' ; ')}
+                {s.phases.map((p) => t('loans_overview.phase_dates', { phase: phaseName(t, p, currencyOf(d, s.loanId)), from: formatLocalDate(p.from), to: formatLocalDate(p.to) })).join(' ; ')}
               </TableCell>
             </TableRow>
           ))}

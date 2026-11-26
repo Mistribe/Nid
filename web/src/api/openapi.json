@@ -19281,6 +19281,100 @@
         }
       }
     },
+    "/api/v1/banking/transactions/{id}/same-label": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/banking/transactions/category": {
       "post": {
         "tags": [
@@ -43896,6 +43990,12 @@
             "items": {
               "$ref": "#/components/schemas/LinkedDocumentView"
             }
+          },
+          "debitedFrom": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -45281,7 +45381,8 @@
           "version",
           "weeks",
           "allocation",
-          "gapYears"
+          "gapYears",
+          "monthCostEstimated"
         ],
         "type": "object",
         "properties": {
@@ -45390,6 +45491,20 @@
                 "$ref": "#/components/schemas/LeaveCounterView"
               }
             ]
+          },
+          "monthCost": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ChildcareMoneyView"
+              }
+            ]
+          },
+          "monthCostEstimated": {
+            "type": "boolean",
+            "default": false
           }
         }
       },
@@ -48688,7 +48803,8 @@
           "todo",
           "envelopesWithoutStart",
           "commitmentSources",
-          "spendingSlices"
+          "spendingSlices",
+          "unattachedCards"
         ],
         "type": "object",
         "properties": {
@@ -48852,6 +48968,12 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/DashboardSpendingSliceView"
+            }
+          },
+          "unattachedCards": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SpendingCard"
             }
           }
         }
@@ -52881,6 +53003,16 @@
                 "$ref": "#/components/schemas/MoneyView"
               }
             ]
+          },
+          "monthlyCostConverted": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MoneyView"
+              }
+            ]
           }
         }
       },
@@ -52952,6 +53084,16 @@
           "spentPartial": {
             "type": "boolean",
             "default": false
+          },
+          "monthlyCostConverted": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MoneyView"
+              }
+            ]
           }
         }
       },
@@ -58540,7 +58682,8 @@
           "paymentsLeft",
           "totalCost",
           "costPaid",
-          "costRemaining"
+          "costRemaining",
+          "capitalToRepay"
         ],
         "type": "object",
         "properties": {
@@ -58604,6 +58747,15 @@
           },
           "costRemaining": {
             "type": "string"
+          },
+          "capitalToRepay": {
+            "type": "string"
+          },
+          "capitalisedInterest": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -59454,6 +59606,12 @@
             "items": {
               "$ref": "#/components/schemas/LoanWarningView"
             }
+          },
+          "capitalisedInterest": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -59718,6 +59876,26 @@
               },
               {
                 "$ref": "#/components/schemas/LoanDebtRatioView"
+              }
+            ]
+          },
+          "capitalToRepay": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
+              }
+            ]
+          },
+          "capitalisedInterest": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
               }
             ]
           }
@@ -70009,6 +70187,22 @@
           }
         }
       },
+      "SpendingCard": {
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
       "SpendingCategoryView": {
         "required": [
           "id",
@@ -70155,7 +70349,8 @@
           "to",
           "months",
           "budgetIncomplete",
-          "accounts"
+          "accounts",
+          "unattachedCards"
         ],
         "type": "object",
         "properties": {
@@ -70236,6 +70431,12 @@
             "format": "double"
           },
           "accounts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OptionView"
+            }
+          },
+          "unattachedCards": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/OptionView"
@@ -71061,6 +71262,16 @@
                 "$ref": "#/components/schemas/MoneyView"
               }
             ]
+          },
+          "householdMonthlyCostConverted": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MoneyView"
+              }
+            ]
           }
         }
       },
@@ -71439,6 +71650,16 @@
               },
               {
                 "$ref": "#/components/schemas/SpentView"
+              }
+            ]
+          },
+          "monthlyCostConverted": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MoneyView"
               }
             ]
           }
@@ -73947,6 +74168,16 @@
                 "$ref": "#/components/schemas/TaxDifferencesView"
               }
             ]
+          },
+          "tipRefunds": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TaxTipRefundsView"
+              }
+            ]
           }
         }
       },
@@ -74069,6 +74300,29 @@
           },
           "to": {
             "type": "string"
+          }
+        }
+      },
+      "TaxTipRefundsView": {
+        "type": "object",
+        "properties": {
+          "per": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "rentalRegime": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "capitalOption": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -75127,7 +75381,8 @@
           "rentalMonthly",
           "annual",
           "less",
-          "balance"
+          "balance",
+          "months"
         ],
         "type": "object",
         "properties": {
@@ -75151,6 +75406,11 @@
           },
           "balance": {
             "type": "string"
+          },
+          "months": {
+            "type": "integer",
+            "format": "int32",
+            "default": 12
           }
         }
       },

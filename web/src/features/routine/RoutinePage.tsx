@@ -42,7 +42,7 @@ export function RoutinePage() {
   // The envelopes whose bank account applies its balances and is still read: no value field for them. Known before the form starts.
   const accounts = useBankAccounts();
   const banked = useMemo<Banked | undefined>(() => accounts && Object.fromEntries(accounts
-    .filter((a) => a.envelopeId && a.autoApplyBalance && a.synced && !a.ignored && a.lastBalanceOn).map((a) => [a.envelopeId!, a.lastBalanceOn!])), [accounts]);
+    .filter((a) => a.envelopeId && a.autoApplyBalance && a.synced && !a.ignored && a.lastBalanceOn).map((a) => [a.envelopeId!, { on: a.lastBalanceOn!, balance: a.lastBalance, currency: a.currency }])), [accounts]);
   // What is typed in the date field until it is a day the routine can open (a past one).
   const [typed, setTyped] = useState<string | null>(null);
   const errorId = useId();

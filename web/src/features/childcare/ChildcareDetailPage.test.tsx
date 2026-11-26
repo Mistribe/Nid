@@ -205,6 +205,9 @@ describe('ChildcareDetailPage', () => {
     const rows = within(await screen.findByRole('list', { name: 'Relevés 2025' })).getAllByRole('listitem');
     await waitFor(() => expect(rows.find((r) => r.textContent?.includes('août 2025'))).toHaveTextContent('Pas de bulletin'));
     expect(rows.find((r) => r.textContent?.includes('septembre 2025'))).not.toHaveTextContent('Pas de bulletin');
+    // #728: the warning is the count, once; the month's own mark is quiet.
+    expect(screen.getByText('1 mois validé sans bulletin de salaire')).toHaveClass('text-status-warning-text');
+    expect(within(rows.find((r) => r.textContent?.includes('août 2025'))!).getByText('Pas de bulletin')).toHaveClass('text-muted-foreground');
   });
 
   it('shows the leave counter', async () => {

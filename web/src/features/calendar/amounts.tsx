@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router';
-import { Baby, KeyRound, Landmark, Receipt, RefreshCw, type LucideIcon } from 'lucide-react';
+import { Baby, KeyRound, Landmark, Receipt, RefreshCw, Wallet, type LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { components } from '@/api/schema';
 import type { DashboardFigure } from '@/api/dashboard';
@@ -14,9 +14,9 @@ export type CalendarAmounts = components['schemas']['CalendarAmountsView'];
 export type CalendarCharge = components['schemas']['CalendarChargeView'];
 export type CalendarDay = components['schemas']['CalendarDayView'];
 
-const KINDS = ['subscription', 'loan_instalment', 'property_cost', 'rent', 'childcare'] as const;
+const KINDS = ['subscription', 'loan_instalment', 'property_cost', 'rent', 'childcare', 'income'] as const;
 type Kind = (typeof KINDS)[number];
-const ICON: Record<Kind, LucideIcon> = { subscription: RefreshCw, loan_instalment: Landmark, property_cost: Receipt, rent: KeyRound, childcare: Baby };
+const ICON: Record<Kind, LucideIcon> = { subscription: RefreshCw, loan_instalment: Landmark, property_cost: Receipt, rent: KeyRound, childcare: Baby, income: Wallet };
 const kindOf = (c: CalendarCharge): Kind => KINDS.find((k) => k === c.kind) ?? 'subscription';
 
 /** A server total in the household currency, « Inconnu » when a rate is missing (`short` in a cell, the reason in its title). */

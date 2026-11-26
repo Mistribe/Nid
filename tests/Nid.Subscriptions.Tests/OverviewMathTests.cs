@@ -53,7 +53,8 @@ public class OverviewMathTests
             Monthly(5, 17.20m),
             Built([Phase(new LocalDate(2025, 5, 10), null, 216.00m, every: Years(1))]));
 
-        Assert.Equal(Enumerable.Range(0, 12).Select(i => new LocalDate(2025, 11, 1).PlusMonths(i).ToString("yyyy-MM", CultureInfo.InvariantCulture)),
+        // #711: this month and the 11 after.
+        Assert.Equal(Enumerable.Range(0, 12).Select(i => new LocalDate(2025, 10, 1).PlusMonths(i).ToString("yyyy-MM", CultureInfo.InvariantCulture)),
             overview.Months.Select(m => m.Month));
         Assert.All(overview.Months, m => Assert.Equal(17.20m, Amount(m.Recurring)));
         Assert.All(overview.Months, m => Assert.Equal(m.Month == "2026-05" ? 216.00m : 0m, Amount(m.LongCycle)));
@@ -68,7 +69,7 @@ public class OverviewMathTests
 
         var overview = Overview(Built([], [purchase], id: a), Built([], [purchase], id: b));
 
-        Assert.Equal(120m, Amount(overview.Months[0].LongCycle));
+        Assert.Equal(120m, Amount(overview.Months[1].LongCycle));
         var line = Assert.Single(overview.Upcoming);
         Assert.Equal((new LocalDate(2025, 11, 5), 120m), (line.Date, Amount(line.Converted)!.Value));
         Assert.Contains(overview.Findings, f => f.Code == HouseholdCost.AmortizedDoubleCountCode);
@@ -118,23 +119,23 @@ public class OverviewMathTests
     }
 
     [Fact]
-    public void Watch_flags_an_end_without_renewal_within_a_year()
+    public void Watch_flags_an_end_without_renewal_within_60_days()
     {
-        var ends = Prepaid(12, autoRenew: false);
+        var ends = Prepaid(1, autoRenew: false);
 
         var watch = Assert.Single(Overview(ends).Watch);
 
         Assert.Equal(OverviewCodes.EndsWithoutRenewal, watch.Code);
         Assert.Equal([ends.Input.Subscription.Id.Value], watch.ItemIds);
-        Assert.Equal(Today.PlusMonths(12), watch.Date);
+        Assert.Equal(Today.PlusMonths(1), watch.Date);
         Assert.Null(watch.Amount);
     }
 
     [Fact]
-    public void Watch_does_not_flag_an_end_in_thirteen_months_or_a_renewing_one()
+    public void Watch_does_not_flag_an_end_in_three_months_or_a_renewing_one()
     {
-        Assert.Empty(Overview(Prepaid(13, autoRenew: false)).Watch);
-        Assert.Empty(Overview(Prepaid(12, autoRenew: true)).Watch);
+        Assert.Empty(Overview(Prepaid(3, autoRenew: false)).Watch);
+        Assert.Empty(Overview(Prepaid(1, autoRenew: true)).Watch);
     }
 
     [Fact]
@@ -172,10 +173,10 @@ public class OverviewMathTests
     public void Watch_sorts_by_date_with_undated_last()
     {
         var netflix = Provider("netflix");
-        var overview = Overview(Monthly(1, 8m, netflix), Monthly(1, 12m, netflix), Prepaid(6, autoRenew: false),
+        var overview = Overview(Monthly(1, 8m, netflix), Monthly(1, 12m, netflix), Prepaid(1, autoRenew: false),
             Built([Phase(new LocalDate(2025, 1, 13), null, 99m, every: Years(1))]));
 
-        Assert.Equal([OverviewCodes.LongCycleChargeSoon, OverviewCodes.EndsWithoutRenewal, OverviewCodes.SameProvider],
+        Assert.Equal([OverviewCodes.EndsWithoutRenewal, OverviewCodes.LongCycleChargeSoon, OverviewCodes.SameProvider],
             overview.Watch.Select(w => w.Code));
     }
 
@@ -212,7 +213,9 @@ public class OverviewMathTests
         Assert.All(overview.Months, m =>
             Assert.Equal(string.CompareOrdinal(m.Month, "2026-03") < 0 ? 17.20m : null, Amount(m.Recurring)));
         Assert.All(overview.Months, m => Assert.Equal(0m, Amount(m.LongCycle)));
-        Assert.NotNull(overview.MonthlyAmortized); // the USD phase starts later: this month needs no USD rate
+        // #711: « Par mois » is a twelfth of the year, which the USD charges are in: without their rate, neither is known.
+        Assert.Null(overview.MonthlyAmortized);
+        Assert.NotNull(overview.MonthCash); // the USD phase starts later: this month's cash needs no USD rate
         Assert.Contains(overview.Findings, f => f.Code == FxCodes.RateMissing);
         Assert.Single(overview.Findings, f => f.Code == FxCodes.RateMissing); // one per rate, however many figures lack it
     }

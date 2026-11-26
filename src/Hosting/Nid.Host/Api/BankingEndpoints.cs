@@ -261,6 +261,11 @@ public static class BankingEndpoints
             => (await invoker.InvokeAsync(new SetTransactionCategoryCommand(id, body.CategoryId), ct)).ToHttp(line => line))
             .Returns<BankTransactionView>();
 
+        // #721: the other lines of the same label nothing classified yet, which the category dialog offers to classify with it.
+        api.MapGet("/transactions/{id:guid}/same-label", async (Guid id, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new SameLabelLinesQuery(id), ct)).ToHttp(ids => ids))
+            .Returns<IReadOnlyList<Guid>>();
+
         // #426: one category for the lines selected in « Opérations »; each line refused as it would be alone is listed, not fatal.
         api.MapPost("/transactions/category", async (LinesCategoryBody body, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new SetTransactionsCategoryCommand(body.TransactionIds ?? [], body.CategoryId), ct)).ToHttp(result => result))

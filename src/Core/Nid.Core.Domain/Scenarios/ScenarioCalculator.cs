@@ -28,7 +28,7 @@ public sealed record ProjectionResult(
 public static partial class ScenarioCalculator
 {
     public const decimal HcsfRatio = DebtRatio.Ceiling;
-    public const decimal RentInRatio = 0.7m;
+    public const decimal RentInRatio = DebtRatio.RentShare;
 
     private static YearMonth Of(LocalDate d) => new(d.Year, d.Month);
 

@@ -22,11 +22,14 @@ const tab = (name: string, hash?: string): LinkProps => ({ to: '/tax', search: (
 export function pistesOf(t: TFunction, { year, result: r }: TaxEstimate, thisYear: number): Piste[] {
   const out: Piste[] = [];
   const current = year === thisYear;
+  // #726: a saving above the year's tax would turn it into a refund, said beside the tip (the server's figure).
+  const refund = (amount?: string | null) => (amount ? t('tax.pistes.refund', { amount: wholeEur(amount) }) : undefined);
+  const join = (...parts: (string | undefined)[]) => parts.filter(Boolean).join(' · ') || undefined;
   const minimums = r.declarants.filter((d) => d.per && !ZERO.test(d.per.minimum));
   // Worth a row only when it pays or a ceiling is about to be lost.
   if (current && r.per && !ZERO.test(r.per.remaining) && (!ZERO.test(r.per.remainingTaxSaved) || minimums.length)) {
     const detail = minimums.map((d) => t('tax.pistes.per.minimum', { name: d.name, amount: wholeEur(d.per!.minimum), expiring: wholeEur(d.per!.expiring) })).join(' · ');
-    out.push({ key: 'per', tile: '/retirement', title: t('tax.pistes.per.title', { amount: wholeEur(r.per.remaining) }), detail: detail || undefined,
+    out.push({ key: 'per', tile: '/retirement', title: t('tax.pistes.per.title', { amount: wholeEur(r.per.remaining) }), detail: join(detail, refund(r.tipRefunds?.per)),
       saving: ZERO.test(r.per.remainingTaxSaved) ? undefined : r.per.remainingTaxSaved, link: tab('detail') });
   }
   const gap = r.rentalRegimeGap;
@@ -36,7 +39,7 @@ export function pistesOf(t: TFunction, { year, result: r }: TaxEstimate, thisYea
     const less = gap.startsWith('-') && !ZERO.test(gap);
     out.push({ key: 'regime', tile: '/properties', link: tab('profile', 'location'),
       title: less ? t('tax.pistes.regime.switch', { other }) : t('tax.pistes.regime.stay', { regime }),
-      detail: less ? t('tax.pistes.regime.detail', { regime }) : t('tax.pistes.regime.compared', { other }),
+      detail: less ? join(t('tax.pistes.regime.detail', { regime }), refund(r.tipRefunds?.rentalRegime)) : t('tax.pistes.regime.compared', { other }),
       ...(less ? { saving: unsigned(gap) } : { same: true }) });
   }
   const option = r.capitalOptionGap;
@@ -45,11 +48,13 @@ export function pistesOf(t: TFunction, { year, result: r }: TaxEstimate, thisYea
     const stay = less ? undefined : true;
     out.push({ key: 'capital', tile: '/investments', link: tab('profile', 'placements'),
       title: t(`tax.pistes.capital.${less ? (r.capitalScale ? 'switch_flat' : 'switch_scale') : (r.capitalScale ? 'stay_scale' : 'stay_flat')}`),
-      detail: r.capitalScale && !ZERO.test(r.deductibleCsgNextYear) ? t('tax.capital_choice.csg', { amount: eur(r.deductibleCsgNextYear) }) : undefined,
+      detail: join(r.capitalScale && !ZERO.test(r.deductibleCsgNextYear) ? t('tax.capital_choice.csg', { amount: eur(r.deductibleCsgNextYear) }) : undefined,
+        less ? refund(r.tipRefunds?.capitalOption) : undefined),
       ...(less ? { saving: unsigned(option) } : { same: stay }) });
   }
   const cut = r.withholding.cut;
-  if (current && cut) {
+  // #717: a cut asked too late to reach this year is no saving this year.
+  if (current && cut && cut.months > 0) {
     out.push({ key: 'cut', tile: '/income', link: tab('withholding'), title: t('tax.pistes.cut.title', { amount: wholeEur(cut.less) }),
       detail: t('tax.pistes.cut.detail', { rate: percentText(t, cut.rate) }) });
   }

@@ -142,7 +142,7 @@ export const householdHoldings = (over: Partial<HouseholdHoldings> = {}): Househ
       isin: null, kind: 'structured', value: '9000.00', valueConverted: eur('9000.00'), sharePct: 5.5, maturesOn: '2025-12-05' }),
   ],
   concentrations: [{ isin: 'IE00B4L5Y983', name: 'Amundi MSCI World', value: eur('70300.00'), sharePct: 43.2, envelopeIds: [PEA, LIFE] }],
-  costYear: 2024, cost: eur('233.75'), costPct: 0.9, withoutReportCount: 2,
+  costYear: 2024, cost: eur('266.90'), costPct: 0.85, withoutReportCount: 2,
   undetailedEnvelopes: [{ envelopeId: LIVRET, name: 'Livret A', value: eur('22950.00') }],
   watch: [
     { code: 'unexplained_units', envelopeId: PEA, holdingId: WORLD_PEA, on: '2025-09-30' },

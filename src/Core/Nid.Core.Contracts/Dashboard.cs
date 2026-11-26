@@ -78,11 +78,15 @@ public interface ISpendingContribution
 /// <summary>
 /// #85 decision 10: positive for money spent, per currency; <c>ByCategory</c> one slice per top-level category, the lines with none as
 /// « Non classées » (no <c>Category</c>). An empty <c>Total</c> means nothing to read (no account), a zero one an account that spent nothing.
+/// #720: <c>UnattachedCards</c>, the cards attached to no account that the reader may attach, with a line this month, which the figure leaves out.
 /// </summary>
-public sealed record SpendingPart(IReadOnlyDictionary<Currency, decimal> Total, IReadOnlyList<SpendingSlice> ByCategory)
+public sealed record SpendingPart(IReadOnlyDictionary<Currency, decimal> Total, IReadOnlyList<SpendingSlice> ByCategory, IReadOnlyList<SpendingCard>? UnattachedCards = null)
 {
     public static readonly SpendingPart None = new(new Dictionary<Currency, decimal>(), []);
 }
+
+/// <summary>#720: a bank card, by its id and name.</summary>
+public sealed record SpendingCard(Guid Id, string Name);
 
 /// <summary>
 /// Issue #425: Accueil's « Reste réel » and its parts for one month, in the household's reference currency, so the spending page shows
@@ -213,7 +217,7 @@ public sealed record PensionSource(ItemId Source, string Name, PersonId? Holder,
 public sealed record IncomeTimeline(IReadOnlyList<IReadOnlyDictionary<Currency, decimal>> Monthly, IReadOnlyList<ExtendedSource> Extended,
     IReadOnlyList<IReadOnlyList<TimelinePart>>? Parts = null, IReadOnlyList<PensionSource>? Pensions = null);
 
-/// <summary>2D2a spec §4: a dated event of « À venir » (or, for <see cref="UpcomingKinds.IncomeGapSoon"/>, of « À faire »). <c>Amount</c> stays in its own currency.</summary>
+/// <summary>2D2a spec §4: a dated event of « À venir » (or, for <see cref="UpcomingKinds.IsTodo"/>, of « À faire »). <c>Amount</c> stays in its own currency.</summary>
 public sealed record UpcomingEvent(LocalDate On, string Kind, ItemId Item, string Module, string Name, string? Label, Money? Amount);
 
 /// <summary>An amount as the views give it: invariant text to the cent, and its currency's code.</summary>
@@ -259,6 +263,12 @@ public static class UpcomingKinds
     public const string TaxNewRate = "tax.new_rate";
     public const string TaxBalanceDue = "tax.balance_due";
     public const string PropertyTaxDue = "realestate.property_tax_due";
+
+    // Issue #716: a rent still unpaid past the watch's grace, dated today, in « À faire » with what is owed.
+    public const string RentArrears = "realestate.rent_arrears";
+
+    /// <summary>A kind of « À faire », never of « À venir » nor the calendar.</summary>
+    public static bool IsTodo(string kind) => kind is IncomeGapSoon or RentArrears;
 }
 
 /// <summary>

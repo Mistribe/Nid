@@ -27,9 +27,9 @@ public class RentArrearsTests
     public void Lists_only_months_with_a_remainder_oldest_first()
     {
         var today = new LocalDate(2026, 4, 30);
-        // Paid from May 2025 to Jan 2026, then nothing: Feb, Mar, Apr remain.
+        // Paid from May 2025 to Jan 2026, then nothing: Feb and Mar remain; April, not over, is not unpaid yet (#716).
         var months = RentArrears.Of(One(Standard), Paid(new LocalDate(2025, 5, 5), 9), today);
-        Assert.Equal([new LocalDate(2026, 2, 1), new LocalDate(2026, 3, 1), new LocalDate(2026, 4, 1)], months.Select(m => m.Month));
+        Assert.Equal([new LocalDate(2026, 2, 1), new LocalDate(2026, 3, 1)], months.Select(m => m.Month));
         Assert.All(months, m => Assert.True(m.Remaining > 0));
         Assert.Empty(RentArrears.Of(One(Standard), Paid(new LocalDate(2025, 5, 5), 12), today));
     }
@@ -84,8 +84,9 @@ public class RentArrearsTests
     {
         var flows = Paid(new LocalDate(2025, 11, 5), 12); // Nov 2025 .. Oct 2026
         Assert.Empty(RentArrears.Of(One(Standard), flows, new LocalDate(2026, 10, 23)));
-        // On 1 November the new month is due and unpaid: listed, « en cours ».
-        var months = RentArrears.Of(One(Standard), flows, new LocalDate(2026, 11, 1));
+        // #716: on 1 November the new month is not over: not listed; on 1 December, unpaid, it is, « en cours » within the grace.
+        Assert.Empty(RentArrears.Of(One(Standard), flows, new LocalDate(2026, 11, 1)));
+        var months = RentArrears.Of(One(Standard), flows, new LocalDate(2026, 12, 1));
         var november = Assert.Single(months);
         Assert.Equal(new LocalDate(2026, 11, 1), november.Month);
         Assert.False(november.Overdue);
@@ -110,7 +111,7 @@ public class RentArrearsTests
             (oldRevision, oldTenant, Lease(new LocalDate(2026, 3, 1), switchOn.PlusDays(-1), rent: 820m)),
             (newTenant, null, Lease(switchOn)),
         ];
-        var months = RentArrears.Of(tenancies, Paid(new LocalDate(2025, 7, 5), 8), new LocalDate(2026, 6, 20)); // Jul 2025 .. Feb 2026 paid
+        var months = RentArrears.Of(tenancies, Paid(new LocalDate(2025, 7, 5), 8), new LocalDate(2026, 7, 1)); // Jul 2025 .. Feb 2026 paid
         Assert.Equal(oldRevision, months.Single(m => m.Month == new LocalDate(2026, 3, 1)).Chain); // the chain's last link
         Assert.Equal(oldRevision, months.Single(m => m.Month == new LocalDate(2026, 5, 1)).Chain);
         // The changeover month is one row per tenant: each owes its own days.
@@ -118,7 +119,7 @@ public class RentArrearsTests
     }
 
     // One account per tenant: Mme Martin (850) leaves on 15 June 2026 owing May; M. Durand (900) moves in that day.
-    private static readonly LocalDate SwitchOn = new(2026, 6, 15), October23 = new(2026, 10, 23);
+    private static readonly LocalDate SwitchOn = new(2026, 6, 15), October23 = new(2026, 10, 23), November2 = new(2026, 11, 2);
     private static readonly Guid Martin = Guid.NewGuid(), Durand = Guid.NewGuid();
     private static readonly Tenancy MartinLease = Lease(new LocalDate(2025, 1, 1), SwitchOn.PlusDays(-1)), DurandLease = Lease(SwitchOn, rent: 850m);
     private static readonly IReadOnlyList<(Guid Id, Guid? RevisedFrom, Tenancy Tenancy)> TwoTenants = [(Martin, null, MartinLease), (Durand, null, DurandLease)];
@@ -153,15 +154,15 @@ public class RentArrearsTests
         var accounts = RentLedger.Accounts(TwoTenants, MartinOwesMay(durandPaysJune: false));
         var june = accounts.Select(a => RentLedger.Months(a.Tenancies, a.Cash, October23).Single(m => m.Month == new LocalDate(2026, 6, 1)).Due);
         Assert.Equal([MartinJune, DurandJune], june);
-        // M. Durand's July rent settles his own June days first, so his last month is the one short.
-        var durand = RentArrears.Of(TwoTenants, MartinOwesMay(durandPaysJune: false), October23).Single(m => m.Chain == Durand);
+        // M. Durand's July rent settles his own June days first, so his last month is the one short, owed once over.
+        var durand = RentArrears.Of(TwoTenants, MartinOwesMay(durandPaysJune: false), November2).Single(m => m.Chain == Durand);
         Assert.Equal((new LocalDate(2026, 10, 1), DurandJune), (durand.Month, durand.Remaining));
     }
 
     [Fact]
     public void Both_halves_of_the_changeover_month_are_listed_when_neither_is_paid()
     {
-        var months = RentArrears.Of(TwoTenants, Paid(new LocalDate(2025, 1, 5), 17), new LocalDate(2026, 6, 20)); // Martin paid through May
+        var months = RentArrears.Of(TwoTenants, Paid(new LocalDate(2025, 1, 5), 17), new LocalDate(2026, 7, 1)); // Martin paid through May
         Assert.Equal([(Martin, MartinJune, MartinJune), (Durand, DurandJune, DurandJune)],
             months.Select(m => (m.Chain!.Value, m.Due, m.Remaining)));
         Assert.All(months, m => Assert.Equal(new LocalDate(2026, 6, 1), m.Month));
@@ -250,14 +251,14 @@ public class RentArrearsTests
         var (tenancies, flows) = PaidAtSigning(new LocalDate(2026, 5, 10));
         Assert.Contains(RentLedger.Accounts(tenancies, flows).Single(a => a.Chain == Martin).Cash, f => f.OccurredOn == new LocalDate(2026, 5, 10));
         // M. Durand's October is short by the June he paid before; Mme Martin's account is in credit.
-        var row = Assert.Single(RentArrears.Of(tenancies, flows, October23));
+        var row = Assert.Single(RentArrears.Of(tenancies, flows, November2));
         Assert.Equal((new LocalDate(2026, 10, 1), Durand, 900m), (row.Month, row.Chain!.Value, row.Remaining));
     }
 
     [Fact]
-    public void A_current_tenant_without_recorded_rents_still_owes_the_last_12_months()
+    public void A_current_tenant_without_recorded_rents_still_owes_the_months_over_of_the_last_12()
     {
-        Assert.Equal(12, RentArrears.Of(One(Standard), [], new LocalDate(2026, 10, 31)).Count);
+        Assert.Equal(11, RentArrears.Of(One(Standard), [], new LocalDate(2026, 10, 31)).Count); // October is not over (#716)
     }
 
     [Fact]
@@ -267,13 +268,13 @@ public class RentArrearsTests
         var flows = MartinOwesMay();
         flows.RemoveAt(flows.Count - 1); // M. Durand's October
         flows.Add(Cash(new LocalDate(2026, 5, 25), 850m + MartinJune + 1000m)); // before M. Durand's 15 days
-        Assert.Equal(900m, RentLedger.PropertyArrears(TwoTenants, flows, October23));
-        Assert.Equal([(new LocalDate(2026, 10, 1), Durand)], RentArrears.Of(TwoTenants, flows, October23).Select(m => (m.Month, m.Chain!.Value)));
+        Assert.Equal(900m, RentLedger.PropertyArrears(TwoTenants, flows, November2));
+        Assert.Equal([(new LocalDate(2026, 10, 1), Durand)], RentArrears.Of(TwoTenants, flows, November2).Select(m => (m.Month, m.Chain!.Value)));
 
         // Every account at zero or in credit: the signed total, « plus perçu que prévu ».
         flows.Add(Cash(new LocalDate(2026, 10, 5), 900m));
-        Assert.Equal(-1000m, RentLedger.PropertyArrears(TwoTenants, flows, October23));
-        Assert.Equal(0m, RentLedger.PropertyArrearsDueBy(TwoTenants, flows, October23, RentArrears.GraceDays));
+        Assert.Equal(-1000m, RentLedger.PropertyArrears(TwoTenants, flows, November2));
+        Assert.Equal(0m, RentLedger.PropertyArrearsDueBy(TwoTenants, flows, November2, RentArrears.GraceDays));
     }
 
     [Fact]

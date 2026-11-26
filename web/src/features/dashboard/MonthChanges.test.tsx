@@ -15,25 +15,25 @@ function serve(changes: MonthChanges, seen: string[] = []) {
 }
 
 describe('MonthChanges', () => {
-  it('shows each figure’s change and the server’s causes', async () => {
+  it('shows each figure’s change and the server’s causes, the rest as « autres postes »', async () => {
     const seen: string[] = [];
     serve(monthChanges({
       netWorth: monthFigure('10000.00', '11680.00', '1680.00', [['investments.value', '1200.00'], ['real_estate.paid_in', '480.00']]),
-      commitments: monthFigure('250.00', '251.00', '1.00', [['subscriptions', '1.00']]),
-      income: monthFigure('2500.00', '2500.00', '0.00'),
+      commitments: monthFigure('250.00', '254.00', '4.00', [['subscriptions', '1.00'], ['other', '3.00']]),
     }), seen);
     const { container } = await renderApp('/dashboard');
 
     const block = await screen.findByRole('region', { name: 'Depuis le mois dernier' });
     expect(block).toHaveTextContent('depuis le 15 septembre 2025');
-    const [worth, commitments, income] = Array.from(block.querySelector('ul')?.children ?? []);
+    const [worth, commitments] = Array.from(block.querySelector('ul')?.children ?? []);
     expect(worth).toHaveTextContent('Patrimoine net');
     expect(worth).toHaveTextContent('+1 680,00 €');
     expect(worth).toHaveTextContent('+1 200,00 € sur la valeur des placements');
     expect(worth).toHaveTextContent('+480,00 € de capital remboursé');
     expect(commitments).toHaveTextContent('+1,00 € d’abonnements');
-    expect(income).toHaveTextContent('Revenus nets / mois');
-    expect(income).toHaveTextContent('0,00 €');
+    expect(commitments).toHaveTextContent('+3,00 € d’autres postes');
+    // #715: the server leaves out a figure that did not move.
+    expect(block).not.toHaveTextContent('Revenus nets / mois');
     expect(seen).toContain('?scope=household');
     await expectNoAxeViolations(container);
   });

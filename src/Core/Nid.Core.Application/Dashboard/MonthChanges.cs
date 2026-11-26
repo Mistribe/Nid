@@ -14,12 +14,15 @@ namespace Nid.Core.Application.Dashboard;
 /// </summary>
 public sealed record MonthCauseView(string Key, DashboardMoneyView Change);
 
-/// <summary>Issue #415: a figure a month ago and today, its change, and its largest causes (at most three, the largest first).</summary>
+/// <summary>
+/// Issue #415: a figure a month ago and today, its change, and its largest causes (at most three, the largest first), then the rest
+/// summed under <see cref="MonthChanges.OtherCause"/> (#715): the causes add up to the change.
+/// </summary>
 public sealed record MonthFigureView(DashboardMoneyView Before, DashboardMoneyView Now, DashboardMoneyView Change, IReadOnlyList<MonthCauseView> Causes);
 
 /// <summary>
-/// Issue #415: « Depuis le mois dernier ». A figure is null when it had nothing a month ago (<c>Since</c>) or a rate is missing;
-/// all three null (the first month) hides the block.
+/// Issue #415: « Depuis le mois dernier ». A figure is null when it had nothing a month ago (<c>Since</c>), a rate is missing or it did
+/// not move to the cent (#715); all three null (the first month, or a month where nothing moved) hides the block.
 /// </summary>
 public sealed record MonthChangesView(string Currency, LocalDate Since, MonthFigureView? NetWorth, MonthFigureView? Commitments, MonthFigureView? Income)
 {
@@ -32,9 +35,13 @@ public static class MonthChanges
 {
     public const int MaxCauses = 3;
 
+    /// <summary>#715: the key of the causes past the largest <see cref="MaxCauses"/>, summed.</summary>
+    public const string OtherCause = "other";
+
     /// <summary>
     /// Sums the parts a month ago at that day's rate and today at today's, as the net worth curve does; a cause is the change of
-    /// the parts under its key, kept when it is not zero to the cent. Null when nothing was there a month ago, or a rate is missing.
+    /// the parts under its key, kept when it is not zero to the cent. Null when nothing was there a month ago, a rate is missing or
+    /// the figure did not move to the cent.
     /// </summary>
     public static MonthFigureView? Figure(IReadOnlyList<MonthPart> parts, bool hadBefore, Currency reference, RateTable rates, LocalDate since, LocalDate today)
     {
@@ -50,14 +57,21 @@ public static class MonthChanges
             now += n.Total ?? 0m;
             causes.Add((group.Key, (n.Total ?? 0m) - (b.Total ?? 0m)));
         }
+        // #715: a figure that did not move to the cent says nothing.
+        if (Cent(now - before) == 0m) return null;
+        var moved = causes.Where(c => Cent(c.Change) != 0m)
+            .OrderByDescending(c => Math.Abs(c.Change)).ThenBy(c => c.Key, StringComparer.Ordinal)
+            .ToList();
+        var shown = moved.Take(MaxCauses).ToList();
+        // #715: the causes past the largest three are summed under « other », so the causes add up to the change.
+        if (moved.Count > MaxCauses && Cent(moved.Skip(MaxCauses).Sum(c => c.Change)) is var rest && rest != 0m)
+            shown.Add((OtherCause, rest));
         return new MonthFigureView(
             DashboardMath.Money(before, reference), DashboardMath.Money(now, reference), DashboardMath.Money(now - before, reference),
-            causes.Where(c => Math.Round(c.Change, 2, MidpointRounding.AwayFromZero) != 0m)
-                .OrderByDescending(c => Math.Abs(c.Change)).ThenBy(c => c.Key, StringComparer.Ordinal)
-                .Take(MaxCauses)
-                .Select(c => new MonthCauseView(c.Key, DashboardMath.Money(c.Change, reference)))
-                .ToList());
+            shown.Select(c => new MonthCauseView(c.Key, DashboardMath.Money(c.Change, reference))).ToList());
     }
+
+    private static decimal Cent(decimal value) => Math.Round(value, 2, MidpointRounding.AwayFromZero);
 
     /// <summary>
     /// A net worth part as its causes: what was paid in (contributions, capital repaid), what was moved by a purchase or a sale

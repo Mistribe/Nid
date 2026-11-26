@@ -1,0 +1,4 @@
+{
+  "en": "Display fixes: each year once on the property estimate charts, no yearly change above +500 % in the charges, « 0,00 € » instead of « −0,00 € » for no withdrawal, and the routine shows the bank balance it records.",
+  "fr": "Corrections d’affichage : chaque année une seule fois sur les courbes d’estimation des biens, plus d’évolution au-delà de +500 % dans les charges, « 0,00 € » au lieu de « −0,00 € » sans retrait, et la routine montre le solde bancaire qu’elle retient."
+}

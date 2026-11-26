@@ -122,6 +122,7 @@ public sealed partial class CoreNotificationSource(
         ["childcare"] = "garde d'enfants",
         ["income"] = "sources de revenu",
         ["rents"] = "loyers",
+        ["other"] = "autres postes",
     };
 
     /// <summary>

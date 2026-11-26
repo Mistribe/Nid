@@ -752,6 +752,7 @@ public static class RequestCatalogue
         new(typeof(Nid.Banking.Application.Spending.ListSpendingLinesQuery), false, (_, _) => new Nid.Banking.Application.Spending.ListSpendingLinesQuery(VisibilityScope.Household, Nid.Banking.Domain.CategorySeed.Find("food.groceries")!.Id, false, new YearMonth(2025, 1), null, null, 1)),
         new(typeof(Nid.Banking.Application.Spending.ListSpendingLinesQuery), false, (_, _) => new Nid.Banking.Application.Spending.ListSpendingLinesQuery(VisibilityScope.Mine, Nid.Banking.Domain.CategorySeed.Find("food.groceries")!.Id, false, new YearMonth(2025, 1), null, null, 1)),
         new(typeof(LinkCandidatesQuery), false, (d, _) => new LinkCandidatesQuery(d.JointLine)) { BuildOn = (_, id) => new LinkCandidatesQuery(id) },
+        new(typeof(SameLabelLinesQuery), false, (d, _) => new SameLabelLinesQuery(d.JointLine)) { BuildOn = (_, id) => new SameLabelLinesQuery(id) },
         new(typeof(ListExpectedChargesQuery), false, (_, _) => new ListExpectedChargesQuery(new LocalDate(2025, 1, 1), new LocalDate(2025, 3, 31))),
         new(typeof(LinkTransactionCommand), false, (d, item) => new LinkTransactionCommand(d.JointLine, "subscriptions", item.Value, null)) { BuildOn = (_, id) => new LinkTransactionCommand(id, "subscriptions", Guid.NewGuid(), null) },
         new(typeof(UnlinkTransactionCommand), false, (d, _) => new UnlinkTransactionCommand(d.JointLine)) { BuildOn = (_, id) => new UnlinkTransactionCommand(id) },

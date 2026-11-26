@@ -42,7 +42,7 @@ describe('pistesOf', () => {
   });
 
   it('offers neither the PER nor the cut for a past year', () => {
-    const keys = of({ per: bank, withholding: { ...result().withholding, cut: { rate: '3.2', less: '600.00', declarants: [], rentalMonthly: '0.00', annual: '0.00', balance: '0.00' } } }, 2025).map((p) => p.key);
+    const keys = of({ per: bank, withholding: { ...result().withholding, cut: { rate: '3.2', less: '600.00', declarants: [], rentalMonthly: '0.00', annual: '0.00', balance: '0.00', months: 12 } } }, 2025).map((p) => p.key);
     expect(keys).not.toContain('per');
     expect(keys).not.toContain('cut');
   });
@@ -65,9 +65,19 @@ describe('pistesOf', () => {
   });
 
   it('the safe cut this year opens Prélèvement', () => {
-    const p = of({ withholding: { ...result().withholding, cut: { rate: '3.2', less: '600.00', declarants: [], rentalMonthly: '0.00', annual: '0.00', balance: '0.00' } } })[0]!;
+    const p = of({ withholding: { ...result().withholding, cut: { rate: '3.2', less: '600.00', declarants: [], rentalMonthly: '0.00', annual: '0.00', balance: '0.00', months: 12 } } })[0]!;
     expect(p.key).toBe('cut');
     expect(p.title).toContain('600 €');
+    // #717: asked too late for this year, no saving this year.
+    const late = of({ withholding: { ...result().withholding, cut: { rate: '3.2', less: '0.00', declarants: [], rentalMonthly: '0.00', annual: '0.00', balance: '0.00', months: 0 } } });
+    expect(late.map((x) => x.key)).not.toContain('cut');
+  });
+
+  it('a saving above the tax says the refund it turns into (#726)', () => {
+    const per = of({ per: { pooled: false, remaining: '5000.00', taxSaved: '0.00', roomInBracket: '0.00', remainingTaxSaved: '1100.00' }, tipRefunds: { per: '800.00', rentalRegime: null, capitalOption: null } })[0]!;
+    expect([per.key, per.detail?.replace(/\s/g, ' ')]).toEqual(['per', 'votre impôt deviendrait un remboursement de 800 €']);
+    const plain = of({ per: { pooled: false, remaining: '5000.00', taxSaved: '0.00', roomInBracket: '0.00', remainingTaxSaved: '100.00' } })[0]!;
+    expect(plain.detail).toBeUndefined();
   });
 
   it("an estimated ceiling asks for the notice's", () => {

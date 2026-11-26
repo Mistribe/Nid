@@ -18251,6 +18251,97 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/banking/transactions/{id}/same-label": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": string[];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/banking/transactions/category": {
         parameters: {
             query?: never;
@@ -39858,6 +39949,7 @@ export interface components {
             /** Format: uuid */
             partId?: null | string;
             documents?: null | components["schemas"]["LinkedDocumentView"][];
+            debitedFrom?: null | string;
         };
         BatchView: {
             section: string;
@@ -40228,6 +40320,9 @@ export interface components {
             belowMinimums?: null | components["schemas"]["LegalMinimumView"][];
             end?: null | components["schemas"]["ContractEndView"];
             leave?: null | components["schemas"]["LeaveCounterView"];
+            monthCost?: null | components["schemas"]["ChildcareMoneyView"];
+            /** @default false */
+            monthCostEstimated: boolean;
         };
         ChildcareList: {
             items: components["schemas"]["ChildcareSummary"][];
@@ -41011,6 +41106,7 @@ export interface components {
             everydaySpending?: null | components["schemas"]["DashboardMoneyView"];
             left?: null | components["schemas"]["DashboardMoneyView"];
             spendingSlices: components["schemas"]["DashboardSpendingSliceView"][];
+            unattachedCards: components["schemas"]["SpendingCard"][];
         };
         DeclarantWithholdingView: {
             name: string;
@@ -41954,6 +42050,7 @@ export interface components {
             amortizedCostConverted?: null | components["schemas"]["MoneyView"];
             annualCostConverted?: null | components["schemas"]["MoneyView"];
             spentTotal?: null | components["schemas"]["MoneyView"];
+            monthlyCostConverted?: null | components["schemas"]["MoneyView"];
         };
         GroupView: {
             key: string;
@@ -41966,6 +42063,7 @@ export interface components {
             spentTotal?: null | components["schemas"]["MoneyView"];
             /** @default false */
             spentPartial: boolean;
+            monthlyCostConverted?: null | components["schemas"]["MoneyView"];
         };
         GuaranteeBody: {
             label?: null | string;
@@ -43255,6 +43353,8 @@ export interface components {
             totalCost: string;
             costPaid: string;
             costRemaining: string;
+            capitalToRepay: string;
+            capitalisedInterest?: null | string;
         };
         LoanFindingView: {
             code: string;
@@ -43455,6 +43555,7 @@ export interface components {
             totalInterest: string;
             totalPrincipal: string;
             warnings: components["schemas"]["LoanWarningView"][];
+            capitalisedInterest?: null | string;
         };
         LoanScheduleYearView: {
             /** Format: int32 */
@@ -43506,6 +43607,8 @@ export interface components {
             byPerson: components["schemas"]["PersonLoanShareView"][];
             findings: components["schemas"]["LoanFindingView"][];
             debtRatio?: null | components["schemas"]["LoanDebtRatioView"];
+            capitalToRepay?: null | components["schemas"]["LoanMoneyView"];
+            capitalisedInterest?: null | components["schemas"]["LoanMoneyView"];
         };
         LoanSpanView: {
             /** Format: uuid */
@@ -45913,6 +46016,11 @@ export interface components {
             expectedSoFar?: null | string;
             state?: null | string;
         };
+        SpendingCard: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+        };
         SpendingCategoryView: {
             /** Format: uuid */
             id: string;
@@ -45963,6 +46071,7 @@ export interface components {
             /** Format: double */
             savingsRate?: null | number;
             accounts: components["schemas"]["OptionView"][];
+            unattachedCards: components["schemas"]["OptionView"][];
         };
         SpentView: {
             /** Format: date */
@@ -46129,6 +46238,7 @@ export interface components {
             groups: components["schemas"]["GroupView"][];
             findings: components["schemas"]["FindingView"][];
             householdAnnualCostConverted?: null | components["schemas"]["MoneyView"];
+            householdMonthlyCostConverted?: null | components["schemas"]["MoneyView"];
         };
         SubscriptionPriceChangeView: {
             /** Format: uuid */
@@ -46202,6 +46312,7 @@ export interface components {
             owners: components["schemas"]["ItemOwnerView"][];
             annualCostConverted?: null | components["schemas"]["MoneyView"];
             spent?: null | components["schemas"]["SpentView"];
+            monthlyCostConverted?: null | components["schemas"]["MoneyView"];
         };
         SuggestionDismissalBody: {
             pattern?: null | string;
@@ -46821,6 +46932,7 @@ export interface components {
             steps?: null | components["schemas"]["TaxStepView"][];
             bracket?: null | components["schemas"]["TaxBracketView"];
             differences?: null | components["schemas"]["TaxDifferencesView"];
+            tipRefunds?: null | components["schemas"]["TaxTipRefundsView"];
         };
         TaxReviewView: {
             totalTax?: null | components["schemas"]["DashboardMoneyView"];
@@ -46847,6 +46959,11 @@ export interface components {
             amount: string;
             from: string;
             to: string;
+        };
+        TaxTipRefundsView: {
+            per?: null | string;
+            rentalRegime?: null | string;
+            capitalOption?: null | string;
         };
         TaxYearView: {
             /** Format: int32 */
@@ -47110,6 +47227,11 @@ export interface components {
             annual: string;
             less: string;
             balance: string;
+            /**
+             * Format: int32
+             * @default 12
+             */
+            months: number;
         };
         WithholdingView: {
             rate: string;
