@@ -143,6 +143,15 @@ describe('« Dépenses »', () => {
     expect(screen.getByRole('tab', { name: /^Opérations/, selected: true })).toBeInTheDocument();
   });
 
+  it('says which cards the figures leave out, each linking to its « Régler » (#720)', async () => {
+    spendingServer({ ...month, unattachedCards: [{ id: 'card-1', name: 'Carte Alice' }, { id: 'card-2', name: 'Carte Bob' }] });
+    await renderApp('/spending');
+    await screen.findByRole('table', { name: 'Par catégorie' });
+
+    expect(screen.getByRole('note')).toHaveTextContent('2 cartes non rattachées à leur compte : leurs opérations ne comptent pas.');
+    expect(screen.getByRole('link', { name: 'Rattacher Carte Bob' })).toHaveAttribute('href', '/settings/banks?account=card-2');
+  });
+
   it('says nothing is left to classify when the period has no such line (#426)', async () => {
     spendingServer({ ...month, uncategorised: { amount: '0.00', average: null, count: 0 } });
     await renderApp('/spending');

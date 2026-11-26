@@ -48688,7 +48688,8 @@
           "todo",
           "envelopesWithoutStart",
           "commitmentSources",
-          "spendingSlices"
+          "spendingSlices",
+          "unattachedCards"
         ],
         "type": "object",
         "properties": {
@@ -48852,6 +48853,12 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/DashboardSpendingSliceView"
+            }
+          },
+          "unattachedCards": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SpendingCard"
             }
           }
         }
@@ -70002,6 +70009,22 @@
           }
         }
       },
+      "SpendingCard": {
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
       "SpendingCategoryView": {
         "required": [
           "id",
@@ -70148,7 +70171,8 @@
           "to",
           "months",
           "budgetIncomplete",
-          "accounts"
+          "accounts",
+          "unattachedCards"
         ],
         "type": "object",
         "properties": {
@@ -70229,6 +70253,12 @@
             "format": "double"
           },
           "accounts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OptionView"
+            }
+          },
+          "unattachedCards": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/OptionView"

@@ -34,11 +34,14 @@ public sealed record GetSpendingQuery(VisibilityScope Scope, YearMonth? Month, Y
 /// percent to 0.1, null without an income above 0.
 /// <paramref name="Accounts"/>: the scope's accounts, what the account filter offers. With some picked, the figures count only theirs, and the
 /// household's own figures (budgets, income, committed, what is left) are left out: they are no account's.
+/// #720: <paramref name="UnattachedCards"/>, the cards attached to no account that the actor may attach, with a line in the range, which the
+/// scope's figures leave out.
 /// </summary>
 public sealed record SpendingView(
     string Currency, string Total, bool Incomplete, string? Average, IReadOnlyList<SpendingCategoryView> Categories,
     SpendingUncategorisedView Uncategorised, string From, string To, IReadOnlyList<SpendingMonthView> Months, bool BudgetIncomplete,
-    string? Income, string? Committed, string? Everyday, string? Left, string? LeftEstimate, decimal? SavingsRate, IReadOnlyList<Operations.OptionView> Accounts);
+    string? Income, string? Committed, string? Everyday, string? Left, string? LeftEstimate, decimal? SavingsRate, IReadOnlyList<Operations.OptionView> Accounts,
+    IReadOnlyList<Operations.OptionView> UnattachedCards);
 
 /// <summary>
 /// One month of a <see cref="SpendingView"/>: <paramref name="Month"/> is <c>yyyy-MM</c>. Issue #428: <paramref name="Income"/>,
@@ -136,7 +139,7 @@ public sealed class GetSpendingHandler(
     public sealed record Spent(
         YearMonth From, YearMonth To, IReadOnlyList<Guid> Accounts, Currency Reference, Dictionary<Guid, (decimal Range, decimal Before)> ByCategory,
         Dictionary<YearMonth, decimal> ByMonth, HashSet<Guid> Incomplete, bool AverageMissing, int Covered, LocalDate Today, RateTable Rates, int ToClassify,
-        IReadOnlyList<BankAccount> Offered);
+        IReadOnlyList<BankAccount> Offered, IReadOnlyList<BankAccount> Unattached);
 
     public async ValueTask<Result<Spent>> SpentAsync(GetSpendingQuery query, CancellationToken ct)
     {
@@ -150,7 +153,7 @@ public sealed class GetSpendingHandler(
             return Result.Failure<Spent>(new Failure(BankingCodes.SpendingPeriod,
                 $"A period names a first and a last month (yyyy-mm), the first not after the last, {MaxMonths} months at most; or send one month.", null));
 
-        var offered = await scopes.AccountsAsync(query.Scope, ct);
+        var (offered, unattached) = await scopes.ReadAsync(query.Scope, ct);
         // Picked ids only narrow the scope's: one it leaves out never counts.
         IReadOnlyList<Guid> accounts = [.. offered.Select(a => a.Id).Where(id => query.Accounts is not { Count: > 0 } picked || picked.Contains(id))];
         var averageFrom = from.PlusMonths(-AverageMonths);
@@ -201,7 +204,7 @@ public sealed class GetSpendingHandler(
 
         // #426: counted from the same rows as « Non classées », a line without a rate included: it is still to classify.
         var toClassify = sums.Where(s => s.Category is null && Index(s.Month) >= Index(from)).Sum(s => s.DebitLines);
-        return Result.Success(new Spent(from, to, accounts, reference, spent, byMonth, incomplete, averageMissing, covered, today, rates, toClassify, offered));
+        return Result.Success(new Spent(from, to, accounts, reference, spent, byMonth, incomplete, averageMissing, covered, today, rates, toClassify, offered, unattached));
     }
 
     public async ValueTask<Result<SpendingView>> HandleAsync(GetSpendingQuery query, CancellationToken ct = default)
@@ -275,7 +278,8 @@ public sealed class GetSpendingHandler(
             new SpendingUncategorisedView(Money(none.Range), Average(none.Before), sums.ToClassify),
             YearMonthPattern.Iso.Format(from), YearMonthPattern.Iso.Format(to), months, uncommitted,
             Amount(month?.Income), Amount(month?.Committed), Amount(month?.Everyday), Amount(month?.Left), Amount(estimate), month?.SavingsRate,
-            [.. sums.Offered.Select(a => new Operations.OptionView(a.Id, a.Name)).OrderBy(o => o.Name, ByName)]));
+            [.. sums.Offered.Select(a => new Operations.OptionView(a.Id, a.Name)).OrderBy(o => o.Name, ByName)],
+            await scopes.WithLinesAsync(sums.Unattached, from.ToDateInterval().Start, to.ToDateInterval().End, ct)));
     }
 
     /// <summary>

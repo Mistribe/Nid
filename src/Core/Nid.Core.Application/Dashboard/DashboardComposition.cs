@@ -65,7 +65,9 @@ public sealed record DashboardView(
     // #85 decision 10: null without a bank account or with bank sync off, or when a rate is missing; Left (margin − everyday spending)
     // also without a margin. The slices: the five largest top-level categories, then « Autres »; none without the figure. Refunds
     // net within a category, so everyday spending can be below zero and the positive slices can add up to more than it.
-    DashboardMoneyView? EverydaySpending, DashboardMoneyView? Left, IReadOnlyList<DashboardSpendingSliceView> SpendingSlices)
+    DashboardMoneyView? EverydaySpending, DashboardMoneyView? Left, IReadOnlyList<DashboardSpendingSliceView> SpendingSlices,
+    // #720: the cards attached to no account, with a line this month, that the spending figure leaves out.
+    IReadOnlyList<SpendingCard> UnattachedCards)
     : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems() => EnvelopeSplit.Select(e => e.Id).Concat(Upcoming.Select(e => e.Id).OfType<ItemId>()).Concat(Todo.Select(t => t.Id));
@@ -174,7 +176,8 @@ public static class DashboardComposition
             gain.View(reference), net.View(reference), changePct,
             split, people, peopleMissing, upcoming, todo, worth.Sum(p => p.WithoutStart), bySource,
             peopleMissing is null ? ViewOf(Allocation(holdings, target ?? new Dictionary<string, decimal>()), reference) : null,
-            budget.Everyday is { } e ? Money(e, reference) : null, left is { } l ? Money(l, reference) : null, slices);
+            budget.Everyday is { } e ? Money(e, reference) : null, left is { } l ? Money(l, reference) : null, slices,
+            [.. spending.SelectMany(p => p.UnattachedCards ?? [])]);
     }
 
     /// <summary>Spec decision 2: value × share, pro rata; a person at zero is left out; percent of the persons' total.</summary>

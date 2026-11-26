@@ -17,6 +17,7 @@ import { RowMenu } from '@/components/page/RowMenu';
 import { SectionCard } from '@/components/page/SectionCard';
 import { Loading, TableSkeleton } from '@/components/page/skeletons';
 import { SortableTable } from '@/components/page/SortableTable';
+import { UnattachedCards } from '@/components/UnattachedCards';
 import { StatLine } from '@/components/page/StatLine';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Badge } from '@/components/ui/badge';
@@ -323,6 +324,7 @@ function Figures({ data, period, year, household, picked, onOpen, onBudget, onSu
           { label: t('spending.uncategorised'), value: money(data.uncategorised.amount), tip: t('spending.uncategorised_tip'), hint: toOperations },
         ]} />
         {data.incomplete ? <Incomplete /> : null}
+        <UnattachedCards cards={data.unattachedCards} />
         {budgets && data.budgetIncomplete ? <Incomplete text={t('spending.budget_incomplete')} /> : null}
         {data.categories.length === 0 ? (
           <>
