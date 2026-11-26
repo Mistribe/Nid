@@ -55,7 +55,8 @@ public sealed class ListSubscriptionsHandler(
         var householdCash = HouseholdCost.CashPieces(timelines, window);
         var householdAmortized = HouseholdCost.AmortizedPieces(timelines, window);
         var year = CostWindow.Year(today);
-        var householdAnnual = HouseholdCost.AmortizedPieces(timelines, year);
+        // #711: « Par an » is what the next 12 months charge, « Par mois » a twelfth of it, as the overview's months add up.
+        var householdAnnual = HouseholdCost.CashPieces(timelines, year);
         var rates = await Conversion.LoadAsync(
             fx, timelines.SelectMany(t => t.CashCostPieces(window)).Concat(householdAmortized).Concat(householdAnnual)
                 .Concat(timelines.SelectMany(SpendingHistory.Past).Select(SpendingHistory.Piece)), reference, today, ct);
@@ -63,7 +64,7 @@ public sealed class ListSubscriptionsHandler(
         var summaries = built.Select(b => SubscriptionViews.Summarise(
             b.Input, b.Timeline, b.DisplayName, b.Provider, window,
             Conversion.Of(b.Timeline.CashCostPieces(window), b.Timeline.AmortizedCostPieces(window), reference, rates), b.Owners,
-            FxConversion.Convert(b.Timeline.AmortizedCostPieces(year), rates, reference),
+            FxConversion.Convert(b.Timeline.CashCostPieces(year), rates, reference),
             SpendingViews.Spent(b.Timeline, reference, rates, today))).ToList();
 
         var (cash, amortized, shared) = HouseholdCost.Combine(timelines, window);
@@ -75,7 +76,8 @@ public sealed class ListSubscriptionsHandler(
             shared,
             ListGrouping.Group(query.Group, summaries, SpendingViews.SpentOf(built, reference, rates)),
             HouseholdCost.Divergences(shared).Select(FindingView.From).Concat(SubscriptionViews.FxFindings(householdConverted, annual)).ToList(),
-            annual.Total is { } t ? MoneyView.From(t) : null));
+            annual.Total is { } t ? MoneyView.From(t) : null,
+            MoneyView.Twelfth(annual.Total is { } y ? MoneyView.From(y) : null)));
     }
 }
 
