@@ -97,6 +97,8 @@
       "of": "Budget de {{name}}",
       "committed": "d’après vos engagements",
       "committed_tip": "Aucun montant fixé : le budget reprend les engagements partagés du foyer (abonnements, crédits, garde) prévus ce mois-ci dans cette catégorie.",
+      "committed_usual": "engagements + mois habituel",
+      "committed_usual_tip": "Aucun montant fixé : le budget reprend les engagements partagés du foyer (abonnements, crédits, garde) prévus ce mois-ci dans cette catégorie, plus le mois habituel de ses autres dépenses (la moyenne des mois précédents). Une dépense variable ne le fait donc pas dépasser.",
       "committed_part": "dont {{amount}} engagés",
       "committed_part_tip": "Abonnements, crédits et garde déjà prévus ce mois-ci dans cette catégorie.",
       "yearly": "annuel",
