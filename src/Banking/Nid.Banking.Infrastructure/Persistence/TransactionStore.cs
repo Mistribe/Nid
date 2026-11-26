@@ -112,6 +112,13 @@ public sealed class TransactionStore(BankingDbContext db, IClock clock) : ITrans
     }
 
     /// <summary>
+    /// The accounts no figure counts: an ignored one, and a card attached to an ignored one. #780: a card follows its account, ignored or not,
+    /// since its account's echoes of its purchases are internal.
+    /// </summary>
+    private IQueryable<Guid> LeftOut => db.Accounts.Where(a => a.CardOfAccountId == null ? a.Ignored : db.Accounts.Any(p => p.Id == a.CardOfAccountId && p.Ignored))
+        .Select(a => a.Id);
+
+    /// <summary>
     /// One purchase, one row: an immediate card's echo (#416) goes when its card is listed too, the card line saying where it was debited.
     /// « Interne » still lists it.
     /// </summary>
@@ -131,7 +138,10 @@ public sealed class TransactionStore(BankingDbContext db, IClock clock) : ITrans
             return query.Where(t => t.LinkState == state || (t.LinkState == "internal" && hidden.Contains(t.Id)));
         // #437: the lines a spending figure counts (its Entries), whatever their counterpart.
         if (state is "counted")
-            return query.Where(t => t.LinkState != "ignored" && t.LinkState != "internal" && !db.Accounts.Any(a => a.Id == t.AccountId && a.Ignored));
+        {
+            var leftOut = LeftOut;
+            return query.Where(t => t.LinkState != "ignored" && t.LinkState != "internal" && !leftOut.Contains(t.AccountId));
+        }
         return state is not null ? query.Where(t => t.LinkState == state) : query;
     }
 
@@ -172,10 +182,10 @@ public sealed class TransactionStore(BankingDbContext db, IClock clock) : ITrans
 
         var total = await query.CountAsync(ct);
         var page = await query.OrderByDescending(t => t.BookedOn).ThenByDescending(t => t.Id).Skip(skip).Take(take).ToListAsync(ct);
-        var ignoredAccounts = db.Accounts.Where(a => a.Ignored).Select(a => a.Id);
+        var leftOut = LeftOut;
         // D19: an internal line whose counterpart the reader cannot read shows as linked, so it counts like one.
         var hidden = db.Links.Where(l => l.CounterpartAccountId != null && !readable.Contains(l.CounterpartAccountId.Value)).Select(l => l.TransactionId);
-        var counted = query.Where(t => t.LinkState != "ignored" && (t.LinkState != "internal" || hidden.Contains(t.Id)) && !ignoredAccounts.Contains(t.AccountId));
+        var counted = query.Where(t => t.LinkState != "ignored" && (t.LinkState != "internal" || hidden.Contains(t.Id)) && !leftOut.Contains(t.AccountId));
         // Under a category filter a split line counts by its matching parts only (as the page lists it), else by its amount.
         var byCategory = filter.Categories.Count > 0 || filter.Uncategorised;
         var uncategorisedParts = filter.Uncategorised;

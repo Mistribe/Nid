@@ -49,7 +49,10 @@ public sealed class ListBankCategoriesHandler(
     public async ValueTask<Result<IReadOnlyList<BankCategoryView>>> HandleAsync(ListBankCategoriesQuery query, CancellationToken ct = default)
     {
         var all = await categories.AllAsync(ct);
-        var readable = (await access.ReadableAsync(await accounts.AllAsync(ct), ct)).Where(r => !r.Account.Ignored).Select(r => r.Account.Id).ToList();
+        var known = await accounts.AllAsync(ct);
+        // As spending counts them (#780): an ignored account's lines are left out, and a card's follow its account.
+        var ignored = known.Where(a => a.Ignored).Select(a => a.Id).ToHashSet();
+        var readable = (await access.ReadableAsync(known, ct)).Select(r => r.Account).Where(a => !ignored.Contains(a.CardOf ?? a.Id)).Select(a => a.Id).ToList();
         var since = (await calendar.TodayAsync(ct)).PlusMonths(-UseMonths);
         var used = (await lines.CategoryUseAsync(readable, since, ct)).ToDictionary(u => u.Category);
         // A parent's use is its own lines and its children's (one level deep, `banking.category_depth`).
