@@ -70,6 +70,35 @@ public class SpendingTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         => element.GetProperty(property) is { ValueKind: JsonValueKind.String } value ? value.GetString() : null;
 
     [Fact]
+    public async Task A_card_attached_to_no_account_with_lines_in_the_month_is_named_where_the_figures_leave_it_out()
+    {
+        await using var app = await BankingApi.StartAsync(fixture);
+        await BankingApi.ConnectAsync(app, app.AdultA, "code-a",
+            BankingApi.Account("uid-1", "hash-1", null, "Commun"), BankingApi.Account("uid-2", "hash-2", null, "Carte", "CARD"),
+            BankingApi.Account("uid-3", "hash-3", null, "Vieille carte", "CARD"));
+        var a = await AccountsAsync(app, app.AdultA);
+        await PatchAsync(app, app.AdultA, a["Commun"], new { envelopeId = (await app.NewEnvelopeAsync("Commun", Visibility.Shared, (app.AdultA, 5_000), (app.AdultB, 5_000))).Value });
+        await LineAsync(app, a["Carte"], new(2025, 10, 3), -40m);
+        // A card with no line this month says nothing.
+        await LineAsync(app, a["Vieille carte"], new(2025, 8, 3), -40m);
+
+        static string[] Cards(JsonElement view) => [.. view.GetProperty("unattachedCards").EnumerateArray().Select(c => c.GetProperty("name").GetString()!)];
+        async Task<string[]> DashboardAsync(PersonId person)
+            => Cards(JsonDocument.Parse(await app.GetRawAsync(person, "/api/v1/dashboard?scope=household")).RootElement);
+        // « Foyer » leaves a card on no account out; Bob cannot attach Alice's card.
+        Assert.Equal(["Carte"], Cards(await SpendingAsync(app, app.AdultA)));
+        Assert.Equal(["Carte"], await DashboardAsync(app.AdultA));
+        Assert.Empty(Cards(await SpendingAsync(app, app.AdultB)));
+        Assert.Empty(Cards(await SpendingAsync(app, app.AdultA, "?month=2025-09")));
+        // « Moi » counts it already.
+        Assert.Empty(Cards(await SpendingAsync(app, app.AdultA, "?scope=me")));
+
+        await PatchAsync(app, app.AdultA, a["Carte"], new { cardOfAccountId = a["Commun"] });
+        Assert.Empty(Cards(await SpendingAsync(app, app.AdultA)));
+        Assert.Empty(await DashboardAsync(app.AdultA));
+    }
+
+    [Fact]
     public async Task A_month_nets_refunds_in_expense_categories_counts_uncategorised_debits_and_follows_the_scope()
     {
         await using var app = await BankingApi.StartAsync(fixture);

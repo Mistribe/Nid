@@ -41011,6 +41011,7 @@ export interface components {
             everydaySpending?: null | components["schemas"]["DashboardMoneyView"];
             left?: null | components["schemas"]["DashboardMoneyView"];
             spendingSlices: components["schemas"]["DashboardSpendingSliceView"][];
+            unattachedCards: components["schemas"]["SpendingCard"][];
         };
         DeclarantWithholdingView: {
             name: string;
@@ -45912,6 +45913,11 @@ export interface components {
             expectedSoFar?: null | string;
             state?: null | string;
         };
+        SpendingCard: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+        };
         SpendingCategoryView: {
             /** Format: uuid */
             id: string;
@@ -45962,6 +45968,7 @@ export interface components {
             /** Format: double */
             savingsRate?: null | number;
             accounts: components["schemas"]["OptionView"][];
+            unattachedCards: components["schemas"]["OptionView"][];
         };
         SpentView: {
             /** Format: date */

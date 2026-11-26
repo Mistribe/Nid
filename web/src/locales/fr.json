@@ -224,7 +224,10 @@
       "everyday": "Dépenses courantes",
       "everyday_tip": "Les dépenses de vos comptes ce mois-ci, remboursements déduits. Les impôts et les opérations rapprochées d'un abonnement, d'un crédit, d'une charge de bien ou de la garde n'y sont pas : ils sont déjà dans les engagements. Une opération pas encore rapprochée y compte encore. Les virements entre vos comptes n'y sont pas.",
       "left": "Reste réel",
-      "overspent": "Dépassement de {{amount}}"
+      "overspent": "Dépassement de {{amount}}",
+      "unattached_one": "{{count}} carte non rattachée à son compte : ses opérations ne comptent pas.",
+      "unattached_other": "{{count}} cartes non rattachées à leur compte : leurs opérations ne comptent pas.",
+      "attach": "Rattacher {{name}}"
     },
     "notice_one": "{{count}} chose à faire",
     "notice_other": "{{count}} choses à faire",
