@@ -22,6 +22,7 @@ public sealed record LinkedLoanView(ItemId Id, string Name, MoneyView? Balance);
 /// <param name="Loans">#188: the readable loans financing it; <paramref name="NetValue"/> is the value less their balances, null without a loan or without a value.</param>
 /// <param name="HasCosts">An asset that is not a vehicle still holds running costs (it was one, or a file named them): its costs stay readable and removable. Always false for a vehicle, whose tab is there anyway.</param>
 /// <param name="ValueFromPurchase">The value is the purchase price: no valuation is dated yet.</param>
+/// <param name="ValueStale">#778: the value is only a purchase price older than its kind's threshold (<see cref="AssetMath.StaleAfter"/>).</param>
 /// <param name="ValueEstimated">The value is worn down by the depreciation rule from <paramref name="ValueBase"/>, dated <paramref name="ValueOn"/> (a valuation, or the purchase when <paramref name="ValueFromPurchase"/>).</param>
 public sealed record AssetView(
     ItemId Id, string Name, string Kind, MoneyView? Value, LocalDate? ValueOn, bool ValueFromPurchase, MoneyView? PurchasePrice,
@@ -29,7 +30,7 @@ public sealed record AssetView(
     LocalDate? RegisteredOn, int? MileageKm, LocalDate? MileageOn, int? FiscalHp, string? Energy, IReadOnlyList<ValuationView> Valuations, string Currency,
     string Visibility, IReadOnlyList<ItemOwnerView> Owners, bool Archived, uint Version, bool CanWrite, string ShareLevel,
     IReadOnlyList<LinkedSubscriptionView> Subscriptions, bool HasCosts = false, decimal? DepreciationRate = null,
-    bool ValueEstimated = false, MoneyView? ValueBase = null, IReadOnlyList<LinkedLoanView>? Loans = null, MoneyView? NetValue = null, bool FxMissing = false) : IExposesItems
+    bool ValueEstimated = false, MoneyView? ValueBase = null, IReadOnlyList<LinkedLoanView>? Loans = null, MoneyView? NetValue = null, bool FxMissing = false, bool ValueStale = false) : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems() => [Id, ..Subscriptions.Select(s => s.Id), ..(Loans ?? []).Select(l => l.Id)];
 }
@@ -67,7 +68,8 @@ internal static class AssetViews
         var row = Row(item, record, valuations, today);
         var d = record.Details;
         // #188: display only (the net worth already counts every loan as a holding of its own).
-        var net = AssetMath.At(d, Points(valuations), today) is { } value && loans.Count > 0
+        var value = AssetMath.At(d, Points(valuations), today);
+        var net = value is not null && loans.Count > 0
             ? new MoneyView(Amount(value.Amount - loans.Sum(l => l.Balance?.Amount ?? 0m)), row.Currency)
             : null;
         return new AssetView(row.Id, row.Name, row.Kind, row.Value, row.ValueOn, row.ValueFromPurchase,
@@ -79,6 +81,6 @@ internal static class AssetViews
             subscriptions.Select(s => new LinkedSubscriptionView(
                 s.Id, s.Name, s.Price is { } p ? new MoneyView(p.AmountText, p.Currency.Code) : null, s.Every is { } e ? new EveryView(e.Count, e.Unit.ToString().ToLowerInvariant()) : null, s.NextDeadline)).ToList(), hasCosts, d.DepreciationRate, row.ValueEstimated, row.ValueBase,
             loans.Select(l => new LinkedLoanView(l.Loan, l.Name, l.Balance is { } b ? new MoneyView(Amount(b.Amount), b.Currency.Code) : null)).ToList(), net,
-            loans.Any(l => l.Balance is null));
+            loans.Any(l => l.Balance is null), AssetMath.IsStale(d.Kind, value, today));
     }
 }

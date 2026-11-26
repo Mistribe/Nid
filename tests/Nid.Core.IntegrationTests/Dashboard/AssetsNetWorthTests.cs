@@ -167,6 +167,24 @@ public class AssetsNetWorthTests(PostgresFixture fixture) : IClassFixture<Postgr
         Assert.False(row.GetProperty("estimated").GetBoolean());
     }
 
+    // #778: a purchase price five years old is all Nid knows: the value is to update, on Accueil, in its to-do and on the asset's page.
+    [Fact]
+    public async Task An_old_purchase_price_alone_is_a_value_to_update()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var old = await NewAssetAsync(app, "Tableau", "8000", "2020-03-01");
+        var recent = await NewAssetAsync(app, "Sculpture", "2000", "2024-06-01");
+
+        var view = await DashboardAsync(app, app.AdultA);
+
+        Assert.Equal(1, view.GetProperty("staleEnvelopes").GetInt32());
+        var todo = Assert.Single(view.GetProperty("todo").EnumerateArray(), t => t.GetProperty("kind").GetString() == "stale_value");
+        Assert.Equal((old, "assets", "2020-03-01"), (todo.GetProperty("id").GetGuid(), todo.GetProperty("module").GetString(), todo.GetProperty("on").GetString()));
+        async Task<bool> StaleAsync(Guid id) => JsonDocument.Parse(await app.GetRawAsync(app.AdultA, $"{Route}/{id}")).RootElement.GetProperty("valueStale").GetBoolean();
+        Assert.True(await StaleAsync(old));
+        Assert.False(await StaleAsync(recent));
+    }
+
     [Fact]
     public async Task Bought_this_year_then_revalued_the_gain_is_the_revaluation_over_the_price()
     {
