@@ -58,6 +58,27 @@ public class LoansOverviewTests
     private static decimal D(LoanMoneyView? money) => D(money!.Amount);
 
     [Fact]
+    public void Interest_capitalised_by_a_total_deferral_counts_in_the_capital_repaid_against()
+    {
+        var deferred = Loan("Différé", Loans.Annuity(12_000m, 0.06m, 48) with
+        {
+            Phases = [new LoanPhase(1, PhaseMode.DeferredTotal, 0.06m, RateType.Fixed, 2), new LoanPhase(2, PhaseMode.Annuity, 0.06m, RateType.Fixed)],
+        });
+        var car = Car();
+        var figures = Figures(deferred);
+
+        var overview = Build(deferred, car);
+
+        Assert.Equal(120.30m, figures.CapitalisedInterest);
+        Assert.Equal(12_000m + 12_000m, D(overview.Principal));
+        Assert.Equal(12_000m + 120.30m + 12_000m, D(overview.CapitalToRepay));
+        Assert.Equal(120.30m, D(overview.CapitalisedInterest));
+        var row = overview.Loans.Single(r => r.Id == deferred.Item.Id);
+        Assert.Equal(Math.Round(figures.PrincipalRepaid / 12_120.30m, 4).ToString("0.0000", CultureInfo.InvariantCulture), row.RepaidShare);
+        Assert.Null(Build(car).CapitalisedInterest);
+    }
+
+    [Fact]
     public void The_household_figures_add_up_the_running_loans_figures_today()
     {
         OverviewLoan[] loans = [Home(), Ptz(), Car(), Ended()];

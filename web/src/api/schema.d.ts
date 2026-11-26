@@ -43255,6 +43255,8 @@ export interface components {
             totalCost: string;
             costPaid: string;
             costRemaining: string;
+            capitalToRepay: string;
+            capitalisedInterest?: null | string;
         };
         LoanFindingView: {
             code: string;
@@ -43455,6 +43457,7 @@ export interface components {
             totalInterest: string;
             totalPrincipal: string;
             warnings: components["schemas"]["LoanWarningView"][];
+            capitalisedInterest?: null | string;
         };
         LoanScheduleYearView: {
             /** Format: int32 */
@@ -43506,6 +43509,8 @@ export interface components {
             byPerson: components["schemas"]["PersonLoanShareView"][];
             findings: components["schemas"]["LoanFindingView"][];
             debtRatio?: null | components["schemas"]["LoanDebtRatioView"];
+            capitalToRepay?: null | components["schemas"]["LoanMoneyView"];
+            capitalisedInterest?: null | components["schemas"]["LoanMoneyView"];
         };
         LoanSpanView: {
             /** Format: uuid */

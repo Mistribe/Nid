@@ -58540,7 +58540,8 @@
           "paymentsLeft",
           "totalCost",
           "costPaid",
-          "costRemaining"
+          "costRemaining",
+          "capitalToRepay"
         ],
         "type": "object",
         "properties": {
@@ -58604,6 +58605,15 @@
           },
           "costRemaining": {
             "type": "string"
+          },
+          "capitalToRepay": {
+            "type": "string"
+          },
+          "capitalisedInterest": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -59454,6 +59464,12 @@
             "items": {
               "$ref": "#/components/schemas/LoanWarningView"
             }
+          },
+          "capitalisedInterest": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -59718,6 +59734,26 @@
               },
               {
                 "$ref": "#/components/schemas/LoanDebtRatioView"
+              }
+            ]
+          },
+          "capitalToRepay": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
+              }
+            ]
+          },
+          "capitalisedInterest": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
               }
             ]
           }

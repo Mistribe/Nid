@@ -74,11 +74,14 @@ public sealed record ScheduleDiffSummary(decimal MaxGap, LocalDate? MaxGapOn, Lo
 
 public sealed record ScheduleDiff(IReadOnlyList<ScheduleGap> Rows, ScheduleDiffSummary Summary);
 
-/// <summary>loans.md §8: a loan at a date.</summary>
+/// <summary>
+/// loans.md §8: a loan at a date. <c>CapitalisedInterest</c> is the interest a total deferral added to the capital by then:
+/// <c>PrincipalRepaid</c> is measured against the principal plus it (#709).
+/// </summary>
 public sealed record LoanFigures(
     decimal Balance, decimal PrincipalRepaid, decimal InterestPaid, decimal InsurancePaid, decimal FeesPaid,
     int? CurrentPhaseSeq, decimal? CurrentRate, int PaymentsLeft, LocalDate? NextPaymentOn, decimal? NextPaymentTotal,
-    LocalDate? EndDate, decimal TotalCost, decimal CostPaid, decimal CostRemaining);
+    LocalDate? EndDate, decimal TotalCost, decimal CostPaid, decimal CostRemaining, decimal CapitalisedInterest = 0m);
 
 /// <summary>loans.md §7: one effect of a simulated early repayment, before and after.</summary>
 public sealed record RepaymentOutcome(
