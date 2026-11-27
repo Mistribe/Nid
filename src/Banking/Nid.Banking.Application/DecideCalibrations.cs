@@ -98,9 +98,10 @@ public sealed class DecideSetup(IEmbeddings embeddings, IDecisions decisions, IM
 }
 
 /// <summary>
-/// #450, in <c>ModelWorkLoop</c>: runs one queued calibration a pass. Nearest neighbours embed every text of the evaluation set (invented,
-/// so <see cref="DataClasses.None"/>) with the model calibrated, then sweep its thresholds (<see cref="DecideCalibration.Neighbours"/>); a
+/// #450, in <c>ModelWorkLoop</c>: runs one queued calibration a pass. Nearest neighbours embed every text of the evaluation set with the model calibrated, then sweep its thresholds (<see cref="DecideCalibration.Neighbours"/>); a
 /// worker's <c>decide</c> is asked each case as the guess job would ask it, then calibrated (<see cref="DecideCalibration.Worker"/>).
+/// Sent as <see cref="DataClasses.BankLabels"/>, like the labels it stands for: the gateway takes the class <c>none</c> for its echo test
+/// alone, and a calibration should reach only where the guesses would. The labels are invented, so no adult is concerned.
 /// </summary>
 public sealed class DecideCalibrator(IDecideCalibrationStore store, IEmbeddings embeddings, IDecisions decisions, IModelDigests digests, IClock clock,
     CategoryGuessSignal signal)
@@ -146,7 +147,7 @@ public sealed class DecideCalibrator(IDecideCalibrationStore store, IEmbeddings 
             {
                 var decided = await decisions.DecideAsync(new LlmDecideRequest(
                     [.. batch.Select(c => CategoryGuesser.Text(c.Second.Pattern, c.First.Label, c.First.Counterparty, c.First.Debit, []))],
-                    [.. sideOptions.Select(o => o.Text), CategoryGuesser.NoneOfThese], DataClasses.None), ct);
+                    [.. sideOptions.Select(o => o.Text), CategoryGuesser.NoneOfThese], DataClasses.BankLabels, Concerned: []), ct);
                 if (!decided.TryGetValue(out var result))
                     return decided.TryGetFailure(out var failure) ? failure!.Code : JobCodes.ModelUnavailable;
                 if (new DecideKey(result.Implementation, result.Version, result.Model, result.Digest) != key)
@@ -171,7 +172,7 @@ public sealed class DecideCalibrator(IDecideCalibrationStore store, IEmbeddings 
         var vectors = new Dictionary<string, IReadOnlyList<float>>(StringComparer.Ordinal);
         foreach (var batch in cases.Select(c => c.Pattern).Concat(history.Select(h => h.Pattern)).Concat(options.Select(o => o.Text)).Distinct().Chunk(PatternIndexer.Batch))
         {
-            var embedded = await embeddings.EmbedAsync(new LlmEmbedRequest(batch, DataClasses.None), ct);
+            var embedded = await embeddings.EmbedAsync(new LlmEmbedRequest(batch, DataClasses.BankLabels, Concerned: [], Kinds: [DataClasses.BankLabels]), ct);
             if (!embedded.TryGetValue(out var result))
                 return embedded.TryGetFailure(out var failure) ? failure!.Code : JobCodes.ModelUnavailable;
             if (result.Model != key.Model)

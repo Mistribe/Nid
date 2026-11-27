@@ -796,14 +796,14 @@ seul ; aucun ne passe la règle des 5 %, « Par le sens » sur `bge-m3` reste le
   cours (`nearest-neighbours`, version `1`) ; un calibrage déjà en file ou en cours pour la même clé est le même.
   `GET` (tout adulte) donne le modèle, l'empreinte, l'état du dernier calibrage (`queued`, `running`, `done`, `failed` avec le code de
   la passerelle) et le profil en vigueur. `DecideCalibrator`, dans la boucle de `ModelWorkLoop` (30 s), en passe un à la fois : il
-  plonge chaque texte du jeu (classe `none` : données inventées), puis balaie le seuil de 0,50 à 0,95 par 0,01, avec l'historique
+  plonge chaque texte du jeu (classe `bank_labels`, comme les libellés qu’il remplace, sans adulte concerné : données inventées ; la passerelle ne prend la classe `none` que pour son test `echo`), puis balaie le seuil de 0,50 à 0,95 par 0,01, avec l'historique
   (`ByMeaning`, 5 voisins) et sur les seuls noms (`ByName`, marge 0,02). Il garde, pour chacun, le **plus bas seuil dont le taux
   d'erreur parmi les suggestions montrées est d'au plus 5 % sur au moins 20 montrées** ; aucun, et ce mode n'est pas proposé pour ce
   modèle. Il consigne, à ce seuil, montrées, correctes, fausses, « je ne sais pas », l'intervalle de Wilson à 95 % du taux d'erreur
   et la couverture. Un modèle changé en cours de route donne `failed` (`ai.model_unavailable`).
 - **Worker `decide` (#450)** : quand l'usage `decide` a un modèle qu'un worker déclare, c'est lui que « Calibrer » mesure, sous la
   clé (implémentation et version déclarées, modèle, empreinte `decide`) ; sinon, les voisins proches sur le modèle `embed`. Chaque
-  cas du jeu part comme le job l'enverrait (même texte, options de son côté puis « Aucune de ces catégories », classe `none`). Avec
+  cas du jeu part comme le job l'enverrait (même texte, options de son côté puis « Aucune de ces catégories », classe `bank_labels`). Avec
   scores : probabilité = softmax des scores bruts, une **température** apprise sur le jeu (0,25 à 4 par 0,05, au plus petit
   log-vraisemblance négatif de l'option attendue, « aucune » pour un cas sans catégorie), puis le plus bas seuil de 0,30 à 0,99
   sur la probabilité calibrée de la meilleure option, même règle (5 % de fausses au plus sur 20 montrées au moins) ; une table de

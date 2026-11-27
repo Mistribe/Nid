@@ -382,7 +382,7 @@ public class CategorySuggestionTests(PostgresFixture fixture) : IClassFixture<Po
         var profile = view.GetProperty("profile");
         Assert.Equal((CategoryEvalSet.Current.Cases.Count, 5), (profile.GetProperty("cases").GetInt32(), profile.GetProperty("neighbours").GetInt32()));
         // Invented labels: no household data goes, and every text of the set went once.
-        Assert.All(labels.Requests, r => Assert.Equal(DataClasses.None, r.DataClass));
+        Assert.All(labels.Requests, r => Assert.Equal((DataClasses.BankLabels, 0), (r.DataClass, r.Concerned!.Count)));
         Assert.Contains("LIDL", labels.Requests.SelectMany(r => r.Texts));
         // Nothing left queued: a pass sends nothing.
         labels.Requests.Clear();
@@ -640,7 +640,7 @@ public class CategorySuggestionTests(PostgresFixture fixture) : IClassFixture<Po
         Assert.Equal(CategoryEvalSet.Current.Cases.Count, labels.Decisions.Sum(d => d.Texts.Count));
         Assert.All(labels.Decisions, d =>
         {
-            Assert.Equal(DataClasses.None, d.DataClass);
+            Assert.Equal((DataClasses.BankLabels, 0), (d.DataClass, d.Concerned!.Count));
             Assert.Equal("Aucune de ces catégories", d.Options[^1]);
             Assert.True(d.Texts.Count <= CategoryGuesser.Batch);
         });
