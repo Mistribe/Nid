@@ -89,6 +89,18 @@ public static class AssetEndpoints
             => (await invoker.InvokeAsync(new VoidAssetValuationCommand(new ItemId(id), valuationId), ct)).ToHttp(x => new IdResponse(x)))
             .Returns<IdResponse>();
 
+        // #650: a wrong mileage reading goes; the vehicle's current mileage falls back to the newest one left.
+        api.MapDelete("/{id:guid}/mileage-readings/{on}", async (Guid id, string on, IInvoker invoker, CancellationToken ct) =>
+            {
+                var reader = new FieldReader();
+                var day = reader.Date(on, "on");
+                if (!reader.Ok)
+                    return reader.Problem();
+                var result = await invoker.InvokeAsync(new DeleteMileageReadingCommand(new ItemId(id), day!.Value), ct);
+                return result.TryGetValue(out _) ? Results.NoContent() : result.ToHttp(v => v);
+            })
+            .ReturnsNoContent();
+
         // #649: a vehicle's running costs, Core flows of the asset; the year's total is the server's.
         api.MapGet("/{id:guid}/costs", async (Guid id, int? year, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new ListAssetCostsQuery(new ItemId(id), year), ct)).ToHttp(view => view))

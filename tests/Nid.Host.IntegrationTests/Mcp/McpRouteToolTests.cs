@@ -28,6 +28,8 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
         "POST /api/v1/assets/{id:guid}/archive", "POST /api/v1/assets/{id:guid}/unarchive",
         // Voiding a valuation changes the asset's latest value: done in the app, where the history is visible.
         "DELETE /api/v1/assets/{id:guid}/valuations/{valuationId:guid}",
+        // #650: removing a mileage reading changes the cost per km: done in the app, where the readings are listed.
+        "DELETE /api/v1/assets/{id:guid}/mileage-readings/{on}",
         // Documents: the assistant links, edits and files them through proposals (#305), never archives or unlinks them.
         "/archive", "/unarchive", "DELETE /api/v1/documents/{id:guid}/links/{targetKind}/{targetId:guid}",
         // #600: deleting a document cannot be undone: the person does it in the app, after its confirmation.

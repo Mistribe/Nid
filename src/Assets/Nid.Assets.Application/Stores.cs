@@ -1,5 +1,6 @@
 using Nid.Assets.Domain;
 using Nid.Core.Contracts;
+using NodaTime;
 
 namespace Nid.Assets.Application;
 
@@ -31,6 +32,12 @@ public interface IAssetRecordStore
 
     /// <summary>#650: the vehicle's mileage readings, oldest first.</summary>
     Task<IReadOnlyList<MileageReading>> ReadingsAsync(ItemId id, CancellationToken ct);
+
+    /// <summary>
+    /// #650: removes the reading of that day; when it was the vehicle's current mileage, the newest reading left takes its place (none
+    /// left: no mileage). False when no reading is dated that day.
+    /// </summary>
+    Task<bool> RemoveReadingAsync(ItemId id, LocalDate on, CancellationToken ct);
 
     Task<IReadOnlyList<AssetRecord>> FindManyAsync(IReadOnlyCollection<ItemId> ids, CancellationToken ct);
 
