@@ -241,7 +241,9 @@ public class ReconciliationTests(PostgresFixture fixture) : IClassFixture<Postgr
     public async Task A_card_attached_later_takes_the_echoes_of_its_stored_lines()
     {
         await using var app = await StartAsync(fixture);
-        var courant = await CourantAsync(app, BankingApi.Account("uid-2", "hash-2", null, "Carte A", "CARD", debit: CardDebit.Immediate));
+        // Two checking accounts: the card waits for its owner's choice.
+        var courant = await CourantAsync(app, BankingApi.Account("uid-2", "hash-2", null, "Carte A", "CARD", debit: CardDebit.Immediate),
+            BankingApi.Account("uid-3", "hash-3", null, "Courant B"));
         var card = await AccountAsync(app, app.AdultA, "Carte A");
         var purchase = await AddAsync(app, card, "c1", D(10, 12), -42m, "CARTE 12/10/26 SHOP");
         var echo = await AddAsync(app, courant, "e1", D(10, 13), -42m, "CARTE 12/10/26 SHOP CB*0000");
