@@ -41,7 +41,8 @@ export function AssetsPage() {
   const people = $api.useQuery('get', PERSONS);
   const go = (change: Partial<AssetsSearch>) =>
     void navigate({ to: '.', replace: true, resetScroll: false, search: ((prev: AssetsSearch) => ({ ...prev, page: undefined, ...change })) as never });
-  const rows = answer.data ? grouped(answer.data) : [];
+  // `flat`: the owners' groups switched off, every asset on its own row.
+  const rows = answer.data ? (search.flat === 1 ? answer.data.rows : grouped(answer.data)) : [];
   const total = answer.data?.total ?? 0;
   const narrowed = Boolean(search.kind || search.owner || search.q || search.archived);
   // A page past the end (the last rows archived) steps back.
@@ -76,6 +77,7 @@ export function AssetsPage() {
           )}
         </FilterField>
         <SwitchField label={t('assets_list.show_archived')} checked={search.archived === 1} onCheckedChange={(on) => go({ archived: on ? 1 : undefined })} />
+        <SwitchField label={t('lists.group_by_owner')} checked={search.flat !== 1} onCheckedChange={(on) => go({ flat: on ? undefined : 1, page: search.page })} />
       </FilterRow>
       {answer.error ? <ProblemMessage problem={present(toProblem(answer.error))} />
         : !answer.data ? <Loading label={t('assets_list.loading')}><TableSkeleton columns={4} /></Loading>

@@ -93,7 +93,7 @@ function ListTab({ scope, add }: { scope: 'me' | 'household'; add: ReactNode }) 
     <>
       <div className="flex flex-wrap gap-x-6 gap-y-2">
         <SwitchField label={t('investments.show_closed')} checked={closed} onCheckedChange={(on) => set('closed', on)} />
-        <SwitchField label={t('investments.group_by_owner')} checked={!flat} onCheckedChange={(on) => set('flat', !on)} />
+        <SwitchField label={t('lists.group_by_owner')} checked={!flat} onCheckedChange={(on) => set('flat', !on)} />
       </div>
       <Body answer={answer} add={add} flat={flat} />
     </>
