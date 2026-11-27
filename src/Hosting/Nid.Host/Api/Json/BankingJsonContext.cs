@@ -53,6 +53,7 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(BankingEndpoints.SuggestionDismissalBody))]
 [JsonSerializable(typeof(CategorySuggestionCalibrationView))]
 [JsonSerializable(typeof(CalibrationRunView))]
+[JsonSerializable(typeof(CategoryGuessSampleView))]
 [JsonSerializable(typeof(BankingEndpoints.ConnectBody))]
 [JsonSerializable(typeof(BankingEndpoints.ApplicationBody))]
 [JsonSerializable(typeof(BankingEndpoints.ApplicationTransferBody))]

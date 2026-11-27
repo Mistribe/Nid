@@ -499,4 +499,26 @@ public interface ICategorySuggestionStore
 
     /// <summary>Whether it existed.</summary>
     Task<bool> WithdrawAsync(Guid id, CancellationToken ct);
+
+    /// <summary>
+    /// #450: up to <paramref name="limit"/> lines of <paramref name="accounts"/> a suggestion may cover (as <see cref="OpenAsync"/>), internal
+    /// transfers left out, newest first; with <paramref name="unguessed"/>, only those of patterns it has no guess for.
+    /// </summary>
+    Task<IReadOnlyList<GuessableLine>> GuessableAsync(IReadOnlyCollection<Guid> accounts, DecideKey? unguessed, int limit, CancellationToken ct);
+
+    /// <summary>#450: the guesses <paramref name="key"/> made, for the whole household.</summary>
+    Task<IReadOnlyList<CategoryGuess>> GuessesAsync(DecideKey key, CancellationToken ct);
+
+    /// <summary>Replaces the guess of the same pattern, direction, model and digest.</summary>
+    Task SaveGuessesAsync(IReadOnlyList<CategoryGuess> guesses, CancellationToken ct);
+
+    /// <summary>#450: every guess goes, so the next pass asks again (« Suggérer à nouveau »); how many there were.</summary>
+    Task<int> ForgetGuessesAsync(CancellationToken ct);
 }
+
+/// <summary>#450: a line the guess job may ask about: its pattern and direction, its account, its label and counterparty as the bank gave them.</summary>
+public sealed record GuessableLine(string Pattern, bool Debit, Guid Account, string Label, string? Counterparty);
+
+/// <summary>#450: what a model guessed for a pattern and direction: a category (null: none of them), its calibrated probability (null for a
+/// model with no scores), and what answered.</summary>
+public sealed record CategoryGuess(string Pattern, bool Debit, Guid? Category, double? Probability, DecideKey Key, string Placement, Instant DecidedAt);

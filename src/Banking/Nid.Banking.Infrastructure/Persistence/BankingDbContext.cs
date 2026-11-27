@@ -39,6 +39,8 @@ public sealed class BankingDbContext(DbContextOptions<BankingDbContext> options)
 
     public DbSet<DecideProfileRow> DecideProfiles => Set<DecideProfileRow>();
 
+    public DbSet<CategoryGuessRow> CategoryGuesses => Set<CategoryGuessRow>();
+
     public DbSet<RuleRow> Rules => Set<RuleRow>();
 
     public DbSet<RecurringGroupRow> RecurringGroups => Set<RecurringGroupRow>();
@@ -223,6 +225,12 @@ public sealed class BankingDbContext(DbContextOptions<BankingDbContext> options)
             e.Property(x => x.Id).ValueGeneratedNever();
             // One queued or running per key: a second « Calibrer » gets the same row.
             e.HasIndex(x => new { x.Implementation, x.Version, x.Model, x.Digest }).IsUnique().HasFilter("status in ('queued','running')");
+        });
+
+        modelBuilder.Entity<CategoryGuessRow>(e =>
+        {
+            e.ToTable("category_guess", t => t.HasCheckConstraint("ck_category_guess_placement", "placement in ('local','remote')"));
+            e.HasKey(x => new { x.Pattern, x.Debit, x.Model, x.Digest });
         });
 
         modelBuilder.Entity<DecideProfileRow>(e =>

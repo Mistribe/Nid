@@ -777,4 +777,5 @@ Le réseau `models` n'a pas de sortie : le moteur sert les modèles déjà prés
 | `ContextTokens`, `MaxOutputTokens` | Le contexte et la sortie que le moteur accepte (8192 et 4096 par défaut) |
 | `Tools` | Le modèle sait appeler des outils (`true` par défaut) |
 | `EmbedModels` | Les modèles de plongement et la longueur de leurs vecteurs, que le moteur ne dit pas : `nomic-embed-text=768,bge-m3=1024`. Ils servent la recherche dans les documents (`embed`), jamais le chat |
+| `DecideModels` | Les petits modèles qui devinent la catégorie d'une opération (`decide`), séparés par des virgules : `qwen2.5:3b`. Ils répondent par une lettre, avec ses probabilités ; s'ils sont aussi dans `Models` (ou si `Models` est vide), ils servent aussi le chat |
 

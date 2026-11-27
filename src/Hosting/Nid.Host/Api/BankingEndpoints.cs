@@ -395,6 +395,18 @@ public static class BankingEndpoints
                 => (await invoker.InvokeAsync(new CalibrateCategorySuggestionsCommand(), ct)).ToHttp(run => run, StatusCodes.Status202Accepted))
             .Returns<CalibrationRunView>(StatusCodes.Status202Accepted);
 
+        // #450: what the guess job sends the decide model, masked, from the reader's own lines; « Suggérer à nouveau » forgets every guess.
+        api.MapGet("/category-suggestions/sample", async (IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new GetCategoryGuessSampleQuery(), ct)).ToHttp(sample => sample))
+            .Returns<CategoryGuessSampleView>();
+
+        api.MapPost("/category-suggestions/refresh", async (IInvoker invoker, CancellationToken ct) =>
+            {
+                var result = await invoker.InvokeAsync(new RefreshCategoryGuessesCommand(), ct);
+                return result.TryGetValue(out _) ? Results.NoContent() : result.ToHttp(v => v);
+            })
+            .ReturnsNoContent();
+
         // Read now, in the request: the bank sees the person's own browser (Psu-Ip-Address, Psu-User-Agent), as UseForwardedHeaders resolved it.
         api.MapPost("/sync", async (SyncBody body, HttpContext http, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new SyncMineCommand(body.ConnectionId, new PsuHeaders(

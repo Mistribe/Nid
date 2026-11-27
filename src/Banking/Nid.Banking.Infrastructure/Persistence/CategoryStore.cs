@@ -51,6 +51,7 @@ public sealed class CategoryStore(BankingDbContext db, IClock clock) : ICategory
 
         var row = new CategoryRow { Id = Guid.CreateVersion7(), ParentId = parent, Name = name, Kind = Wire(kind) };
         db.Categories.Add(row);
+        await ForgetGuessesAsync(ct);
         await db.SaveChangesAsync(ct);
         return Result.Success(ToModel(row));
     }
@@ -87,6 +88,8 @@ public sealed class CategoryStore(BankingDbContext db, IClock clock) : ICategory
         if ((newName != row.Name || newParent != row.ParentId) && await SiblingNamedAsync(newParent, newName, id, ct))
             return NameError("Another category of the same parent has this name.");
 
+        if (newName != row.Name || newParent != row.ParentId || (archived is { } archiving && archiving != (row.ArchivedAt is not null)))
+            await ForgetGuessesAsync(ct);
         row.Name = newName;
         row.ParentId = newParent;
         if (archived == true)
@@ -130,6 +133,7 @@ public sealed class CategoryStore(BankingDbContext db, IClock clock) : ICategory
             var budgets = await db.CategoryBudgets.ToListAsync(ct);
             var lineMoves = new List<(Guid From, Guid To)>();
             await MergeRowAsync(source, target, clock.GetCurrentInstant(), lineMoves, ct);
+            await ForgetGuessesAsync(ct);
             // A merged category had no budget before this merge: one hop takes each budget to where its category went.
             foreach (var budget in budgets.Where(b => tree[b.CategoryId].MergedIntoId is not null))
                 budget.CategoryId = tree[budget.CategoryId].MergedIntoId!.Value;
@@ -158,6 +162,10 @@ public sealed class CategoryStore(BankingDbContext db, IClock clock) : ICategory
             throw;
         }
     }
+
+    /// <summary>#450: a model's guesses chose among the categories as they were: any change of the options drops them all, in the same save,
+    /// and the next pass asks again.</summary>
+    private async Task ForgetGuessesAsync(CancellationToken ct) => db.CategoryGuesses.RemoveRange(await db.CategoryGuesses.ToListAsync(ct));
 
     private async Task MergeRowAsync(CategoryRow source, CategoryRow target, Instant at, List<(Guid From, Guid To)> lineMoves, CancellationToken ct)
     {

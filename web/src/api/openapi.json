@@ -21522,6 +21522,157 @@
         }
       }
     },
+    "/api/v1/banking/category-suggestions/sample": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryGuessSampleView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/banking/category-suggestions/refresh": {
+      "post": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/banking/sync": {
       "post": {
         "tags": [
@@ -44641,7 +44792,9 @@
           "evalVersion",
           "options",
           "cases",
-          "measuredAt"
+          "measuredAt",
+          "scoreless",
+          "reliability"
         ],
         "type": "object",
         "properties": {
@@ -44701,6 +44854,32 @@
           "measuredAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "temperature": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "scoreless": {
+            "type": "boolean"
+          },
+          "guess": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/CalibrationFiguresView"
+              }
+            ]
+          },
+          "reliability": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReliabilityBinView"
+            }
           }
         }
       },
@@ -45248,6 +45427,20 @@
           }
         }
       },
+      "CategoryGuessSampleView": {
+        "required": [
+          "texts"
+        ],
+        "type": "object",
+        "properties": {
+          "texts": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
       "CategoryMergeBody": {
         "type": "object",
         "properties": {
@@ -45515,17 +45708,19 @@
         }
       },
       "CategorySuggestionCalibrationView": {
-        "required": [
-          "implementation",
-          "version"
-        ],
         "type": "object",
         "properties": {
           "implementation": {
-            "type": "string"
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "version": {
-            "type": "string"
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "model": {
             "type": [
@@ -45633,6 +45828,12 @@
           },
           "basis": {
             "type": "string"
+          },
+          "placement": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -58319,6 +58520,12 @@
           },
           "pattern": {
             "type": "string"
+          },
+          "placement": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -67643,6 +67850,28 @@
           },
           "amount": {
             "$ref": "#/components/schemas/AmountView"
+          }
+        }
+      },
+      "ReliabilityBinView": {
+        "required": [
+          "confidence",
+          "accuracy",
+          "count"
+        ],
+        "type": "object",
+        "properties": {
+          "confidence": {
+            "type": "number",
+            "format": "double"
+          },
+          "accuracy": {
+            "type": "number",
+            "format": "double"
+          },
+          "count": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },

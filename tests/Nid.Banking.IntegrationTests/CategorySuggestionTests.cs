@@ -43,6 +43,7 @@ public class CategorySuggestionTests(PostgresFixture fixture) : IClassFixture<Po
             {
                 services.Replace(ServiceDescriptor.Scoped<IEmbeddings>(_ => labels));
                 services.Replace(ServiceDescriptor.Scoped<IModelDigests>(_ => labels));
+                services.Replace(ServiceDescriptor.Scoped<IDecisions>(_ => labels));
             });
         await BankingApi.ConnectAsync(app, app.AdultA, "code-a",
             BankingApi.Account("uid-1", "hash-1", null, "Courant A"), BankingApi.Account("uid-2", "hash-2", null, "Perso A"));
@@ -58,13 +59,13 @@ public class CategorySuggestionTests(PostgresFixture fixture) : IClassFixture<Po
 
     private static int _reference;
 
-    private static async Task<Guid> AddAsync(NidApp app, Guid account, string label, decimal amount = -12.5m)
+    private static async Task<Guid> AddAsync(NidApp app, Guid account, string label, decimal amount = -12.5m, string? counterparty = null)
     {
         var reference = $"ref-{Interlocked.Increment(ref _reference)}";
         await using var scope = app.Services.CreateAsyncScope();
         scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
         var store = scope.ServiceProvider.GetRequiredService<ITransactionStore>();
-        await store.AddAsync(account, [new NewBankTransaction(reference, new LocalDate(2026, 10, 5), null, amount, Currency.Eur, label, null, null, "api")], default);
+        await store.AddAsync(account, [new NewBankTransaction(reference, new LocalDate(2026, 10, 5), null, amount, Currency.Eur, label, counterparty, null, "api")], default);
         return (await store.ListAsync([account], null, null, 0, 1000, default)).Single(t => t.ProviderRef == reference).Id;
     }
 
@@ -444,12 +445,222 @@ public class CategorySuggestionTests(PostgresFixture fixture) : IClassFixture<Po
             TestContext.Current.CancellationToken);
     }
 
+    private static (Guid Category, string Basis)? Suggested(JsonElement page, string pattern, string direction = "debit")
+        => Group(page, pattern, direction) is { } group ? (group.GetProperty("categoryId").GetGuid(), group.GetProperty("basis").GetString()!) : null;
+
+    /// <summary>#450: a dismissed pick lets the next basis try: meaning, then the category's name, then the model's guess.</summary>
+    [Fact]
+    public async Task A_dismissed_pick_lets_the_next_basis_try()
+    {
+        var labels = new Labels { DecideModel = "fake-decide" };
+        await using var s = await StartAsync(fixture, labels);
+        var app = s.App;
+        var fuel = Seed("transport.fuel");
+        foreach (var label in new[] { "CB GARAGE ONE 1", "CB GARAGE ONE 2" })
+            await HandAsync(app, app.AdultA, await AddAsync(app, s.Shared, label), fuel);
+        await AddAsync(app, s.Shared, "CB GARAGE SPORT 3");
+        await IndexAsync(app);
+        await ProfileAsync(app, threshold: 0.8, cold: 0.9);
+        await WorkerProfileAsync(app, threshold: 0.5);
+        await GuessAsync(app);
+
+        Assert.Equal((fuel, "meaning"), Suggested(await PageAsync(app, app.AdultA), "GARAGE SPORT"));
+        await DismissAsync(app, app.AdultA, "GARAGE SPORT", fuel);
+        Assert.Equal((Seed("transport.vehicle"), "category_name"), Suggested(await PageAsync(app, app.AdultA), "GARAGE SPORT"));
+        await DismissAsync(app, app.AdultA, "GARAGE SPORT", Seed("transport.vehicle"));
+        Assert.Equal((Seed("leisure.sport"), "ai"), Suggested(await PageAsync(app, app.AdultA), "GARAGE SPORT"));
+        await DismissAsync(app, app.AdultA, "GARAGE SPORT", Seed("leisure.sport"));
+        Assert.Null(Suggested(await PageAsync(app, app.AdultA), "GARAGE SPORT"));
+    }
+
+    [Fact]
+    public async Task The_model_guesses_what_nothing_else_decides_from_masked_text_and_each_reader_sees_it_on_their_own_lines()
+    {
+        var labels = new Labels { DecideModel = "fake-decide" };
+        await using var s = await StartAsync(fixture, labels);
+        var app = s.App;
+        var name = await NameAsync(app, app.AdultA);
+        foreach (var label in new[] { "CB SHOP ONE 1", "CB SHOP ONE 2" })
+            await HandAsync(app, app.AdultA, await AddAsync(app, s.Shared, label), Groceries);
+        await AddAsync(app, s.Shared, "CB SHOP ONE 3");
+        await AddAsync(app, s.Shared, "CB COURSES EXPRESS 0412 FR76 3000 6000 0112 3456 7890 189");
+        await AddAsync(app, s.OwnA, "PRLV MUTUELLE SANTE 123456789", counterparty: "MUTUELLE EXEMPLE");
+        await AddAsync(app, s.OwnB, "CB COURSES MARCHE 5");
+        await AddAsync(app, s.Shared, "SALAIRE EXEMPLE", amount: 1500m);
+        await AddAsync(app, s.Shared, $"VIR {name}");
+        await AddAsync(app, s.Shared, "LOYER APPARTEMENT", counterparty: name);
+
+        // Not calibrated: nothing is asked.
+        await GuessAsync(app);
+        Assert.Empty(labels.Decisions);
+
+        await WorkerProfileAsync(app, threshold: 0.5);
+        await GuessAsync(app);
+
+        // Step A decides SHOP ONE; a household name, in the pattern or as the counterparty, never goes; numbers and IBANs are masked.
+        var texts = labels.Decisions.SelectMany(d => d.Texts).ToList();
+        Assert.Equal(4, texts.Count);
+        Assert.DoesNotContain(texts, t => t.Contains("SHOP ONE", StringComparison.Ordinal) || t.Contains("LOYER", StringComparison.Ordinal)
+            || t.Contains(name, StringComparison.OrdinalIgnoreCase));
+        Assert.Contains("Sens : débit\nMotif : COURSES EXPRESS\nLibellé : CB COURSES EXPRESS 0412 [IBAN]", texts);
+        Assert.Contains("Sens : débit\nMotif : MUTUELLE SANTE\nLibellé : PRLV MUTUELLE SANTE [N]\nContrepartie : MUTUELLE EXEMPLE", texts);
+        Assert.All(labels.Decisions, d =>
+        {
+            Assert.Equal(DataClasses.BankLabels, d.DataClass);
+            Assert.Equal("Aucune de ces catégories", d.Options[^1]);
+        });
+        // Each request concerns the readers of its lines' accounts: the shared one A's and B's, a private one its owner's.
+        IReadOnlyList<Guid> Concerned(string pattern) => labels.Decisions.Single(d => d.Texts.Any(t => t.Contains(pattern, StringComparison.Ordinal))).Concerned!;
+        Assert.Equal(new[] { app.AdultA.Value, app.AdultB.Value }.Order(), Concerned("COURSES EXPRESS"));
+        Assert.Equal([app.AdultA.Value], Concerned("MUTUELLE SANTE"));
+        Assert.Equal([app.AdultB.Value], Concerned("COURSES MARCHE"));
+        var credit = labels.Decisions.Single(d => d.Texts.Any(t => t.Contains("SALAIRE", StringComparison.Ordinal))).Options;
+        Assert.Contains("Revenus › Salaire", credit);
+        Assert.DoesNotContain("Alimentation › Courses", credit);
+
+        // Shown to whoever writes the lines, at the model's probability; B reads the shared account but does not write it.
+        var a = await PageAsync(app, app.AdultA);
+        var express = Group(a, "COURSES EXPRESS")!.Value;
+        Assert.Equal((Groceries, "ai", 92, 0, "local"), (express.GetProperty("categoryId").GetGuid(), express.GetProperty("basis").GetString(),
+            express.GetProperty("agreement").GetInt32(), express.GetProperty("evidenceCount").GetInt32(), express.GetProperty("placement").GetString()));
+        Assert.Equal((Seed("health"), "ai"), Suggested(a, "MUTUELLE SANTE")); // « Santé », the first option sharing a word
+        Assert.Equal((Seed("income.salary"), "ai"), Suggested(a, "SALAIRE EXEMPLE", "credit"));
+        Assert.Null(Group(a, "COURSES MARCHE"));
+        var b = await PageAsync(app, app.AdultB);
+        Assert.Equal((Groceries, "ai"), Suggested(b, "COURSES MARCHE"));
+        Assert.Null(Group(b, "COURSES EXPRESS"));
+
+        // Kept for the household: a pass with nothing new asks nothing.
+        labels.Decisions.Clear();
+        await GuessAsync(app);
+        Assert.Empty(labels.Decisions);
+        // Under the profile's probability, not shown.
+        await WorkerProfileAsync(app, threshold: 0.95);
+        Assert.Null(Group(await PageAsync(app, app.AdultA), "COURSES EXPRESS"));
+        await WorkerProfileAsync(app, threshold: 0.5);
+
+        // A new category changes the options: every guess goes, the next pass asks again.
+        await BankingApi.JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{BankingApi.Root}/categories", new { name = "Épicerie fine", kind = "expense" }));
+        Assert.Null(Group(await PageAsync(app, app.AdultA), "COURSES EXPRESS"));
+        await GuessAsync(app);
+        Assert.Equal(4, labels.Decisions.SelectMany(d => d.Texts).Count());
+        Assert.Equal((Groceries, "ai"), Suggested(await PageAsync(app, app.AdultA), "COURSES EXPRESS"));
+
+        // « Suggérer à nouveau », by any adult.
+        Assert.Equal(HttpStatusCode.NoContent, (await app.RawAsync(app.AdultB, HttpMethod.Post, $"{Suggestions}/refresh")).StatusCode);
+        Assert.Null(Group(await PageAsync(app, app.AdultA), "COURSES EXPRESS"));
+    }
+
+    [Fact]
+    public async Task The_sample_shows_what_would_be_sent_masked_from_the_reader_own_lines()
+    {
+        await using var s = await StartAsync(fixture);
+        var app = s.App;
+        var name = await NameAsync(app, app.AdultA);
+        await AddAsync(app, s.OwnA, "PRLV MUTUELLE SANTE 123456789");
+        await AddAsync(app, s.OwnA, $"VIR {name}");
+        await AddAsync(app, s.OwnB, "CB COURSES MARCHE 5");
+
+        static async Task<string[]> SampleAsync(NidApp app, PersonId person)
+            => [.. JsonDocument.Parse(await app.GetRawAsync(person, $"{Suggestions}/sample")).RootElement.GetProperty("texts").EnumerateArray().Select(t => t.GetString()!)];
+
+        Assert.Equal(["Sens : débit\nMotif : MUTUELLE SANTE\nLibellé : PRLV MUTUELLE SANTE [N]"], await SampleAsync(app, app.AdultA));
+        Assert.Equal(["Sens : débit\nMotif : COURSES MARCHE\nLibellé : CB COURSES MARCHE 5"], await SampleAsync(app, app.AdultB));
+    }
+
+    [Fact]
+    public async Task A_decide_model_is_calibrated_on_the_evaluation_set_as_the_guess_job_asks_it()
+    {
+        var labels = new Labels { DecideModel = "fake-decide" };
+        await using var s = await StartAsync(fixture, labels);
+        var app = s.App;
+
+        await QueueAsync(app);
+        await CalibrateAsync(app);
+
+        var view = JsonDocument.Parse(await app.GetRawAsync(app.AdultB, Calibrations)).RootElement;
+        Assert.Equal(("llm-choice", "1", "fake-decide", Labels.DecideDigest, "done"), (view.GetProperty("implementation").GetString(),
+            view.GetProperty("version").GetString(), view.GetProperty("model").GetString(), view.GetProperty("digest").GetString(),
+            view.GetProperty("latest").GetProperty("status").GetString()));
+        var profile = view.GetProperty("profile");
+        Assert.Equal((CategoryEvalSet.Current.Cases.Count, false), (profile.GetProperty("cases").GetInt32(), profile.GetProperty("scoreless").GetBoolean()));
+        Assert.Equal(JsonValueKind.Number, profile.GetProperty("temperature").ValueKind);
+        Assert.NotEmpty(profile.GetProperty("reliability").EnumerateArray());
+        // Invented labels: no household data, every case asked once, among the categories of its side and « none of these ».
+        Assert.Equal(CategoryEvalSet.Current.Cases.Count, labels.Decisions.Sum(d => d.Texts.Count));
+        Assert.All(labels.Decisions, d =>
+        {
+            Assert.Equal(DataClasses.None, d.DataClass);
+            Assert.Equal("Aucune de ces catégories", d.Options[^1]);
+            Assert.True(d.Texts.Count <= CategoryGuesser.Batch);
+        });
+
+        // A model with no scores: its answers as they are, no temperature.
+        labels.Scoreless = true;
+        await QueueAsync(app);
+        await CalibrateAsync(app);
+        profile = JsonDocument.Parse(await app.GetRawAsync(app.AdultA, Calibrations)).RootElement.GetProperty("profile");
+        Assert.Equal((true, JsonValueKind.Null, JsonValueKind.Null), (profile.GetProperty("scoreless").GetBoolean(), profile.GetProperty("temperature").ValueKind,
+            profile.GetProperty("threshold").ValueKind));
+    }
+
+    private static async Task GuessAsync(NidApp app)
+    {
+        await using var scope = app.Services.CreateAsyncScope();
+        scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
+        await scope.ServiceProvider.GetRequiredService<CategoryGuesser>().RunOnceAsync(TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>#450: the profile a calibration of the fake <c>decide</c> model would have left, at this probability, temperature 1.</summary>
+    private static async Task WorkerProfileAsync(NidApp app, double threshold)
+    {
+        await using var scope = app.Services.CreateAsyncScope();
+        scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
+        await scope.ServiceProvider.GetRequiredService<IDecideCalibrationStore>().SaveProfileAsync(new DecideProfile(
+            new DecideKey("llm-choice", "1", "fake-decide", Labels.DecideDigest), 1, 36, threshold, null, 1.0, false,
+            new DecideCalibration.Results(400, null, null, null, Temperature: 1.0), SystemClock.Instance.GetCurrentInstant()),
+            TestContext.Current.CancellationToken);
+    }
+
+
     /// <summary>
     /// The <c>embed</c> use with three topics, markets (« MARKET »), shops (« SHOP ») and cars (« GARAGE », « véhicule »), and everything else;
     /// <see cref="On"/> is the <c>decide</c> use, <see cref="Digest"/> the one the workers declare, <see cref="Answering"/> the model that answers.
+    /// #450: <see cref="DecideModel"/> is the <c>decide</c> use's model on a worker (null: none), which puts a pattern in the option sharing a
+    /// word with it, else in the last one, « none of these ».
     /// </summary>
-    private sealed class Labels : IEmbeddings, IModelDigests
+    private sealed class Labels : IEmbeddings, IModelDigests, IDecisions
     {
+        public const string DecideDigest = "sha256:decide";
+
+        public string? DecideModel { get; set; }
+
+        public bool Scoreless { get; set; }
+
+        public List<LlmDecideRequest> Decisions { get; } = [];
+
+        Task<string?> IDecisions.ModelAsync(CancellationToken ct) => Task.FromResult(DecideModel);
+
+        public Task<LlmDecideImplementation?> ImplementationAsync(string model, CancellationToken ct)
+            => Task.FromResult(model == DecideModel ? new LlmDecideImplementation("llm-choice", "1", Scoreless) : null);
+
+        public Task<Result<LlmDecisions>> DecideAsync(LlmDecideRequest request, CancellationToken ct)
+        {
+            lock (Decisions)
+                Decisions.Add(request);
+            static HashSet<string> Words(string text)
+                => [.. TransactionLabel.Normalize(text).Split([' ', '›'], StringSplitOptions.RemoveEmptyEntries).Where(w => w.Length >= 4)];
+            var decisions = request.Texts.Select(text =>
+            {
+                var pattern = Words(text.Split('\n').Single(l => l.StartsWith("Motif : ", StringComparison.Ordinal))["Motif : ".Length..]);
+                var choice = Enumerable.Range(0, request.Options.Count).FirstOrDefault(i => Words(request.Options[i]).Overlaps(pattern), request.Options.Count - 1);
+                var scores = choice == request.Options.Count - 1 ? new Dictionary<int, double> { [choice] = -0.1 }
+                    : new Dictionary<int, double> { [choice] = -0.1, [request.Options.Count - 1] = -2.5 };
+                return new LlmDecision(choice, Scoreless ? new Dictionary<int, double>() : scores);
+            }).ToList();
+            return Task.FromResult(Result.Success(new LlmDecisions(DecideModel!, DecideDigest, "llm-choice", "1", "local", decisions)));
+        }
+
         public bool On { get; set; } = true;
 
         public string? Digest { get; set; } = "sha256:fake";
@@ -463,7 +674,8 @@ public class CategorySuggestionTests(PostgresFixture fixture) : IClassFixture<Po
         public Task<bool> UseOnAsync(string use, CancellationToken ct) => Task.FromResult(use == ModelUses.Decide && On);
 
         public Task<string?> DigestAsync(string capability, string model, CancellationToken ct)
-            => Task.FromResult(capability == ModelUses.Embed && model == "fake-embed" ? Digest : null);
+            => Task.FromResult(capability == ModelUses.Embed && model == "fake-embed" ? Digest
+                : capability == ModelUses.Decide && model == DecideModel ? DecideDigest : null);
 
         public Task<Result<LlmEmbeddings>> EmbedAsync(LlmEmbedRequest request, CancellationToken ct)
         {

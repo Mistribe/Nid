@@ -75,8 +75,69 @@ public static class DecideCalibration
 
     /// <summary>What a calibration measured on <paramref name="Cases"/> cases. Nearest neighbours: the threshold kept with history
     /// (<see cref="ByMeaning"/>, over <paramref name="Neighbours"/> neighbours) and on the names alone (<see cref="ByName"/>), each
-    /// null when that mode is not offered.</summary>
-    public sealed record Results(int Cases, int? Neighbours, Measure? WithHistory, Measure? Cold);
+    /// null when that mode is not offered. A worker's <c>decide</c>: <paramref name="Guess"/> at the probability kept (null: not offered),
+    /// the <paramref name="Temperature"/> learnt and the <paramref name="Reliability"/> of its probabilities.</summary>
+    public sealed record Results(int Cases, int? Neighbours, Measure? WithHistory, Measure? Cold, Measure? Guess = null, double? Temperature = null,
+        IReadOnlyList<Bin>? Reliability = null);
+
+    /// <summary>One fifth of the probabilities: their mean, the share of those cases answered right, how many there were.</summary>
+    public sealed record Bin(double Confidence, double Accuracy, int Count);
+
+    /// <summary>A worker's answer to a case: the category <paramref name="Expected"/> (null: none fits), the one it wrote
+    /// (<paramref name="Choice"/>, null for « none of these » or no option), and its raw score of each option it scored, « none of these »
+    /// being the null category.</summary>
+    public sealed record Guess(Guid? Expected, Guid? Choice, IReadOnlyList<(Guid? Category, double Raw)> Scores);
+
+    /// <summary>The softmax of raw scores divided by <paramref name="temperature"/>: the probability of each.</summary>
+    public static IReadOnlyList<double> Softmax(IReadOnlyList<double> raw, double temperature)
+    {
+        if (raw.Count == 0)
+            return [];
+        var max = raw.Max();
+        var exp = raw.Select(r => Math.Exp((r - max) / temperature)).ToList();
+        var sum = exp.Sum();
+        return [.. exp.Select(e => e / sum)];
+    }
+
+    /// <summary>The option scored best and its probability at <paramref name="temperature"/>; null with no score.</summary>
+    public static (T Option, double Probability)? Top<T>(IReadOnlyList<(T Option, double Raw)> scores, double temperature)
+    {
+        if (scores.Count == 0)
+            return null;
+        var p = Softmax([.. scores.Select(s => s.Raw)], temperature);
+        var best = Enumerable.Range(0, scores.Count).MaxBy(i => p[i]);
+        return (scores[best].Option, p[best]);
+    }
+
+    /// <summary>
+    /// A worker's <c>decide</c> on the evaluation set. With scores: the temperature (0.25 to 4 by 0.05) that best predicts the expected
+    /// option (« none of these » for a case no category fits), then the lowest calibrated probability, from 0.30 to 0.99, at which the
+    /// option scored best is right often enough. Without (<paramref name="scoreless"/>): every option written is shown, offered only when
+    /// that is right often enough.
+    /// </summary>
+    public static Results Worker(IReadOnlyList<Guess> guesses, bool scoreless)
+    {
+        if (scoreless)
+        {
+            var all = Count(0, [.. guesses.Select(g => new Answer(g.Expected, g.Choice))]);
+            return new Results(guesses.Count, null, null, null, Guess: Choose([all]));
+        }
+
+        var scored = guesses.Where(g => g.Scores.Count > 0).ToList();
+        // An expected option the model did not score among its likeliest has no probability at any temperature: its loss is the same for all.
+        var temperature = Enumerable.Range(0, 76).Select(i => Math.Round(0.25 + i * 0.05, 2)).MinBy(t => scored.Sum(g =>
+        {
+            var p = Softmax([.. g.Scores.Select(s => s.Raw)], t);
+            var expected = p.Where((_, i) => g.Scores[i].Category == g.Expected).DefaultIfEmpty(0).Single();
+            return -Math.Log(Math.Max(expected, 1e-9));
+        }));
+        var tops = guesses.Select(g => (g.Expected, Top: Top(g.Scores, temperature))).ToList();
+        var guess = Choose(Grid(0.30, 0.99).Select(t => Count(t,
+            [.. tops.Select(c => new Answer(c.Expected, c.Top is { Option: { } category, Probability: var p } && p >= t ? category : null))])));
+        var reliability = tops.Where(c => c.Top is not null).GroupBy(c => Math.Min(4, (int)(c.Top!.Value.Probability * 5))).OrderBy(b => b.Key)
+            .Select(b => new Bin(b.Average(c => c.Top!.Value.Probability), b.Average(c => c.Top!.Value.Option == c.Expected ? 1.0 : 0.0), b.Count())).ToList();
+        return new Results(guesses.Count, null, null, null, guess, temperature, reliability);
+    }
 
     /// <summary>
     /// Nearest neighbours on the evaluation set, from the embeddings of its texts (<paramref name="vector"/>): with the set's

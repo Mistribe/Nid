@@ -30,5 +30,6 @@ public sealed class BankingAuditMap : IAuditMap
         [typeof(DecideProfileRow)] = AuditRule.NoItem,
     };
 
-    public IReadOnlySet<Type> Excluded { get; } = new HashSet<Type> { typeof(AuditEntryRow), typeof(BalanceRow), typeof(TransactionRow), typeof(TransactionPartRow), typeof(RecurringGroupRow), typeof(SyncRunRow), typeof(AccountReadRow) };
+    public IReadOnlySet<Type> Excluded { get; } = new HashSet<Type> { typeof(AuditEntryRow), typeof(BalanceRow), typeof(TransactionRow), typeof(TransactionPartRow), typeof(RecurringGroupRow), typeof(SyncRunRow), typeof(AccountReadRow),
+        typeof(CategoryGuessRow) }; // #450: a model's guess, cache of what it would answer again
 }

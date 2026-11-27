@@ -80,6 +80,41 @@ public sealed class CategorySuggestionStore(BankingDbContext db, IClock clock) :
         return true;
     }
 
+    public async Task<IReadOnlyList<GuessableLine>> GuessableAsync(IReadOnlyCollection<Guid> accounts, DecideKey? unguessed, int limit, CancellationToken ct)
+    {
+        var query = Open(accounts).Where(t => t.LinkState != "internal");
+        if (unguessed is { } key)
+            query = query.Where(t => !Guesses(key).Any(g => g.Pattern == t.SuggestedPattern && g.Debit == (t.Amount < 0)));
+        return (await query.OrderByDescending(t => t.BookedOn).ThenByDescending(t => t.Id).Take(limit)
+                .Select(t => new { t.SuggestedPattern, Debit = t.Amount < 0, t.AccountId, t.Label, t.Counterparty }).ToListAsync(ct))
+            .Select(t => new GuessableLine(t.SuggestedPattern!, t.Debit, t.AccountId, t.Label, t.Counterparty)).ToList();
+    }
+
+    public async Task<IReadOnlyList<CategoryGuess>> GuessesAsync(DecideKey key, CancellationToken ct)
+        => (await Guesses(key).AsNoTracking().ToListAsync(ct))
+            .Select(g => new CategoryGuess(g.Pattern, g.Debit, g.CategoryId, g.Probability, key, g.Placement, g.DecidedAt)).ToList();
+
+    public async Task SaveGuessesAsync(IReadOnlyList<CategoryGuess> guesses, CancellationToken ct)
+    {
+        foreach (var guess in guesses)
+        {
+            var key = guess.Key;
+            var row = await db.CategoryGuesses.SingleOrDefaultAsync(g => g.Pattern == guess.Pattern && g.Debit == guess.Debit && g.Model == key.Model
+                && g.Digest == key.Digest, ct);
+            if (row is null)
+                db.CategoryGuesses.Add(row = new CategoryGuessRow { Pattern = guess.Pattern, Debit = guess.Debit, Model = key.Model, Digest = key.Digest });
+            (row.CategoryId, row.Probability, row.Implementation, row.Version, row.Placement, row.DecidedAt)
+                = (guess.Category, guess.Probability, key.Implementation, key.Version, guess.Placement, guess.DecidedAt);
+        }
+        await db.SaveChangesAsync(ct);
+    }
+
+    // A model's answers, not a decision: excluded from the log, like the embeddings.
+    public Task<int> ForgetGuessesAsync(CancellationToken ct) => db.CategoryGuesses.ExecuteDeleteAsync(ct);
+
+    private IQueryable<CategoryGuessRow> Guesses(DecideKey key)
+        => db.CategoryGuesses.Where(g => g.Model == key.Model && g.Digest == key.Digest && g.Implementation == key.Implementation && g.Version == key.Version);
+
     private static SuggestionDismissal ToModel(SuggestionDismissalRow r) => new(
         r.Id, r.Pattern, Enum.Parse<RuleDirection>(r.Direction, ignoreCase: true), r.CategoryId, new PersonId(r.CreatedByPersonId), r.CreatedAt);
 }

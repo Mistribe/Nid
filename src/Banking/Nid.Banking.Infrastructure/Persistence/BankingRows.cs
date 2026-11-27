@@ -271,6 +271,29 @@ public sealed class DecideProfileRow
     public Instant MeasuredAt { get; set; }
 }
 
+/// <summary>#450: what the <c>decide</c> model guessed for a pattern and direction, one per model and digest, for the whole household.</summary>
+public sealed class CategoryGuessRow
+{
+    public string Pattern { get; set; } = "";
+    public bool Debit { get; set; }
+
+    /// <summary>Null: none of the categories, or no option the model could name.</summary>
+    public Guid? CategoryId { get; set; }
+
+    /// <summary>Calibrated; null for a model with no scores.</summary>
+    public double? Probability { get; set; }
+
+    public string Model { get; set; } = "";
+    public string Digest { get; set; } = "";
+    public string Implementation { get; set; } = "";
+    public string Version { get; set; } = "";
+
+    /// <summary><c>local</c> or <c>remote</c>: where the worker that answered runs.</summary>
+    public string Placement { get; set; } = "";
+
+    public Instant DecidedAt { get; set; }
+}
+
 /// <summary>#85: the household's budget of an expense category, one per category and per branch (a parent or its children).</summary>
 public sealed class CategoryBudgetRow
 {

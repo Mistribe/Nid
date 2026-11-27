@@ -51,6 +51,7 @@ services:
     environment:
       Engine__Url: http://engine:11434
       Engine__Models: nid-test-model
+      Engine__DecideModels: nid-test-decide # #450: the suggestions' guesses, never a chat model here
 
 networks:
   outside: {}

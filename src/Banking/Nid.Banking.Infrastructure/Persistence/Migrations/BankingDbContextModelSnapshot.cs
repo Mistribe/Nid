@@ -17,7 +17,7 @@ partial class BankingDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261127102447_DecideCalibration450";
+    public override string LastMigrationId => "20261127112901_CategoryGuesses450";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -325,6 +325,60 @@ partial class BankingDbContextModelSnapshot : ModelSnapshot
                         t.HasCheckConstraint("ck_category_budget_amount", "amount is null or amount >= 0");
 
                         t.HasCheckConstraint("ck_category_budget_period", "period in ('month','year')");
+                    });
+            });
+
+        modelBuilder.Entity("Nid.Banking.Infrastructure.Persistence.CategoryGuessRow", b =>
+            {
+                b.Property<string>("Pattern")
+                    .HasColumnType("text")
+                    .HasColumnName("pattern");
+
+                b.Property<bool>("Debit")
+                    .HasColumnType("boolean")
+                    .HasColumnName("debit");
+
+                b.Property<string>("Model")
+                    .HasColumnType("text")
+                    .HasColumnName("model");
+
+                b.Property<string>("Digest")
+                    .HasColumnType("text")
+                    .HasColumnName("digest");
+
+                b.Property<Guid?>("CategoryId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("category_id");
+
+                b.Property<Instant>("DecidedAt")
+                    .HasColumnType("timestamp with time zone")
+                    .HasColumnName("decided_at");
+
+                b.Property<string>("Implementation")
+                    .IsRequired()
+                    .HasColumnType("text")
+                    .HasColumnName("implementation");
+
+                b.Property<string>("Placement")
+                    .IsRequired()
+                    .HasColumnType("text")
+                    .HasColumnName("placement");
+
+                b.Property<double?>("Probability")
+                    .HasColumnType("double precision")
+                    .HasColumnName("probability");
+
+                b.Property<string>("Version")
+                    .IsRequired()
+                    .HasColumnType("text")
+                    .HasColumnName("version");
+
+                b.HasKey("Pattern", "Debit", "Model", "Digest")
+                    .HasName("pk_category_guess");
+
+                b.ToTable("category_guess", "banking", t =>
+                    {
+                        t.HasCheckConstraint("ck_category_guess_placement", "placement in ('local','remote')");
                     });
             });
 

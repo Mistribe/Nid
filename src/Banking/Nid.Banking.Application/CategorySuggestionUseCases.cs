@@ -23,11 +23,13 @@ public sealed record CategorySuggestionPage(IReadOnlyList<CategorySuggestionView
 /// <paramref name="CategoryId"/>: <paramref name="EvidenceCount"/> lines of accounts they read, categorised by a person, are there, out of
 /// <paramref name="Agreement"/> % of that pattern's. <paramref name="Lines"/> are the most recent covered lines, as many as one bulk categorisation takes.
 /// <paramref name="Basis"/> (#450): <c>history</c>, the pattern's own lines; <c>meaning</c>, those of patterns near it by meaning;
-/// <c>category_name</c>, no lines at all: the pattern is near the category's name, <paramref name="Agreement"/> being that similarity in percent.
+/// <c>category_name</c>, no lines at all: the pattern is near the category's name, <paramref name="Agreement"/> being that similarity in percent;
+/// <c>ai</c>, a model's guess, <paramref name="Agreement"/> being its probability in percent (0 for a model with no scores), on a worker of that
+/// <paramref name="Placement"/> (<c>local</c>, <c>remote</c>).
 /// </summary>
 public sealed record CategorySuggestionView(
     string Pattern, string Direction, Guid CategoryId, string CategoryName, int LineCount, int EvidenceCount, int Agreement,
-    IReadOnlyList<BankTransactionView> Lines, string Basis);
+    IReadOnlyList<BankTransactionView> Lines, string Basis, string? Placement = null);
 
 /// <summary>The dismissals the actor made, or whose pattern a line they read has (a dismissal names a pattern, which may be a label's).</summary>
 public sealed record ListSuggestionDismissalsQuery : IQuery<IReadOnlyList<SuggestionDismissalView>>, IRequiresBanking;
@@ -42,8 +44,9 @@ public sealed record SuggestionDismissalView(Guid Id, string Pattern, string Dir
 
 /// <summary>
 /// #449, #450: the category Nid suggests for each open pattern (lines of accounts the reader writes) and direction: the household's own
-/// choices (step A), else the choices on patterns near it by meaning, else the category whose name it is near; never one a dismissal names.
-/// Computed on every read, over the reader's lines only (H4). Shared by the « Suggestions » block and the « À classer » tab.
+/// choices (step A), else the choices on patterns near it by meaning, else the category whose name it is near, else a model's cached guess;
+/// never one a dismissal names, which lets the next basis try. Computed on every read, over the reader's lines only (H4). Shared by the
+/// « Suggestions » block and the « À classer » tab.
 /// </summary>
 public sealed class CategoryPicks(
     ICategoryStore categories, ICategorySuggestionStore suggestions, IPatternIndexStore index, IEmbeddings embeddings, DecideSetup setup,
@@ -59,41 +62,64 @@ public sealed class CategoryPicks(
         // Evidence from every account the actor reads, lines only from those they write: a group never counts an account they cannot read.
         var evidence = await suggestions.EvidenceAsync(readable, ct);
         bool InUse(Guid id) => all.TryGetValue(id, out var category) && category.ArchivedAt is null;
-        var picks = CategorySuggestions.Decide(evidence, InUse);
         var open = (await suggestions.OpenAsync(writable, ct)).ToDictionary(o => (o.Pattern, o.Debit), o => o.Lines);
-        picks = [.. picks, .. await ByModelAsync(open.Keys.Except(picks.Select(p => (p.Pattern, p.Debit))).ToList(), evidence, all.Values, InUse, ct)];
         var dismissed = (await suggestions.DismissalsAsync(ct)).Select(d => (d.Pattern, d.Direction == RuleDirection.Debit, d.Category)).ToHashSet();
-        return new Found([.. picks.Where(p => open.ContainsKey((p.Pattern, p.Debit)) && !dismissed.Contains((p.Pattern, p.Debit, p.Category)))], open, all);
+        bool Shown(CategorySuggestions.Pick p) => open.ContainsKey((p.Pattern, p.Debit)) && !dismissed.Contains((p.Pattern, p.Debit, p.Category));
+
+        // Each basis in turn, for the patterns the ones before leave with nothing to show.
+        var picks = CategorySuggestions.Decide(evidence, InUse).Where(Shown).ToList();
+        List<(string Pattern, bool Debit)> Left() => [.. open.Keys.Except(picks.Select(p => (p.Pattern, p.Debit)))];
+        if (await NeighboursAsync(ct) is { } neighbours)
+        {
+            if (neighbours.Profile.Threshold is { } threshold && evidence.Count > 0 && Left() is { Count: > 0 } left)
+                picks.AddRange((await ByMeaningAsync(neighbours.Model, left, evidence, InUse, threshold, ct)).Where(Shown));
+            if (neighbours.Profile.ColdThreshold is { } cold && Left() is { Count: > 0 } coldLeft)
+                picks.AddRange((await ByNameAsync(neighbours.Model, coldLeft, all.Values, InUse, cold, ct)).Where(Shown));
+        }
+        if (Left() is { Count: > 0 } unguessed)
+            picks.AddRange((await GuessedAsync(unguessed, InUse, ct)).Where(Shown));
+        return new Found(picks, open, all);
     }
 
-    /// <summary>
-    /// #450: the open patterns the household's own choices leave undecided, while the <c>decide</c> use is on and the model has a profile
-    /// (its calibration, <c>docs/ai/README.md</c> §7.3), at the profile's thresholds: the evidence of patterns near them by meaning, else
-    /// the category whose name they are near. Vectors are made in the background; the vote counts the reader's lines only (H4), on every read.
-    /// </summary>
-    private async Task<IReadOnlyList<CategorySuggestions.Pick>> ByModelAsync(IReadOnlyList<(string Pattern, bool Debit)> undecided,
-        IReadOnlyList<CategorySuggestions.Evidence> evidence, IEnumerable<BankCategory> all, Func<Guid, bool> inUse, CancellationToken ct)
+    /// <summary>#450: the embed model and its nearest-neighbours profile (<c>docs/ai/README.md</c> §7.3), while the <c>decide</c> use is on.</summary>
+    private async Task<(string Model, DecideProfile Profile)?> NeighboursAsync(CancellationToken ct)
+        => await embeddings.UseOnAsync(ModelUses.Decide, ct) && (await setup.NeighboursAsync(ct)).Key is { } key
+            && await calibrations.ProfileAsync(key, ct) is { } profile
+            ? (key.Model, profile)
+            : null;
+
+    /// <summary>#450: the evidence of patterns near the undecided ones by meaning, at the profile's threshold. Vectors are made in the
+    /// background; the vote counts the reader's lines only (H4), on every read.</summary>
+    private async Task<IEnumerable<CategorySuggestions.Pick>> ByMeaningAsync(string model, IReadOnlyList<(string Pattern, bool Debit)> undecided,
+        IReadOnlyList<CategorySuggestions.Evidence> evidence, Func<Guid, bool> inUse, double threshold, CancellationToken ct)
     {
-        if (undecided.Count == 0 || !await embeddings.UseOnAsync(ModelUses.Decide, ct) || (await setup.CurrentAsync(ct)).Key is not { } key
-            || await calibrations.ProfileAsync(key, ct) is not { } profile)
+        var neighbours = await index.NeighboursAsync(model, [.. undecided.Select(u => u.Pattern).Distinct()],
+            [.. evidence.Select(e => e.Pattern).Distinct()], CategorySuggestions.Neighbours, ct);
+        return undecided.Select(u => CategorySuggestions.ByMeaning(u.Pattern, u.Debit, neighbours, evidence, inUse, threshold)).OfType<CategorySuggestions.Pick>();
+    }
+
+    /// <summary>#450, cold start: the category of its side whose name the pattern is nearest, at the profile's cold threshold.</summary>
+    private async Task<IEnumerable<CategorySuggestions.Pick>> ByNameAsync(string model, IReadOnlyList<(string Pattern, bool Debit)> undecided,
+        IEnumerable<BankCategory> all, Func<Guid, bool> inUse, double threshold, CancellationToken ct)
+    {
+        Guid[] Side(CategoryKind kind) => [.. all.Where(c => c.Kind == kind && inUse(c.Id)).Select(c => c.Id)];
+        var near = await index.NearestCategoriesAsync(model, [.. undecided.Select(c => c.Pattern).Distinct()], Side(CategoryKind.Expense),
+            Side(CategoryKind.Income), ct);
+        return undecided.Select(u => CategorySuggestions.ByName(u.Pattern, u.Debit, near, threshold)).OfType<CategorySuggestions.Pick>();
+    }
+
+    /// <summary>#450: the <c>decide</c> model's guesses (<see cref="CategoryGuesser"/>), cached for the household, shown at the profile's
+    /// probability (any, for a model with no scores) on a category still in use.</summary>
+    private async Task<IEnumerable<CategorySuggestions.Pick>> GuessedAsync(IReadOnlyList<(string Pattern, bool Debit)> undecided, Func<Guid, bool> inUse,
+        CancellationToken ct)
+    {
+        if (await setup.WorkerProfileAsync(calibrations, ct) is not { } worker)
             return [];
-        var picks = new List<CategorySuggestions.Pick>();
-        if (profile.Threshold is { } threshold && evidence.Count > 0)
-        {
-            var neighbours = await index.NeighboursAsync(key.Model, [.. undecided.Select(u => u.Pattern).Distinct()],
-                [.. evidence.Select(e => e.Pattern).Distinct()], CategorySuggestions.Neighbours, ct);
-            picks.AddRange(undecided.Select(u => CategorySuggestions.ByMeaning(u.Pattern, u.Debit, neighbours, evidence, inUse, threshold))
-                .OfType<CategorySuggestions.Pick>());
-        }
-        var cold = undecided.Except(picks.Select(p => (p.Pattern, p.Debit))).ToList();
-        if (profile.ColdThreshold is { } coldThreshold && cold.Count > 0)
-        {
-            Guid[] Side(CategoryKind kind) => [.. all.Where(c => c.Kind == kind && inUse(c.Id)).Select(c => c.Id)];
-            var near = await index.NearestCategoriesAsync(key.Model, [.. cold.Select(c => c.Pattern).Distinct()], Side(CategoryKind.Expense),
-                Side(CategoryKind.Income), ct);
-            picks.AddRange(cold.Select(u => CategorySuggestions.ByName(u.Pattern, u.Debit, near, coldThreshold)).OfType<CategorySuggestions.Pick>());
-        }
-        return picks;
+        var guesses = (await suggestions.GuessesAsync(worker.Key, ct)).ToDictionary(g => (g.Pattern, g.Debit));
+        return undecided.Select(u => guesses.GetValueOrDefault(u)).OfType<CategoryGuess>()
+            .Where(g => g.Category is { } category && inUse(category) && (worker.Profile.Scoreless || g.Probability >= worker.Profile.Threshold))
+            .Select(g => new CategorySuggestions.Pick(g.Pattern, g.Debit, g.Category!.Value, 0, 0, SuggestionBases.Ai, (int)Math.Round((g.Probability ?? 0) * 100),
+                g.Placement));
     }
 }
 
@@ -122,7 +148,7 @@ public sealed class ListCategorySuggestionsHandler(
         {
             var covered = await suggestions.OpenLinesAsync(writable, pick.Pattern, pick.Debit, SetTransactionsCategoryHandler.Most, ct);
             items.Add(new CategorySuggestionView(pick.Pattern, pick.Debit ? "debit" : "credit", pick.Category, found.Categories[pick.Category].Name, count,
-                pick.Lines, pick.Agreement, await lines.ViewsAsync(covered, readable, ct), pick.Basis));
+                pick.Lines, pick.Agreement, await lines.ViewsAsync(covered, readable, ct), pick.Basis, pick.Placement));
         }
         return Result.Success(new CategorySuggestionPage(items, groups.Count));
     }

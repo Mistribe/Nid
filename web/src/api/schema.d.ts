@@ -20447,6 +20447,182 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/banking/category-suggestions/sample": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CategoryGuessSampleView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/banking/category-suggestions/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/banking/sync": {
         parameters: {
             query?: never;
@@ -40246,6 +40422,11 @@ export interface components {
             cold?: null | components["schemas"]["CalibrationFiguresView"];
             /** Format: date-time */
             measuredAt: string;
+            /** Format: double */
+            temperature?: null | number;
+            scoreless: boolean;
+            guess?: null | components["schemas"]["CalibrationFiguresView"];
+            reliability: components["schemas"]["ReliabilityBinView"][];
         };
         CalibrationRunView: {
             /** Format: uuid */
@@ -40383,6 +40564,9 @@ export interface components {
             amount?: null | string;
             period: string;
         };
+        CategoryGuessSampleView: {
+            texts: string[];
+        };
         CategoryMergeBody: {
             /** Format: uuid */
             into?: null | string;
@@ -40451,8 +40635,8 @@ export interface components {
             categoryArchived: boolean;
         };
         CategorySuggestionCalibrationView: {
-            implementation: string;
-            version: string;
+            implementation?: null | string;
+            version?: null | string;
             model?: null | string;
             digest?: null | string;
             unavailable?: null | string;
@@ -40478,6 +40662,7 @@ export interface components {
             agreement: number;
             lines: components["schemas"]["BankTransactionView"][];
             basis: string;
+            placement?: null | string;
         };
         CategoryView: {
             /** Format: uuid */
@@ -43369,6 +43554,7 @@ export interface components {
             agreement: number;
             basis: string;
             pattern: string;
+            placement?: null | string;
         };
         LineToClassifyView: {
             line: components["schemas"]["BankTransactionView"];
@@ -45512,6 +45698,14 @@ export interface components {
             /** Format: date */
             on: string;
             amount: components["schemas"]["AmountView"];
+        };
+        ReliabilityBinView: {
+            /** Format: double */
+            confidence: number;
+            /** Format: double */
+            accuracy: number;
+            /** Format: int32 */
+            count: number;
         };
         RemoteWorkersBody: {
             allowed?: null | boolean;

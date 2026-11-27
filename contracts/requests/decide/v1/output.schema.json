@@ -1,0 +1,51 @@
+{
+  "type": "object",
+  "properties": {
+    "index": {
+      "type": "integer"
+    },
+    "choice": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "scores": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "score": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "score"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "digest": {
+      "type": "string"
+    },
+    "implementation": {
+      "type": "string"
+    },
+    "implementationVersion": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "index",
+    "choice",
+    "scores",
+    "digest",
+    "implementation",
+    "implementationVersion"
+  ],
+  "additionalProperties": false
+}

@@ -59,6 +59,9 @@ public sealed class DocumentTextJobContract() : ModelContract<DocumentTextInput,
 /// <summary><c>contracts/requests/embed/v1</c> (#558): a batch of texts to vectors; its data class is the caller's.</summary>
 public sealed class EmbedRequestContract() : ModelContract<EmbedRequestInput, EmbedRequestOutput>(ModelCallKind.Request, "embed", 1);
 
+/// <summary><c>contracts/requests/decide/v1</c> (#450): short texts, each put in one of the same options; its data class is the caller's.</summary>
+public sealed class DecideRequestContract() : ModelContract<DecideRequestInput, DecideRequestOutput>(ModelCallKind.Request, "decide", 1);
+
 /// <summary><c>contracts/requests/chat/v1</c> (#485): a chat turn through a worker's engine; its data class is the caller's.</summary>
 public sealed class ChatRequestContract() : ModelContract<ChatRequestInput, ChatRequestOutput>(ModelCallKind.Request, "chat", 1);
 

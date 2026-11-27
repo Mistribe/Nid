@@ -60,6 +60,58 @@ public class DecideCalibrationTests
         Assert.Equal((25, 5), (results.Cases, results.Neighbours));
     }
 
+    private static Guess Scored(Guid? expected, double a, double b, double? none = null)
+        => new(expected, null, [(A, a), (B, b), .. none is { } n ? [((Guid?)null, n)] : Array.Empty<(Guid?, double)>()]);
+
+    [Fact]
+    public void The_temperature_learnt_makes_the_probabilities_match_how_often_the_model_is_right()
+    {
+        // At temperature 1, A's score gives it 90 %: right 18 times out of 20, it is calibrated as it is.
+        var calibrated = Enumerable.Range(0, 20).Select(i => Scored(i < 18 ? A : B, 0, -Math.Log(9))).ToList();
+        Assert.Equal(1.0, Worker(calibrated, scoreless: false).Temperature);
+        // Twice as sure of itself for the same record: its scores are halved.
+        var overconfident = Enumerable.Range(0, 20).Select(i => Scored(i < 18 ? A : B, 0, -2 * Math.Log(9))).ToList();
+        Assert.Equal(2.0, Worker(overconfident, scoreless: false).Temperature);
+
+        Assert.Equal([0.9, 0.1], Softmax([0, -Math.Log(9)], 1).Select(p => Math.Round(p, 6)));
+    }
+
+    [Fact]
+    public void The_lowest_probability_whose_suggestions_are_right_often_enough_is_kept()
+    {
+        // 40 sure and right, 10 unsure and wrong, 5 where « none of these » scores best: those are « don't know ».
+        List<Guess> guesses =
+        [
+            .. Enumerable.Range(0, 40).Select(_ => Scored(A, 0, -5)),
+            .. Enumerable.Range(0, 10).Select(_ => Scored(B, 0, -0.4)),
+            .. Enumerable.Range(0, 5).Select(_ => Scored(null, -3, -4, none: 0)),
+        ];
+
+        var results = Worker(guesses, scoreless: false);
+
+        var unsure = Top<Guid?>([(A, 0), (B, -0.4)], results.Temperature!.Value)!.Value.Probability;
+        Assert.Equal(Math.Ceiling(unsure * 100) / 100, results.Guess!.Threshold);
+        Assert.Equal((55, 40, 0, 15), (results.Cases, results.Guess.Shown, results.Guess.Wrong, results.Guess.DontKnow));
+        Assert.Equal(55, results.Reliability!.Sum(b => b.Count));
+        Assert.All(results.Reliability!, b => Assert.InRange(b.Confidence, 0, 1));
+        Assert.Null(results.Neighbours);
+
+        // Unsure and wrong as often as right: nothing is offered.
+        Assert.Null(Worker([.. Enumerable.Range(0, 40).Select(i => Scored(i % 2 == 0 ? A : B, 0, -0.1))], scoreless: false).Guess);
+    }
+
+    [Fact]
+    public void Without_scores_every_option_written_is_shown_and_offered_only_when_right_often_enough()
+    {
+        List<Guess> right = [.. Enumerable.Range(0, 25).Select(_ => new Guess(A, A, [])), new Guess(null, null, []), new Guess(B, null, [])];
+
+        var offered = Worker([.. right, new Guess(B, A, [])], scoreless: true);
+        Assert.Equal((0, 26, 1, 2), (offered.Guess!.Threshold, offered.Guess.Shown, offered.Guess.Wrong, offered.Guess.DontKnow));
+        Assert.Null(offered.Temperature);
+
+        Assert.Null(Worker([.. right, new Guess(B, A, []), new Guess(null, A, [])], scoreless: true).Guess);
+    }
+
     [Fact]
     public void A_model_that_cannot_tell_the_cases_apart_is_not_offered()
     {
