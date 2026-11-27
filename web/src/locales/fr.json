@@ -696,7 +696,10 @@
     "empty_body": "Ajoutez un bien pour suivre sa valeur, ce qu’il a coûté et ce qu’il vaut une fois ses crédits déduits.",
     "not_estimated": "Pas encore estimé",
     "stale": "À réestimer",
-    "unknown_rate": "—"
+    "unknown_rate": "—",
+    "group_one": "{{count}} bien",
+    "group_other": "{{count}} biens",
+    "expand_group": "Déplier les biens"
   },
   "property_form": {
     "with_loan": "Achat avec un crédit",

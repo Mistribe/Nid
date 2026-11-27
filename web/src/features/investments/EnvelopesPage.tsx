@@ -119,7 +119,7 @@ function Body({ answer, add, flat }: { answer: ReturnType<typeof useEnvelopes>; 
   return (
     <>
       <p className="text-sm text-muted-foreground">{t('investments.before_tax')}</p>
-      <SortableTable<Row> caption={t('investments.list')} rows={flat ? data.items : rows(data)} rowKey={(r) => (r.parts ? `group:${r.id}` : r.id)}
+      <SortableTable<Row> key={flat ? 'flat' : 'grouped'} caption={t('investments.list')} rows={flat ? data.items : rows(data)} rowKey={(r) => (r.parts ? `group:${r.id}` : r.id)}
         rowLink={(r) => ({ to: '/investments/$id', params: { id: r.id } })}
         subRows={(r) => r.parts} expandLabel={() => t('investments.expand_group')}
         rowClassName={(r) => (r.parts ? 'bg-muted/50' : undefined)}

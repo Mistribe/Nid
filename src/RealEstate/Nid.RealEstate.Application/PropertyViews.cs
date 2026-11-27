@@ -12,7 +12,16 @@ public sealed record PropertySummary(
     ItemId Id, string Name, string Type, string Currency, string Visibility, string? Value, LocalDate? ValueOn, bool Stale,
     string? NetValue, string? GrossYield, string? VacancyRate, bool CanWrite, IReadOnlyList<ItemOwnerView> Owners);
 
-public sealed record PropertyList(IReadOnlyList<PropertySummary> Items) : IExposesItems
+/// <summary>
+/// #799: the listed properties of the same owners and shares. <paramref name="Value"/> and <paramref name="NetValue"/> add up theirs in
+/// the household's currency, converted today; null when a rate is missing or none has one.
+/// </summary>
+public sealed record PropertyGroupView(IReadOnlyList<ItemOwnerView> Owners, IReadOnlyList<Guid> Items, PropertyMoneyView? Value, PropertyMoneyView? NetValue);
+
+public sealed record PropertyMoneyView(string Amount, string Currency);
+
+/// <param name="Groups">The rows by owners and shares, in the rows' order.</param>
+public sealed record PropertyList(IReadOnlyList<PropertySummary> Items, IReadOnlyList<PropertyGroupView> Groups) : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems() => Items.Select(i => i.Id);
 }

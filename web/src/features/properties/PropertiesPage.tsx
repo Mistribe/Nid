@@ -1,4 +1,4 @@
-import { Link, useSearch } from '@tanstack/react-router';
+import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 import { Clock } from 'lucide-react';
 import { lazy, Suspense, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -8,16 +8,18 @@ import type { PropertiesSearch } from '@/app/router';
 import type { RootSearch } from '@/lib/search';
 import { AccessBadge } from '@/components/AccessBadge';
 import { EmptyState } from '@/components/EmptyState';
+import { SwitchField } from '@/components/page/SwitchField';
 import { LocalDate } from '@/components/LocalDate';
 import { OwnerChips } from '@/components/OwnerChips';
 import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
+import { foldByOwners, type Folded } from '@/components/page/foldByOwners';
 import { PageHeader } from '@/components/page/PageHeader';
 import { SortableTable } from '@/components/page/SortableTable';
 import { amountKey } from '@/components/page/sortKey';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { buttonVariants } from '@/components/ui/button';
 import { money, percent } from '../loans/format';
-import { PROPERTIES, PROPERTIES_RENTAL, type PropertySummary } from '@/api/properties';
+import { PROPERTIES, PROPERTIES_RENTAL, type PropertyList, type PropertySummary } from '@/api/properties';
 import { typeText } from './format';
 import '@/locales/properties';
 import '@/locales/forms';
@@ -70,37 +72,63 @@ export function PropertiesPage() {
   );
 }
 
-/** The properties with their value today and their net value (3D1 design §4). */
+/** The properties with their value today and their net value (3D1 design §4), those of the same owners folded into one row (#799). */
 function ListTab({ scope, add }: { scope: 'me' | 'household'; add: ReactNode }) {
   const { t } = useTranslation();
   const { $api } = useApi();
+  const search: RootSearch & PropertiesSearch = useSearch({ strict: false });
+  const navigate = useNavigate();
+  const flat = search.flat === 1;
+  const setFlat = (on: boolean) =>
+    void navigate({ to: '/properties', search: (prev: RootSearch & PropertiesSearch) => ({ ...prev, flat: on ? (1 as const) : undefined }), replace: true, resetScroll: false });
   const answer = $api.useQuery('get', PROPERTIES, { params: { query: { scope } } });
-  const items = answer.data?.items;
 
+  // One stable frame whatever the answer: the switch must survive the reload its own change causes (focus).
+  return (
+    <>
+      <SwitchField label={t('lists.group_by_owner')} checked={!flat} onCheckedChange={(on) => setFlat(!on)} />
+      <Body answer={answer} add={add} flat={flat} />
+    </>
+  );
+}
+
+type Row = Folded<PropertySummary, PropertyList['groups'][number]>;
+
+function Body({ answer, add, flat }: { answer: { data?: PropertyList; error?: unknown }; add: ReactNode; flat: boolean }) {
+  const { t } = useTranslation();
   if (answer.error) return <ProblemMessage problem={present(toProblem(answer.error))} />;
-  if (!items)
+  if (!answer.data)
     return (
       <Loading label={t('properties.loading')}><TableSkeleton columns={6} /></Loading>
     );
+  const { items, groups } = answer.data;
   if (items.length === 0) return <EmptyState module="/properties" title={t('properties.empty_title')} body={t('properties.empty_body')} action={add} />;
+  const name = (r: Row) => r.parts
+    ? <span className="font-medium">{t('properties.group', { count: r.parts.length })}</span>
+    : <span className="inline-flex flex-wrap items-center gap-2"><span className="font-medium">{r.name}</span><AccessBadge access={r.visibility === 'private' ? 'private' : 'shared'} /></span>;
+  const total = (m: { amount: string; currency: string } | null | undefined) => (m ? <span className="tabular-nums">{money(m.currency, m.amount)}</span> : <Dash />);
+  const value = (r: Row) => (r.group ? total(r.group.value) : <Value item={r} />);
+  const net = (r: Row) => (r.group ? total(r.group.netValue) : r.netValue ? money(r.currency, r.netValue) : <Dash />);
   return (
-    <SortableTable<PropertySummary> caption={t('properties.list')} rows={items} rowKey={(r) => r.id}
+    <SortableTable<Row> key={flat ? 'flat' : 'grouped'} caption={t('properties.list')} rows={flat ? items : foldByOwners(items, groups)} rowKey={(r) => (r.parts ? `group:${r.id}` : r.id)}
       rowLink={(r) => ({ to: '/properties/$id', params: { id: r.id } })}
+      subRows={(r) => r.parts} expandLabel={() => t('properties.expand_group')}
+      rowClassName={(r) => (r.parts ? 'bg-muted/50' : undefined)}
       columns={[
-        { id: 'name', header: t('lists.col.name'), sort: (r) => r.name, cell: (r) => <span className="inline-flex flex-wrap items-center gap-2"><span className="font-medium">{r.name}</span><AccessBadge access={r.visibility === 'private' ? 'private' : 'shared'} /></span> },
-        { id: 'type', header: t('lists.col.kind'), sort: (r) => typeText(t, r.type), cell: (r) => typeText(t, r.type) },
+        { id: 'name', header: t('lists.col.name'), sort: (r) => r.name, cell: name },
+        { id: 'type', header: t('lists.col.kind'), sort: (r) => typeText(t, r.type), cell: (r) => (r.parts ? null : typeText(t, r.type)) },
         { id: 'owner', header: t('lists.col.owner'), cell: (r) => <OwnerChips owners={r.owners} /> },
-        { id: 'value', header: t('lists.col.value'), align: 'end', sort: (r) => amountKey(r.value), cell: (r) => <Value item={r} /> },
-        { id: 'net', header: t('lists.col.net_value'), align: 'end', sort: (r) => amountKey(r.netValue), cell: (r) => r.netValue ? money(r.currency, r.netValue) : <Dash /> },
+        { id: 'value', header: t('lists.col.value'), align: 'end', sort: (r) => amountKey(r.group ? r.group.value?.amount : r.value), cell: value },
+        { id: 'net', header: t('lists.col.net_value'), align: 'end', sort: (r) => amountKey(r.group ? r.group.netValue?.amount : r.netValue), cell: net },
         // Spec 3D2 §5: the server's fractions in %, « — » when it gives none.
-        { id: 'yield', header: t('lists.col.gross_yield'), align: 'end', sort: (r) => amountKey(r.grossYield), cell: (r) => r.grossYield ? percent(t, r.grossYield) : <Dash /> },
+        { id: 'yield', header: t('lists.col.gross_yield'), align: 'end', sort: (r) => amountKey(r.grossYield), cell: (r) => r.parts ? null : r.grossYield ? percent(t, r.grossYield) : <Dash /> },
       ]}
       mobile={(r) => (
         <div className="space-y-1">
-          <div className="flex items-center justify-between gap-2"><span className="font-medium">{r.name}</span><OwnerChips owners={r.owners} /></div>
+          <div className="flex items-center justify-between gap-2">{name(r)}<OwnerChips owners={r.owners} /></div>
           <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-            <Value item={r} />
-            {r.netValue ? <span className="tabular-nums text-muted-foreground">{money(r.currency, r.netValue)}</span> : null}
+            {value(r)}
+            <span className="text-muted-foreground">{net(r)}</span>
           </div>
         </div>
       )} />
