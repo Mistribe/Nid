@@ -724,7 +724,7 @@ livrée par défaut.
 
 **Livré (#450, capacité `decide` d'un worker, candidat 3)** :
 - Le worker (§3.7) sert `decide` avec un petit LLM de son moteur (`llm-choice`, version `1`, scores par logprobs).
-- `CategoryGuesser` (Banking, dans `ModelWorkLoop`, toutes les 30 s) tourne quand l'usage `decide` a un modèle et que ce modèle a un
+- `CategoryGuesser` (Banking, dans `ModelWorkLoop`, toutes les 5 min) tourne quand l'usage `decide` a un modèle et que ce modèle a un
   profil en vigueur (§7.3). Il prend les motifs ouverts de **tous** les comptes (lignes sans catégorie, ni ignorées, ni virements
   internes, qu'aucune règle ne prend) que l'étape A ne décide pas pour le foyer et qui n'ont pas encore de réponse de ce modèle à
   cette empreinte, cette implémentation et cette version. Pour chacun, un texte masqué (§6.5) : le sens (débit ou crédit), le
@@ -732,7 +732,9 @@ livrée par défaut.
   (dépenses pour un débit, revenus pour un crédit, en « Parent › Nom », masquées), puis « Aucune de ces catégories ». Plus de
   51 catégories d'un côté : ce côté n'est pas demandé. Classe `bank_labels` ; les adultes concernés sont les lecteurs des comptes
   qui portent ses lignes (le titulaire d'un compte privé, chaque titulaire d'un compte joint). Lots de 16 textes au plus, par sens
-  et par adultes concernés identiques, 4 requêtes par passage ; un lot refusé faute d'`allow` n'arrête pas les autres.
+  et par adultes concernés identiques, 4 requêtes par passage ; un lot refusé faute d'`allow` n'arrête pas les autres, tout autre refus (pas de worker, usage éteint, modèle
+  indisponible) arrête le passage. Toutes les 5 min plutôt que 30 s : un lot retenu est redemandé à chaque passage, et chaque refus
+  est une ligne de `llm_call`.
 - La réponse est gardée pour le foyer dans `banking.category_guess` (motif, sens, catégorie ou aucune, probabilité calibrée, modèle,
   empreinte, implémentation, version, placement du worker, date), une par (motif, sens, modèle, empreinte). Créer, renommer,
   déplacer, archiver, désarchiver ou fusionner une catégorie efface toutes les réponses dans la même transaction ; « Suggérer à

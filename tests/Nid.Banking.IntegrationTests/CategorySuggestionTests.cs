@@ -551,6 +551,42 @@ public class CategorySuggestionTests(PostgresFixture fixture) : IClassFixture<Po
         Assert.Null(Group(await PageAsync(app, app.AdultA), "COURSES EXPRESS"));
     }
 
+    /// <summary>#450: a guess chose among the categories as they were: renaming, archiving, bringing back or merging one forgets them all.</summary>
+    [Fact]
+    public async Task Renaming_archiving_unarchiving_or_merging_a_category_forgets_every_guess()
+    {
+        var labels = new Labels { DecideModel = "fake-decide" };
+        await using var s = await StartAsync(fixture, labels);
+        var app = s.App;
+        await AddAsync(app, s.Shared, "CB COURSES EXPRESS 3");
+        await WorkerProfileAsync(app, threshold: 0.5);
+        var created = (await BankingApi.JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{BankingApi.Root}/categories",
+            new { name = "Épicerie fine", kind = "expense" }))).GetProperty("id").GetGuid();
+        Task<HttpResponseMessage> Patch(object body) => app.RawAsync(app.AdultA, HttpMethod.Patch, $"{BankingApi.Root}/categories/{created}", body);
+
+        async Task ForgottenAfterAsync(Func<Task<HttpResponseMessage>> change, bool forgotten = true)
+        {
+            await GuessAsync(app);
+            Assert.NotEmpty(await GuessesAsync(app));
+            Assert.Equal(HttpStatusCode.OK, (await change()).StatusCode);
+            Assert.Equal(forgotten, (await GuessesAsync(app)).Count == 0);
+        }
+
+        await ForgottenAfterAsync(() => Patch(new { name = "Épicerie" }));
+        await ForgottenAfterAsync(() => Patch(new { name = "Épicerie" }), forgotten: false); // nothing changed: kept
+        await ForgottenAfterAsync(() => Patch(new { archived = true }));
+        await ForgottenAfterAsync(() => Patch(new { archived = false }));
+        await ForgottenAfterAsync(() => app.RawAsync(app.AdultA, HttpMethod.Post, $"{BankingApi.Root}/categories/{created}/merge", new { into = Groceries }));
+    }
+
+    private static async Task<IReadOnlyList<CategoryGuess>> GuessesAsync(NidApp app)
+    {
+        await using var scope = app.Services.CreateAsyncScope();
+        scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
+        return await scope.ServiceProvider.GetRequiredService<ICategorySuggestionStore>().GuessesAsync(
+            new DecideKey("llm-choice", "1", "fake-decide", Labels.DecideDigest), TestContext.Current.CancellationToken);
+    }
+
     [Fact]
     public async Task The_sample_shows_what_would_be_sent_masked_from_the_reader_own_lines()
     {

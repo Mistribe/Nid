@@ -19,4 +19,12 @@ public class ModelWorkLoopTests
         Assert.True(ModelWorkLoop.Due(720, ModelWorkLoop.PurgeEvery));
         Assert.False(ModelWorkLoop.Due(719, ModelWorkLoop.PurgeEvery));
     }
+
+    /// <summary>#450: the decide model's guesses, every 5 minutes, not with the 30-second index passes.</summary>
+    [Fact]
+    public void The_guesses_run_every_five_minutes()
+    {
+        Assert.True(ModelWorkLoop.Due(60, ModelWorkLoop.GuessEvery));
+        Assert.False(ModelWorkLoop.Due(6, ModelWorkLoop.GuessEvery));
+    }
 }
