@@ -1,9 +1,10 @@
 // A scripted OpenAI-compatible engine for the end-to-end stack only (#528): the Compose worker's engine in compose.local.yaml,
 // never on a real deployment. Two models, two scripts. nid-test-model chats: without a tool result yet, it asks for
 // list_envelopes; with one, it names the first envelope it read and writes a URL, which the « Assistant » page must leave as
-// plain text. nid-test-decide (#450) answers decide's one-token calls: the letter of the first sub-category whose own name shares
-// a word with the pattern, else « none of these », with log-probabilities. Right often enough on the evaluation set (27 shown,
-// 1 wrong) for a calibration to offer it, so a journey sees its guesses.
+// plain text. nid-test-decide (#450) answers decide's one-token calls, asked in two steps (#821): the letter of the first top
+// whose children's names share a word with the pattern, then of the child whose own name does, else « none of these », with
+// log-probabilities; the content-free texts get « none of these ». Right often enough on the evaluation set v2 (27 shown,
+// 1 wrong at 0.30, 412 cases) for a calibration to offer it, so a journey sees its guesses (« PHARMACIE … » → Médecin & pharmacie).
 import { createServer } from 'node:http';
 
 const MODEL = 'nid-test-model';
@@ -41,14 +42,18 @@ function turn(messages) {
 /** The words of a text, five letters or more (« PRET » would put a friend's refund on the home loan), upper case and without accents. */
 const words = (text) => new Set(text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().split(/[^A-Z]+/).filter((w) => w.length >= 5));
 
-/** decide: `X: Parent › Name` lines, then the text in its block; the pattern's words pick a sub-category by its own name (a top
- * category's, « Santé », is too broad to be right often enough). */
+/** The sub-categories' names an option holds: `Parent › Name` (the second step) its own, `Top (Child, Child…)` (the first, #821) its
+ * children's; a top without children none (« Santé » alone is too broad to be right often enough). */
+const children = (name) => (name.includes(' › ') ? name.split(' › ').at(-1) : (/\((.*)\)$/.exec(name)?.[1] ?? ''));
+
+/** decide: `X: option` lines, then the text in its block; the pattern's words pick the option holding a sub-category of that word. A
+ * content-free text (`N/A`, `[MASQUÉ]`, `X`) shares none, so it says « none of these ». */
 function decide(messages) {
   const user = messages.find((m) => m.role === 'user')?.content ?? '';
   const options = [...user.matchAll(/^([A-Za-z]): (.+)$/gm)].map((m) => ({ id: m[1], name: m[2] }));
   const pattern = words(/^Motif : (.*)$/m.exec(user)?.[1] ?? '');
   const none = options.at(-1);
-  const chosen = options.find((o) => o !== none && o.name.includes(' › ') && [...words(o.name.split(' › ').at(-1))].some((w) => pattern.has(w))) ?? none;
+  const chosen = options.find((o) => o !== none && [...words(children(o.name))].some((w) => pattern.has(w))) ?? none;
   const top = [{ token: chosen.id, logprob: -0.05 }, ...(chosen === none ? [] : [{ token: none.id, logprob: -3.2 }]), { token: 'Le', logprob: -4.5 }];
   return {
     object: 'chat.completion', model: DECIDE,
