@@ -232,6 +232,10 @@ public sealed class TransactionStore(BankingDbContext db, IClock clock) : ITrans
     public async Task MarkReconciledAsync(IReadOnlyCollection<Guid> ids, Instant at, CancellationToken ct)
         => await db.Transactions.Where(t => ids.Contains(t.Id)).ExecuteUpdateAsync(s => s.SetProperty(t => t.ReconciledAt, at), ct);
 
+    public async Task RequeueAsync(Guid account, CancellationToken ct)
+        => await db.Transactions.Where(t => t.AccountId == account && t.LinkState != "ignored")
+            .ExecuteUpdateAsync(s => s.SetProperty(t => t.ReconciledAt, (Instant?)null), ct);
+
     public Task<int> PurgeBookedBeforeAsync(LocalDate before, IReadOnlyCollection<Guid> keep, CancellationToken ct)
     {
         var kept = keep.ToList();
