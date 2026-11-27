@@ -10,6 +10,9 @@ public sealed record AssetDetails(
     LocalDate? RegisteredOn = null, int? MileageKm = null, LocalDate? MileageOn = null, int? FiscalHp = null, string? Energy = null,
     decimal? DepreciationRate = null);
 
+/// <summary>#650: a vehicle's mileage on a date; each mileage written is kept, one per day.</summary>
+public sealed record MileageReading(LocalDate On, int Km);
+
 /// <summary>The bounds of an asset's fields. The first refusal wins; null when there is none.</summary>
 public static class AssetRules
 {
