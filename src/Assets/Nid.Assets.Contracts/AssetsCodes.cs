@@ -19,7 +19,7 @@ public static class AssetsCodes
     public const string InvalidPurchase = "assets.invalid_purchase";
     public const string InvalidValue = "assets.invalid_value";
     public const string Conflict = "assets.conflict";
-    /// <summary>A running cost's kind or category outside the convention (an expense of service, repair, tyres, other).</summary>
+    /// <summary>A running cost's kind or category outside the convention (an expense of service, repair, tyres, fuel, other).</summary>
     public const string InvalidCategory = "assets.invalid_category";
     /// <summary>A running cost on an asset that is not a vehicle: only a vehicle takes costs.</summary>
     public const string CostsVehicleOnly = "assets.costs_vehicle_only";

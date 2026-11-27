@@ -54,6 +54,18 @@ public class AssetCostTests(PostgresFixture fixture) : IClassFixture<PostgresFix
     }
 
     [Fact]
+    public async Task A_fuel_cost_is_recorded()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await CreateAsync(app, Car(app));
+
+        var recorded = await AddAsync(app, id, category: "fuel");
+
+        Assert.Equal(HttpStatusCode.Created, recorded.StatusCode);
+        Assert.Equal("fuel", (await CostsAsync(app, id)).GetProperty("rows")[0].GetProperty("category").GetString());
+    }
+
+    [Fact]
     public async Task A_cost_on_a_non_vehicle_is_refused()
     {
         await using var app = await NidApp.StartAsync(fixture);
@@ -68,7 +80,7 @@ public class AssetCostTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         await using var app = await NidApp.StartAsync(fixture);
         var id = await CreateAsync(app, Car(app));
 
-        await AssertRefusedAsync(await AddAsync(app, id, category: "fuel"), HttpStatusCode.UnprocessableEntity, AssetsCodes.InvalidCategory, "category");
+        await AssertRefusedAsync(await AddAsync(app, id, category: "parking"), HttpStatusCode.UnprocessableEntity, AssetsCodes.InvalidCategory, "category");
         await AssertRefusedAsync(await AddAsync(app, id, amount: "0"), HttpStatusCode.UnprocessableEntity, AssetsCodes.InvalidValue, "amount");
         await AssertRefusedAsync(await AddAsync(app, id, occurredOn: "2025-10-16"), HttpStatusCode.UnprocessableEntity, CoreFactCodes.DateInFuture, "occurredOn");
         await AssertRefusedAsync(

@@ -114,7 +114,7 @@ public class AssetsImportTests(PostgresFixture fixture) : IClassFixture<Postgres
     {
         await using var app = await NidApp.StartAsync(fixture);
         var file = File([Car]);
-        file["flows"] = """[{"id":"f-car","item":"asset-car","occurred_on":"2024-01-01","kind":"expense","amount":{"amount":"100","currency":"EUR"},"category":"fuel"}]""";
+        file["flows"] = """[{"id":"f-car","item":"asset-car","occurred_on":"2024-01-01","kind":"expense","amount":{"amount":"100","currency":"EUR"},"category":"parking"}]""";
 
         var session = await ValidateAsync(new ImportClient(app), app, app.AdultA, file);
 

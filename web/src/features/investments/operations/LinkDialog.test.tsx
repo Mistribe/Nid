@@ -57,3 +57,33 @@ describe('« Relier » a vehicle', () => {
     await waitFor(() => expect(linked).toEqual([{ module: 'assets', itemId: 'v1', key: 'cost', category: 'tyres' }]));
   });
 });
+
+describe('« Relier » a fuel line to a vehicle', () => {
+  beforeAll(async () => { await import('../EnvelopeDetailPage'); await import('./OperationsTab'); }, 30_000);
+
+  it('offers « Carburant / recharge » for a line categorised as fuel', async () => {
+    const linked: unknown[] = [];
+    server.use(
+      http.get('*/api/v1/investments/envelopes/:id', () => HttpResponse.json(detail({ kind: 'checking' }))),
+      http.get('*/api/v1/banking/status', () => HttpResponse.json({ enabled: true, configured: false })),
+      http.get('*/api/v1/banking/envelopes/:id/transactions', () => HttpResponse.json({
+        items: [{ id: 't1', bookedOn: '2026-10-27', valueOn: null, amount: '-60.00', currency: 'EUR', label: 'CB STATION', counterparty: null, fromCard: false, cardName: null, fetchedVia: 'file', linkState: 'unlinked', link: null, accountName: 'Compte',
+          category: { id: 'fuel', key: 'transport.fuel', name: 'Carburant', kind: 'expense' } }],
+        hasMore: false,
+      })),
+      http.get('*/api/v1/banking/transactions/:id/candidates', () => HttpResponse.json([
+        { module: 'assets', itemId: 'v1', itemName: 'Citadine', kind: 'vehicle_cost', key: 'cost', dueOn: '2026-10-27', amount: '60.00', currency: 'EUR', credit: false, gap: null },
+      ])),
+      http.post('*/api/v1/banking/transactions/:id/link', async ({ request }) => { linked.push(await request.json()); return HttpResponse.json({ id: 't1' }); }),
+    );
+    const { user } = await renderApp(`/investments/${PEA}?tab=operations`);
+
+    await user.click((await screen.findAllByRole('button', { name: /Actions/ }))[0]!);
+    await user.click(await screen.findByRole('menuitem', { name: 'Relier…' }));
+    await pick(user, 'Charge attendue', 'Citadine');
+    expect(screen.getByRole('combobox', { name: /Type de frais/ })).toHaveTextContent('Carburant / recharge');
+    await user.click(screen.getByRole('button', { name: 'Relier' }));
+
+    await waitFor(() => expect(linked).toEqual([{ module: 'assets', itemId: 'v1', key: 'cost', category: 'fuel' }]));
+  });
+});

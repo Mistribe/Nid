@@ -130,7 +130,7 @@ public static class RouteActions
         new("add_asset_valuation", "POST", "/api/v1/assets/{id:guid}/valuations", typeof(Nid.Host.Api.AssetEndpoints.AssetValuationBody),
             "Record an asset's estimated value on a date. " + Ids + Amounts),
         new("add_asset_cost", "POST", "/api/v1/assets/{id:guid}/costs", typeof(Nid.Host.Api.AssetEndpoints.AssetCostBody),
-            "Record a running cost of a vehicle (a service, a repair, tyres), an expense dated today or before, category one of "
+            "Record a running cost of a vehicle (a service, a repair, tyres, fuel or charging), an expense dated today or before, category one of "
             + string.Join(", ", Nid.Assets.Contracts.AssetCostCategories.All) + ". Only a vehicle takes costs. documentId (list_documents) is its invoice. "
             + "Check list_asset_costs first: invent nothing, record each cost once. " + Ids + Amounts),
         new("correct_asset_cost", "PUT", "/api/v1/assets/{id:guid}/costs/{flowId:guid}", typeof(Nid.Host.Api.AssetEndpoints.AssetCostBody),

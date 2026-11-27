@@ -12060,6 +12060,99 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/assets/{id}/ownership-cost": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    year?: number;
+                };
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OwnershipCostView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/assets/{id}/costs/{flowId}": {
         parameters: {
             query?: never;
@@ -40270,6 +40363,7 @@ export interface components {
             parentId?: null | string;
             parentName?: null | string;
             kind: string;
+            key?: null | string;
         };
         CeilingView: {
             ceiling: components["schemas"]["AmountView"];
@@ -40701,6 +40795,13 @@ export interface components {
             amount: string;
             currency: string;
             amountConverted?: null | components["schemas"]["LoanMoneyView"];
+        };
+        CostPartView: {
+            code: string;
+            amount?: null | components["schemas"]["MoneyView"];
+            /** Format: uuid */
+            sourceId?: null | string;
+            name?: null | string;
         };
         CostReportBody: {
             /** Format: double */
@@ -44103,6 +44204,18 @@ export interface components {
             personId: string;
             /** Format: int32 */
             shareBp: number;
+        };
+        OwnershipCostView: {
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            to: string;
+            total: components["schemas"]["MoneyView"];
+            monthly: components["schemas"]["MoneyView"];
+            perKm?: null | components["schemas"]["MoneyView"];
+            incomplete: boolean;
+            parts: components["schemas"]["CostPartView"][];
+            years: number[];
         };
         OwnerView: {
             /** Format: uuid */

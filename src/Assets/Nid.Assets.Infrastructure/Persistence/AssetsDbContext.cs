@@ -9,6 +9,7 @@ public sealed class AssetsDbContext(DbContextOptions<AssetsDbContext> options) :
     public const string Schema = "assets";
 
     public DbSet<AssetRow> Assets => Set<AssetRow>();
+    public DbSet<MileageReadingRow> MileageReadings => Set<MileageReadingRow>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -38,6 +39,13 @@ public sealed class AssetsDbContext(DbContextOptions<AssetsDbContext> options) :
             // Per importer, never instance-wide (import-format.md section 8).
             e.HasIndex(x => new { x.ImportedBy, x.ImportRef }).IsUnique().HasFilter("import_ref is not null");
             e.Property(x => x.Version).HasColumnName("xmin").HasColumnType("xid").ValueGeneratedOnAddOrUpdate().IsConcurrencyToken();
+        });
+
+        modelBuilder.Entity<MileageReadingRow>(e =>
+        {
+            e.ToTable("asset_mileage_reading", t => t.HasCheckConstraint("ck_asset_mileage_reading_km", "km >= 0"));
+            e.HasKey(x => new { x.ItemId, x.ReadOn });
+            e.HasOne<AssetRow>().WithMany().HasForeignKey(x => x.ItemId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.MapAuditLog(ownedHere: false);
