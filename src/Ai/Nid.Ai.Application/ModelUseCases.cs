@@ -12,8 +12,8 @@ namespace Nid.Ai.Application;
 /// it, tells every adult.</summary>
 public sealed record SetUseModeCommand(string Use, string Mode) : ICommand<PolicyChange<AiSettingsView>>, IAdminOnly, IBrowserOnly;
 
-/// <summary>The model one use runs on (§12): an admin, among the models the workers declare or, for <c>embed</c> (#556), the
-/// model of an enabled cloud profile that embeds; null clears it.</summary>
+/// <summary>The model one use runs on (§12): an admin, among the models the workers declare or, for <c>embed</c> (#556) and
+/// <c>decide</c> (#812), the model of an enabled cloud profile serving it; null clears it.</summary>
 public sealed record SetUseModelCommand(string Use, string? Model) : ICommand<AiSettingsView>, IAdminOnly, IBrowserOnly;
 
 /// <summary>The models the active workers declare, for the model of each use (any adult reads them).</summary>
@@ -69,7 +69,7 @@ public sealed class SetUseModelHandler(IAiSettings settings, IWorkerStore worker
         {
             var declared = await DeclaredModelsHandler.ListAsync(workers, ct);
             if (!declared.Any(m => m.Name == model && m.Capability == ModelUses.Capability(command.Use))
-                && !(command.Use == ModelUses.Embed && (await CloudEmbedModels.EnabledAsync(profiles, cloud, ct)).Contains(model)))
+                && !(command.Use is ModelUses.Embed or ModelUses.Decide && (await CloudModels.EnabledAsync(profiles, cloud, command.Use, ct)).Contains(model)))
                 return Result.Failure<AiSettingsView>(new Failure(JobCodes.ModelUnavailable, "No active worker declares this model for this use.", null));
         }
 
@@ -96,14 +96,15 @@ public sealed class DeclaredModelsHandler(IWorkerStore workers) : IRequestHandle
             .Select(g => new DeclaredModelView(g.Key.Name, g.Key.Capability, g.Select(m => m.Id).Distinct().Count()))];
 }
 
-/// <summary>#450: a model's digest as the active workers declare it; the <c>embed</c> use's cloud model is its profile's.</summary>
+/// <summary>#450: a model's digest as the active workers declare it; the <c>embed</c> and <c>decide</c> uses' cloud model is its
+/// profile's (#812).</summary>
 public sealed class ModelDigests(IWorkerStore workers, IAiSettings settings, ILlmProfiles profiles) : IModelDigests
 {
     public async Task<string?> DigestAsync(string capability, string model, CancellationToken ct)
     {
-        // As LlmEmbedder routes it: with self_hosted_then_cloud, a cloud profile's embeddings model is that provider's alone.
-        if (capability == ModelUses.Capability(ModelUses.Embed) && (await settings.UseAsync(ModelUses.Embed, ct)).Mode == UseModes.SelfHostedThenCloud
-            && profiles.All.FirstOrDefault(p => p.Model == model && p.Capabilities.Contains(ModelUses.Embed)) is { } cloud)
+        // As LlmEmbedder and LlmDecider route it: with self_hosted_then_cloud, a cloud profile's model is that provider's alone.
+        if (capability is ModelUses.Embed or ModelUses.Decide && (await settings.UseAsync(capability, ct)).Mode == UseModes.SelfHostedThenCloud
+            && CloudModels.Of(profiles, capability, model) is { } cloud)
             return "cloud:" + cloud.Id;
         var digests = (await workers.ListAsync(ct)).Where(w => w.Status == WorkerStatus.Active)
             .SelectMany(w => WorkerRouter.DeclarationOf(w)?.Models ?? [])

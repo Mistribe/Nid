@@ -49,15 +49,20 @@ public static class UseModes
 }
 
 /// <summary>#556: the document types an admin may let a cloud provider read (<c>allowed_kinds</c>, <c>docs/ai/README.md</c>
-/// §6.1), named as Documents names their roles. A payslip is never among them: it is <c>local_only</c>.</summary>
-public static class CloudDocumentKinds
+/// §6.1), named as Documents names their roles. A payslip is never among them: it is <c>local_only</c>. #812: and the masked bank
+/// labels, for a cloud provider's <c>decide</c>.</summary>
+public static class CloudKinds
 {
     public const string Statement = "statement";
     public const string AmortizationTable = "amortization_table";
     public const string Invoice = "invoice";
     public const string Contract = "contract";
+    public const string BankLabels = DataClasses.BankLabels;
 
-    public static readonly IReadOnlyList<string> All = [Statement, AmortizationTable, Invoice, Contract];
+    /// <summary>The document roles among them.</summary>
+    public static readonly IReadOnlyList<string> Documents = [Statement, AmortizationTable, Invoice, Contract];
+
+    public static readonly IReadOnlyList<string> All = [.. Documents, BankLabels];
 }
 
 /// <summary>One use: how far it may go (any adult) and the model it runs on (an admin, among the declared models).</summary>

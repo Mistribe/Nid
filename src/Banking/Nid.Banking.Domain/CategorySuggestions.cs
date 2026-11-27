@@ -16,7 +16,8 @@ public static class CategorySuggestions
     /// <summary>The majority <paramref name="Category"/>: <paramref name="Lines"/> of the <paramref name="Total"/> evidence lines agree.
     /// <paramref name="Basis"/> (#450, <see cref="SuggestionBases"/>): the pattern's own lines, those of patterns near it by meaning, or, with
     /// no evidence at all, the category's name, <paramref name="Similar"/> being that similarity in percent, or a model's guess, the
-    /// probability in percent (0 for a model with no scores) on a worker of that <paramref name="Placement"/> (<c>local</c>, <c>remote</c>).</summary>
+    /// probability in percent (0 for a model with no scores) on a worker of that <paramref name="Placement"/>
+    /// (<c>local</c>, <c>remote</c>), or a cloud provider (<c>cloud</c>, #812).</summary>
     public sealed record Pick(string Pattern, bool Debit, Guid Category, int Lines, int Total, string Basis = SuggestionBases.History, int? Similar = null,
         string? Placement = null)
     {

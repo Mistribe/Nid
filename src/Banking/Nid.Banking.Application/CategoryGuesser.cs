@@ -86,16 +86,19 @@ public sealed class CategoryGuesser(
         var pending = Collect(await suggestions.GuessableAsync(ids, key, Lines, ct), decided, names, await access.ReadersAsync(all, ct))
             .Select(p => p.Concerned.Count > 0 ? p : p with { Concerned = adults });
         var options = Options(categoryList, names);
+        var oneStep = CategoryQuestion.OneStep(key.Digest);
 
         var sent = 0;
         foreach (var batch in pending.GroupBy(p => (p.Debit, Concerned: string.Join(',', p.Concerned))).SelectMany(g => g.Chunk(CategoryQuestion.Batch)))
         {
             if (sent == RequestsPerPass)
                 break;
-            if (options[batch[0].Debit] is not { } side)
-                continue; // more categories than one list offers: that side is not asked
+            // More categories than one list offers: that side is not asked. ponytail: the two steps' bound on tops holds for a cloud
+            // provider too; a household with more than 25 tops in use would need it lifted there.
+            if (options[batch[0].Debit] is not { } side || oneStep && CategoryQuestion.Leaves(side) is null)
+                continue;
             var asked = await CategoryQuestion.AskAsync(decisions, [.. batch.Select(p => p.Text)], batch[0].Debit, side, DataClasses.BankLabels,
-                batch[0].Concerned, ct);
+                batch[0].Concerned, oneStep, ct);
             if (!asked.TryGetValue(out var answer))
             {
                 // An adult who has not allowed it holds back their own lines only; anything else stops the pass, the next one tries again.

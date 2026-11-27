@@ -515,7 +515,7 @@ public class CategorySuggestionTests(PostgresFixture fixture) : IClassFixture<Po
     [Fact]
     public async Task The_model_guesses_what_nothing_else_decides_from_masked_text_and_each_reader_sees_it_on_their_own_lines()
     {
-        var labels = new Labels { DecideModel = "fake-decide" };
+        var labels = new Labels { DecideModel = "fake-decide", Placement = "cloud" }; // #812: a cloud provider's guess is kept as a worker's
         await using var s = await StartAsync(fixture, labels);
         var app = s.App;
         var name = await NameAsync(app, app.AdultA);
@@ -566,7 +566,7 @@ public class CategorySuggestionTests(PostgresFixture fixture) : IClassFixture<Po
         // but does not write it.
         var a = await PageAsync(app, app.AdultA);
         var express = Group(a, "COURSES EXPRESS")!.Value;
-        Assert.Equal((Groceries, "ai", 84, 0, "local"), (express.GetProperty("categoryId").GetGuid(), express.GetProperty("basis").GetString(),
+        Assert.Equal((Groceries, "ai", 84, 0, "cloud"), (express.GetProperty("categoryId").GetGuid(), express.GetProperty("basis").GetString(),
             express.GetProperty("agreement").GetInt32(), express.GetProperty("evidenceCount").GetInt32(), express.GetProperty("placement").GetString()));
         Assert.Equal((Seed("health.insurance"), "ai"), Suggested(a, "MUTUELLE SANTE")); // « Santé », then its first child sharing a word
         Assert.Equal((Seed("income.salary"), "ai"), Suggested(a, "SALAIRE EXEMPLE", "credit"));
@@ -733,6 +733,8 @@ public class CategorySuggestionTests(PostgresFixture fixture) : IClassFixture<Po
 
         public bool Scoreless { get; set; }
 
+        public string Placement { get; set; } = "local";
+
         public List<LlmDecideRequest> Decisions { get; } = [];
 
         Task<string?> IDecisions.ModelAsync(CancellationToken ct) => Task.FromResult(DecideModel);
@@ -754,7 +756,7 @@ public class CategorySuggestionTests(PostgresFixture fixture) : IClassFixture<Po
                     : new Dictionary<int, double> { [choice] = -0.1, [request.Options.Count - 1] = -2.5 };
                 return new LlmDecision(choice, Scoreless ? new Dictionary<int, double>() : scores);
             }).ToList();
-            return Task.FromResult(Result.Success(new LlmDecisions(DecideModel!, DecideDigest, "llm-choice", "1", "local", decisions)));
+            return Task.FromResult(Result.Success(new LlmDecisions(DecideModel!, DecideDigest, "llm-choice", "1", Placement, decisions)));
         }
 
         public bool On { get; set; } = true;

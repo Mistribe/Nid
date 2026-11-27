@@ -27,9 +27,10 @@ public sealed record LlmProfile(
     public bool EligibleIn(string region) => DataTerms.TrainsOnData.TryGetValue(region, out var trains) && !trains;
 }
 
+/// <summary>What a provider says of the data it receives; <see cref="HumanReview"/> null: its terms do not say (#812).</summary>
 public sealed record DataTerms(
     IReadOnlyDictionary<string, bool> TrainsOnData,
-    bool HumanReview,
+    bool? HumanReview,
     int? RetentionDays,
     IReadOnlyList<string> RetentionSwitches,
     string TermsUrl,
@@ -98,26 +99,39 @@ public interface ICloudAdapter
     /// (Anthropic) refuses; no profile of it declares <c>embed</c>.</summary>
     Task<CloudEmbeddings> EmbedAsync(LlmProfile profile, string key, IReadOnlyList<string> texts, CancellationToken ct)
         => throw new CloudCallException(CloudFailure.Refused, JobCodes.CloudRefused);
+
+    /// <summary>#812: how this provider serves <c>decide</c> (its prompt in the version); null for one that does not, whose
+    /// profiles never declare it.</summary>
+    LlmDecideImplementation? DecideImplementation => null;
+
+    /// <summary>#812: each text put in one of <paramref name="options"/>, in the texts' order, its scores by option place as
+    /// log-probabilities, and the input tokens billed.</summary>
+    Task<CloudDecisions> DecideAsync(LlmProfile profile, string key, IReadOnlyList<string> options, IReadOnlyList<string> texts, CancellationToken ct)
+        => throw new CloudCallException(CloudFailure.Refused, JobCodes.CloudRefused);
 }
+
+/// <summary>#812: what a provider's <c>decide</c> answers; <see cref="TokensIn"/> null when it did not say.</summary>
+public sealed record CloudDecisions(IReadOnlyList<LlmDecision> Decisions, int? TokensIn);
 
 /// <summary>#556: what a provider's embeddings call answers.</summary>
 /// <remarks><see cref="TokensIn"/>: null when the provider did not say; the call is then settled at what it held back.</remarks>
 public sealed record CloudEmbeddings(IReadOnlyList<IReadOnlyList<float>> Vectors, int? TokensIn);
 
-/// <summary>#556: the models of the enabled cloud profiles that embed, which the <c>embed</c> use may run on.</summary>
-public static class CloudEmbedModels
+/// <summary>#556, #812: the models of the cloud profiles serving a use (<c>embed</c>, <c>decide</c>) that the use may run on.</summary>
+public static class CloudModels
 {
-    public static async Task<IReadOnlySet<string>> EnabledAsync(ILlmProfiles profiles, ICloudSettings settings, CancellationToken ct)
+    /// <summary>The models of the enabled profiles serving <paramref name="capability"/>, under the terms they were enabled on.</summary>
+    public static async Task<IReadOnlySet<string>> EnabledAsync(ILlmProfiles profiles, ICloudSettings settings, string capability, CancellationToken ct)
     {
         var enabled = (await settings.EnabledAsync(ct)).ToDictionary(e => e.ProfileId, e => e.AcceptedReviewedOn, StringComparer.Ordinal);
-        return profiles.All.Where(p => p.Capabilities.Contains(ModelUses.Embed)
+        return profiles.All.Where(p => p.Capabilities.Contains(capability)
                                        && enabled.TryGetValue(p.Id, out var accepted) && accepted == p.DataTerms.ReviewedOn)
             .Select(p => p.Model).ToHashSet(StringComparer.Ordinal);
     }
 
-    /// <summary>Whether <paramref name="model"/> is a cloud profile's embeddings model, enabled or not.</summary>
-    public static bool IsCloud(ILlmProfiles profiles, string model)
-        => profiles.All.Any(p => p.Model == model && p.Capabilities.Contains(ModelUses.Embed));
+    /// <summary>The cloud profile whose <paramref name="capability"/> model is <paramref name="model"/>, enabled or not.</summary>
+    public static LlmProfile? Of(ILlmProfiles profiles, string capability, string model)
+        => profiles.All.FirstOrDefault(p => p.Model == model && p.Capabilities.Contains(capability));
 }
 
 public static class CloudProfiles
@@ -161,7 +175,7 @@ public sealed class CloudBreaker(IClock clock)
 /// <c>cloud</c> (#819): eligible in the
 /// household's region, with a key, not suspended. A transient failure before any output moves to the next profile; a
 /// refusal does not. Local-only data never goes there; documents only to embed them (#556: <see cref="LlmEmbedder"/> checks
-/// <c>allowed_kinds</c>); bank labels wait for <c>allowed_kinds</c> (§6.1).
+/// <c>allowed_kinds</c>); bank labels only to decide on them (#812: <see cref="LlmDecider"/> checks <c>allowed_kinds</c>).
 /// A paid profile first reserves the turn's upper bound on the month's budget (#488): over the ceiling, or without an
 /// exchange rate, it is skipped, and with nothing else left the call is blocked.
 /// </summary>
@@ -310,6 +324,71 @@ public sealed class CloudProvider(
             catch (CloudCallException e)
             {
                 spent = 0;
+                return ModelFailures.Of(e.Code);
+            }
+            finally
+            {
+                if (hold is { Reservation: { } reservation, Amount: var amount }
+                    && await budget.SettleAsync(reservation, spent ?? amount, CancellationToken.None) is { } settled)
+                    await notices.AfterAsync(settled, CancellationToken.None);
+            }
+        }
+
+        return ModelFailures.Of(blocked ? JobCodes.BudgetBlocked : JobCodes.NoCloudProfile);
+    }
+
+    /// <summary>#812: how the provider of <paramref name="model"/>'s <c>decide</c> profile serves it; null when none does.</summary>
+    public LlmDecideImplementation? DecideImplementation(string model)
+        => CloudModels.Of(profiles, ModelUses.Decide, model) is { } profile
+            ? adapters.FirstOrDefault(a => a.Provider == profile.Provider)?.DecideImplementation
+            : null;
+
+    /// <summary>
+    /// #812: each text put in one of <paramref name="options"/> by an eligible profile whose model is <paramref name="model"/> (the
+    /// <c>decide</c> use's), as <see cref="EmbedAsync"/> goes: the next profile on a transient failure, none after a refusal. A paid
+    /// profile holds every input byte as a token, the options counted once per text, settled at the tokens billed; a failure after
+    /// the provider may have answered part of the texts is settled at what it held back. Only <c>bank_labels</c> (or no data) go:
+    /// <see cref="LlmDecider"/> checked <c>allowed_kinds</c> and the consent of the adults concerned.
+    /// </summary>
+    public async Task<Result<CloudDecisions>> DecideAsync(
+        string model, IReadOnlyList<string> options, IReadOnlyList<string> texts, string dataClass, LlmCallTrace trace, CancellationToken ct)
+    {
+        if (dataClass is not (DataClasses.None or DataClasses.BankLabels))
+            return ModelFailures.Of(JobCodes.CloudNotAllowed);
+
+        var bytes = texts.Sum(t => (long)System.Text.Encoding.UTF8.GetByteCount(t))
+                    + texts.Count * options.Sum(o => (long)System.Text.Encoding.UTF8.GetByteCount(o));
+        var blocked = false;
+        foreach (var profile in (await EligibleAsync(ModelUses.Decide, ct)).Where(p => p.Model == model))
+        {
+            if (adapters.FirstOrDefault(a => a.Provider == profile.Provider) is not { } adapter
+                || await settings.KeyAsync(profile.Provider, clock.GetCurrentInstant(), ct) is not { } key)
+                continue;
+
+            var hold = await ReserveAsync(profile, new ChatRequestInputSize(bytes, 0), ct);
+            if (hold is { Blocked: true })
+            {
+                blocked = true;
+                continue;
+            }
+
+            var spent = (decimal?)null;
+            try
+            {
+                var decided = await adapter.DecideAsync(profile, key, options, texts, ct);
+                breaker.Succeeded(profile.Id);
+                (trace.ProfileId, trace.Provider, trace.Tier, trace.ReservedEur) = (profile.Id, profile.Provider, profile.Tier, hold?.Amount);
+                if (profile.Pricing is { } pricing && decided.TokensIn is { } tokens)
+                    spent = await prices.EurAsync(pricing, tokens, 0, ct);
+                trace.CostEur = spent ?? hold?.Amount;
+                return decided;
+            }
+            catch (CloudCallException e) when (e.Kind == CloudFailure.Transient)
+            {
+                breaker.Failed(profile.Id); // one call per text: some may be billed, so settled at what it held back
+            }
+            catch (CloudCallException e)
+            {
                 return ModelFailures.Of(e.Code);
             }
             finally

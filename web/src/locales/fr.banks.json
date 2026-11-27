@@ -606,6 +606,8 @@
       "by_ai": "deviné par IA",
       "by_ai_local": "deviné par IA (modèle local)",
       "by_ai_remote": "deviné par IA (worker distant)",
+      "by_ai_cloud": "deviné par IA (fournisseur cloud)",
+      "by_ai_cloud_about": "Personne n’a encore classé d’opération semblable. Un fournisseur cloud, activé par un administrateur, a choisi {{category}} parmi vos catégories. Il n’a reçu que le libellé, masqué (sans chiffres longs, IBAN, e-mail, téléphone ni nom du foyer), et les noms des catégories : jamais un montant, une date, un compte ni un nom. Il peut se tromper : vérifiez avant de classer.",
       "by_ai_about": "Personne n’a encore classé d’opération semblable. Un modèle d’IA, sur un worker du foyer, a choisi {{category}} parmi vos catégories. Il n’a lu que le libellé, masqué (sans chiffres longs, IBAN, e-mail, téléphone ni nom du foyer), et les noms des catégories : jamais un montant, une date, un compte ni un nom. Il peut se tromper : vérifiez avant de classer.",
       "by_ai_sure": "Le modèle s’en dit sûr à {{agreement}} %, une fois sa confiance mesurée sur des libellés d’essai.",
       "create_rule": "Créer la règle",

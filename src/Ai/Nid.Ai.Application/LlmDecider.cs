@@ -8,11 +8,12 @@ namespace Nid.Ai.Application;
 
 /// <summary>
 /// #450, the gateway's <c>decide</c> task (<c>docs/ai/README.md</c> §7) as <see cref="LlmEmbedder"/>: the use's model and mode, the data
-/// policy and the consent of the adults concerned, every call recorded in <c>llm_call</c> without its content. No cloud adapter serves it:
-/// <c>self_hosted_then_cloud</c> goes no further than the workers.
+/// policy and the consent of the adults concerned, every call recorded in <c>llm_call</c> without its content. #812: with
+/// <c>self_hosted_then_cloud</c>, a cloud profile's <c>decide</c> model is that provider's alone (Jev), as <see cref="LlmEmbedder"/> routes one.
 /// </summary>
 public sealed class LlmDecider(
-    IAiSettings settings, IModelRequests requests, IAssistantPeople people, ILlmCalls calls, IActorAccessor actors, IClock clock, IWorkerStore workers)
+    IAiSettings settings, IModelRequests requests, IAssistantPeople people, ILlmCalls calls, IActorAccessor actors, IClock clock, IWorkerStore workers,
+    ILlmProfiles profiles, CloudProvider cloud)
     : IDecisions
 {
     public async Task<string?> ModelAsync(CancellationToken ct)
@@ -20,6 +21,8 @@ public sealed class LlmDecider(
 
     public async Task<LlmDecideImplementation?> ImplementationAsync(string model, CancellationToken ct)
     {
+        if (await CloudAsync(model, ct))
+            return cloud.DecideImplementation(model);
         var declared = (await workers.ListAsync(ct)).Where(w => w.Status == WorkerStatus.Active)
             .SelectMany(w => WorkerRouter.DeclarationOf(w)?.Models ?? [])
             .Where(m => m.Capability == DeclaredCapability.Decide && m.Name == model && m.Decide is not null)
@@ -31,6 +34,7 @@ public sealed class LlmDecider(
     {
         var started = clock.GetCurrentInstant();
         ServingWorker? worker = null;
+        var trace = new LlmCallTrace();
         var outcome = new LlmGateway.Outcome();
         try
         {
@@ -47,6 +51,8 @@ public sealed class LlmDecider(
 
             // Without everyone's allow, a remote worker is skipped; noted, so the refusal says why rather than « no model ».
             var offsite = await OffsiteConsent.AllowedAsync(people, request.Concerned ?? [], ct);
+            if (use.Mode == UseModes.SelfHostedThenCloud && CloudModels.Of(profiles, ModelUses.Decide, use.Model) is not null)
+                return await CloudDecideAsync(use.Model, offsite);
             var heldBack = false;
             Func<ServingWorker, bool>? onsite = offsite ? null : serving =>
             {
@@ -81,7 +87,30 @@ public sealed class LlmDecider(
         finally
         {
             await calls.RecordAsync(new LlmCallRecord(Guid.CreateVersion7(), started, actors.Current?.PersonId?.Value, "decide", ModelUses.Decide,
-                worker?.Id, null, null, outcome.Model, 0, 0, outcome.Status, outcome.Code, null, null, null, null, null), CancellationToken.None);
+                worker?.Id, null, null, outcome.Model, outcome.TokensIn, 0, outcome.Status, outcome.Code, trace.ProfileId, trace.Provider, trace.Tier,
+                trace.ReservedEur, trace.CostEur), CancellationToken.None);
+        }
+
+        // #812 (docs/ai/README.md §6.1): local-only data never; bank labels only once an admin put them in allowed_kinds; and only with
+        // allow from each adult concerned. A guess stays a suggestion, whatever the provider's confidence.
+        async Task<Result<LlmDecisions>> CloudDecideAsync(string model, bool offsite)
+        {
+            if (request.DataClass == DataClasses.LocalOnly
+                || (request.DataClass == DataClasses.BankLabels && !(await settings.AllowedKindsAsync(ct)).Contains(DataClasses.BankLabels)))
+                return Refuse(JobCodes.CloudNotAllowed);
+            if (!offsite)
+                return Refuse(JobCodes.OffsiteNotAllowed);
+            if (cloud.DecideImplementation(model) is not { } implementation)
+                return Refuse(JobCodes.NoCloudProfile);
+            var decided = await cloud.DecideAsync(model, request.Options, request.Texts, request.DataClass, trace, ct);
+            if (!decided.TryGetValue(out var result))
+                return Refuse(decided.TryGetFailure(out var failure) ? failure!.Code : JobCodes.CloudFailed);
+            var count = request.Options.Count;
+            if (result.Decisions.Count != request.Texts.Count
+                || result.Decisions.Any(d => d.Choice is < 0 || d.Choice >= count || d.Scores.Keys.Any(k => k < 0 || k >= count)))
+                return Refuse(JobCodes.ResultInvalid);
+            outcome.End(new ChatUsage(result.TokensIn ?? 0, 0, ChatStop.End, model));
+            return Result.Success(new LlmDecisions(model, "cloud:" + trace.ProfileId, implementation.Name, implementation.Version, "cloud", result.Decisions));
         }
 
         Result<LlmDecisions> Refuse(string code)
@@ -90,4 +119,9 @@ public sealed class LlmDecider(
             return ModelFailures.Of(code);
         }
     }
+
+    /// <summary>Whether <paramref name="model"/> is served by its cloud profile: <c>decide</c> set to <c>self_hosted_then_cloud</c>, as
+    /// <see cref="ModelDigests"/> reads it.</summary>
+    private async Task<bool> CloudAsync(string model, CancellationToken ct)
+        => CloudModels.Of(profiles, ModelUses.Decide, model) is not null && (await settings.UseAsync(ModelUses.Decide, ct)).Mode == UseModes.SelfHostedThenCloud;
 }

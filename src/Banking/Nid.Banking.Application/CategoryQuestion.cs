@@ -11,7 +11,7 @@ namespace Nid.Banking.Application;
 /// the side's top categories, each followed by its children's names, then « none of these »; then the children of the top scored best.
 /// A top with children is never an answer itself: a line goes in its most precise category. Each request also carries texts that say
 /// nothing, whose scores measure the model's lean (« Banque & frais » for any bank line), taken out of every score
-/// (<see cref="DecideCalibration.Correct"/>).
+/// (<see cref="DecideCalibration.Correct"/>). A cloud provider's <c>decide</c> (Jev, #812) is asked otherwise (<see cref="OneStep"/>).
 /// </summary>
 public static class CategoryQuestion
 {
@@ -19,7 +19,27 @@ public static class CategoryQuestion
     /// is not applied, nor are the guesses kept under it.</summary>
     public const string Strategy = "2";
 
-    public static string Version(string implementationVersion) => $"{implementationVersion}/{Strategy}";
+    /// <summary>#812: a cloud provider's way of asking: one step over the leaves (<see cref="Leaves"/>), no content-free text.</summary>
+    public const string CloudStrategy = "3";
+
+    /// <summary>#812: whether the model answering at <paramref name="digest"/> is a cloud provider's (<c>cloud:&lt;profile id&gt;</c>, as
+    /// <see cref="IModelDigests"/> gives it). Its probabilities come calibrated over up to 52 options and each text is billed, so it is
+    /// asked once over the leaves, without the lean correction meant for a small model nor the texts it would pay for.</summary>
+    public static bool OneStep(string? digest) => digest?.StartsWith("cloud:", StringComparison.Ordinal) == true;
+
+    public static string Version(string implementationVersion, string? digest) => $"{implementationVersion}/{(OneStep(digest) ? CloudStrategy : Strategy)}";
+
+    /// <summary>The most options one request takes (the gateway's bound), « none of these » included.</summary>
+    public const int MaxLeaves = 52;
+
+    /// <summary>#812: the categories a line may go in, each top's children as « Parent › Nom » or the top itself when it has none; null
+    /// when they would be more than <see cref="MaxLeaves"/> with « none of these ».</summary>
+    public static IReadOnlyList<(Guid Category, string Text)>? Leaves(IReadOnlyList<Top> tops)
+    {
+        List<(Guid Category, string Text)> leaves = [.. tops.SelectMany(t => t.Children.Count == 0 ? [(t.Category, t.Name)]
+            : t.Children.Select(c => (c.Category, CategorySuggestions.OptionText(t.Name, c.Name))))];
+        return leaves.Count + 1 > MaxLeaves ? null : leaves;
+    }
 
     public const int MaxOptions = 26;
 
@@ -56,11 +76,25 @@ public static class CategoryQuestion
     /// <summary>What answered both steps, and one guess per text (its expectations left null), the categories as the tree has them.</summary>
     public sealed record Asked(DecideKey Key, string Placement, IReadOnlyList<DecideCalibration.Guess> Guesses);
 
-    /// <summary>Asks <paramref name="texts"/> (<see cref="Batch"/> at most) of <paramref name="debit"/>'s side in two steps; the gateway's
-    /// refusal as it is, or <c>ai.model_unavailable</c> when the steps were not answered by the same build.</summary>
+    /// <summary>Asks <paramref name="texts"/> (<see cref="Batch"/> at most) of <paramref name="debit"/>'s side in two steps, or in one over
+    /// the leaves for a cloud provider (<paramref name="oneStep"/>); the gateway's refusal as it is, <c>ai.invalid_input</c> when the leaves
+    /// do not fit one request, or <c>ai.model_unavailable</c> when the steps were not answered by the same build.</summary>
     public static async Task<Result<Asked>> AskAsync(IDecisions decisions, IReadOnlyList<string> texts, bool debit, IReadOnlyList<Top> tops,
-        string dataClass, IReadOnlyList<Guid> concerned, CancellationToken ct)
+        string dataClass, IReadOnlyList<Guid> concerned, bool oneStep, CancellationToken ct)
     {
+        if (oneStep)
+        {
+            if (Leaves(tops) is not { } leaves)
+                return Result.Failure<Asked>(new Failure(JobCodes.InvalidInput, "Too many categories for one request.", null));
+            var only = await StepAsync(decisions, texts, debit, [.. leaves.Select(l => l.Text), CategoryGuesser.NoneOfThese], dataClass, concerned, ct,
+                contentFree: false);
+            if (!only.TryGetValue(out var answered))
+                return BankingAccess.Failed<Asked, Step>(only);
+            Guid? LeafAt(int place) => place < leaves.Count ? leaves[place].Category : null;
+            return Result.Success(new Asked(answered.Key, answered.Placement, [.. answered.Answers.Select(a => new DecideCalibration.Guess(null,
+                a.Choice is { } c ? LeafAt(c) : null, [.. a.Scores.Select(s => (LeafAt(s.Key), s.Value))]))]));
+        }
+
         var first = await StepAsync(decisions, texts, debit, [.. tops.Select(TopText), CategoryGuesser.NoneOfThese], dataClass, concerned, ct);
         if (!first.TryGetValue(out var one))
             return BankingAccess.Failed<Asked, Step>(first);
@@ -90,16 +124,17 @@ public static class CategoryQuestion
 
     private sealed record Step(DecideKey Key, string Placement, IReadOnlyList<LlmDecision> Answers);
 
-    /// <summary>One request: the content-free texts first, then <paramref name="texts"/>, whose scores come back corrected.</summary>
+    /// <summary>One request: the content-free texts first (none when <paramref name="contentFree"/> is false), then
+    /// <paramref name="texts"/>, whose scores come back corrected.</summary>
     private static async Task<Result<Step>> StepAsync(IDecisions decisions, IReadOnlyList<string> texts, bool debit, IReadOnlyList<string> options,
-        string dataClass, IReadOnlyList<Guid> concerned, CancellationToken ct)
+        string dataClass, IReadOnlyList<Guid> concerned, CancellationToken ct, bool contentFree = true)
     {
-        var free = ContentFree(debit);
+        IReadOnlyList<string> free = contentFree ? ContentFree(debit) : [];
         var decided = await decisions.DecideAsync(new LlmDecideRequest([.. free, .. texts], options, dataClass, concerned), ct);
         if (!decided.TryGetValue(out var result))
             return BankingAccess.Failed<Step, LlmDecisions>(decided);
         IReadOnlyList<IReadOnlyDictionary<int, double>> lean = [.. result.Decisions.Take(free.Count).Select(d => d.Scores)];
-        return Result.Success(new Step(new DecideKey(result.Implementation, Version(result.Version), result.Model, result.Digest), result.Placement,
+        return Result.Success(new Step(new DecideKey(result.Implementation, Version(result.Version, result.Digest), result.Model, result.Digest), result.Placement,
             [.. result.Decisions.Skip(free.Count).Select(d => d with { Scores = DecideCalibration.Correct(d.Scores, lean) })]));
     }
 }

@@ -44,9 +44,12 @@ public sealed record CategoryEvalSet(int Version, IReadOnlyList<CategoryEvalSet.
         => CategoryQuestion.Tree([.. CategorySeed.All.Where(c => c.Kind == (debit ? CategoryKind.Expense : CategoryKind.Income))
             .Select(c => (c.Id, c.ParentKey is { } parent ? CategorySeed.Find(parent)!.Id : (Guid?)null, c.Name))])!;
 
-    /// <summary>#821: a worker's guess with what the case expects at each step: the expected category's top, then the category itself.</summary>
-    public static DecideCalibration.Guess Expect(DecideCalibration.Guess guess, Guid? expected)
+    /// <summary>#821: a worker's guess with what the case expects at each step: the expected category's top, then the category itself;
+    /// asked in one step over the leaves (#812, <paramref name="oneStep"/>), the category itself.</summary>
+    public static DecideCalibration.Guess Expect(DecideCalibration.Guess guess, Guid? expected, bool oneStep = false)
     {
+        if (oneStep)
+            return guess with { Expected = expected };
         var top = expected is { } id && CategorySeed.All.First(c => c.Id == id).ParentKey is { } parent ? CategorySeed.Find(parent)!.Id : expected;
         return guess with { Expected = top, Then = guess.Then is { } then ? then with { Expected = expected } : null };
     }

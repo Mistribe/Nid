@@ -535,7 +535,8 @@ avec les outils MCP qu'elle appelle. Les usages restent chez leurs modules : Doc
 - `cloud` (#819, chat seulement) : directement les profils cloud activés et éligibles, jamais un worker. Aucun modèle
   n'est choisi pour l'usage : chaque profil répond avec le sien. Un worker ne sert qu'à déplacer la charge (OCR, modèle
   local) ; un appel cloud part de Nid, il n'a rien à y faire. Les autres usages ne le proposent pas : `embed` garde un
-  seul modèle pour tout l'index, `extract` lit des documents qui ne partent pas au cloud, `decide` attend #812.
+  seul modèle pour tout l'index, `extract` lit des documents qui ne partent pas au cloud, `decide` ne va au cloud que sur le
+  modèle d'un profil (#812, ci-dessous).
 - Les offres gratuites sont des profils cloud comme les autres, à prix nul ; il n'y a plus de « gratuit d'abord ».
 - Parmi les workers éligibles : locaux d'abord, puis le moins chargé ; un job d'un worker en échec passe à un autre.
 - **Conversation** : elle est fixée à la **classe de politique** de la destination qui a servi son premier tour :
@@ -548,16 +549,18 @@ avec les outils MCP qu'elle appelle. Les usages restent chez leurs modules : Doc
   Sans destination de la classe, le tour échoue sur `ai.destination_class_unavailable`, sans repli.
 - Repli des jobs, disjoncteur et refus de contenu : `../ingestion/llm-providers.md` §5.3 ; jamais de repli vers une
   destination non éligible.
-- **`decide` sans cloud (#450)** : aucun adaptateur cloud ne sert encore `decide`. Avec `self_hosted_then_cloud`, l'usage se
-  comporte comme `self_hosted` : workers seulement, rien ne part vers un fournisseur. Jev (#812) et l'encodeur zéro-shot sur le
-  worker (#811, candidat 2) suivront ; les voisins proches peuvent, eux, passer par le modèle cloud de l'usage `embed`.
+- **`decide` et le cloud (#812)** : avec `self_hosted_then_cloud`, un modèle `decide` qui est celui d'un profil cloud (Jev,
+  `jev-choice`) est servi par ce fournisseur seul, comme le modèle cloud de `embed` : aucun worker ne le sert, rien ne retombe
+  sur un worker. Un modèle de worker reste sur les workers, quel que soit le mode. Avec `self_hosted`, le modèle d'un profil ne
+  part jamais : aucun worker ne le déclare, l'usage n'a pas de modèle disponible. L'encodeur zéro-shot sur le worker (#811,
+  candidat 2) suivra.
 
 ### 5.4 Profils cloud
 
 `../ingestion/llm-providers.md` §3 et §4 : conditions revues et datées, région confirmée, aucune offre qui entraîne sur
 les données. Chaque profil liste aussi ses **interrupteurs de rétention** et la valeur imposée par l'adaptateur (décision
-U ; par exemple `store` des Responses d'OpenAI, vrai par défaut, mis à faux). Jev (TypeSafe AI) reste un candidat pour
-`decide`, aux conditions de #450 ; son accord de traitement des données n'est pas lu (§15).
+U ; par exemple `store` des Responses d'OpenAI, vrai par défaut, mis à faux). Jev (TypeSafe AI) sert `decide` (#812, ci-dessous) ;
+ses conditions sont lues au 2026-11-27 (`../ingestion/llm-providers.md` §3, §14.1).
 
 **Livré (#487)** : les profils sont des fichiers de `deploy/llm-profiles/`, embarqués dans le module `Ai` et relus au
 démarrage. Un profil mal formé, dont un fournisseur est inconnu, l'hôte invalide, les conditions sans adresse HTTPS ou
@@ -581,6 +584,25 @@ entraîne sur les données et n'est permise ni dans l'EEE, ni en Suisse, ni au R
 (`mistral-large-4-0`). La page « Utilisation IA » (`/settings/ai/usage`) montre à chaque adulte ses propres appels, et à
 tous le total du mois du foyer (décision S).
 
+**Livré (#812, Jev)** : profil `jev-choice` (`deploy/llm-profiles/jev-choice.json`, fournisseur `typesafe`, modèle versionné
+`jev-1.14.0` plutôt que l'alias `jev-latest`, qui bouge à chaque version ; capacité nouvelle `decide`). Pas d'entraînement sur les
+données ; relecture humaine non précisée par ses conditions (`humanReview` nul, dit tel quel dans Réglages › IA) ; aucune durée de
+rétention (champ absent) ; hébergé aux États-Unis seulement ; 0,042 $ par million de jetons en entrée, sortie gratuite.
+L'adaptateur (`JevAdapter`) appelle la primitive `choice` (`POST /v1/systemone`, `Authorization: Bearer`) par `CloudHttp`, comme
+les autres : **une requête par texte**, le texte masqué en `state`, une question dont les `criteria` sont les noms des options
+(description nulle) ; deux options du même nom ne partent pas (`ai.invalid_input`). Une question lit tout le `state` : des textes
+réunis dans une requête se liraient entre eux, d'où une requête chacun. Les probabilités reviennent en log-probabilités (plancher
+1e-9 pour une probabilité nulle), que le calibrage lit comme les scores d'un worker ; implémentation `jev-choice`, version `1`
+(profil `1/3` : une étape sur les feuilles, §7.2).
+`CloudProvider.DecideAsync` suit `EmbedAsync` : profils activés et éligibles dont le modèle est celui de l'usage, clé, budget
+réservé (chaque octet des textes, et des options une fois par texte, compté comme un jeton) puis réglé aux jetons facturés, ou à
+ce qui était réservé quand une requête échoue en route ; disjoncteur ; refus sans autre essai. `LlmDecider` n'y va qu'avec
+`self_hosted_then_cloud`, jamais pour `local_only`, pour `bank_labels` seulement si `bank_labels` est dans `allowed_kinds`, et avec
+l'`allow` de chaque adulte concerné (`ai.offsite_not_allowed` sinon). L'appel est une ligne de `llm_call` (tâche `decide`, profil,
+fournisseur, jetons, réservé, coût). La réponse porte l'empreinte `cloud:jev-choice` et le placement `cloud`
+(`banking.category_guess` l'accepte). Aucun essai réel : pas de clé ; l'adaptateur est écrit d'après la documentation publique et
+testé contre un faux serveur.
+
 ### 5.5 Outils
 
 Appels d'outils **désactivés pour toutes les tâches sauf `chat`**, où seuls les outils de l'assistant (§8.2) sont
@@ -595,7 +617,7 @@ déclarés. Sortie structurée validée par schéma côté serveur pour `extract
 | Contenu des documents `statement`, `amortization_table`, `invoice`, `contract` | Oui | Opt-in du foyer et §6.3 | Selon §6.3 | Si **chacun** de ses types est dans `allowed_kinds` et selon §6.3 (plongements, #556) ; extraction : consentement par dépôt |
 | Contenu d'un document « local seulement » (bulletins de paie par défaut, §6.6) | Seulement s'il est `safe` | Non | **Oui**, selon §6.3 | **Jamais** |
 | Chiffres structurés (montants, revenus, lignes, impôts) dans le chat | Oui | Selon §6.3 | Selon §6.3 | Consentement de l'adulte et §6.3 |
-| `bank_labels` | Oui | Selon §6.3 | Selon §6.3 | Si `bank_labels` est dans `allowed_kinds` (non par défaut, #450) et §6.3 |
+| `bank_labels` | Oui | Selon §6.3 | Selon §6.3 | Pour `decide` (#812), si `bank_labels` est dans `allowed_kinds` (non par défaut) et §6.3 ; leurs plongements restent sur les workers (`CloudProvider` n'en prend pas) |
 
 - Un worker distant voit les données en clair pendant qu'il les traite : il compte comme une sortie des lieux et ne
   reçoit rien avant l'opt-in du foyer (#166), plus le consentement de l'adulte pour ses données privées (§6.3). Le
@@ -747,13 +769,15 @@ proches et `qwen2.5:1.5b`, non. Conseillé : `qwen2.5:3b` sur un worker. Chiffre
   textes vides (`N/A`, `[MASQUÉ]`, `X`) : leurs scores mesurent le penchant du modèle pour certaines options quel que soit le
   libellé (« Banque & frais » pour toute opération bancaire), et chaque score en est corrigé (score moins le log de la probabilité
   moyenne de l'option sur ces textes ; une option absente y prend la plus basse probabilité notée). Probabilité = celle du sommet ×
-  celle de l'enfant, chacune à la température du profil. Noms masqués. Classe `bank_labels` ; les adultes concernés sont les lecteurs des comptes
+  celle de l'enfant, chacune à la température du profil. Un modèle cloud (empreinte `cloud:…`, Jev, #812) est demandé autrement :
+  **en une étape sur les feuilles** (les enfants en « Parent › Nom », un sommet sans enfant tel quel, puis « Aucune », 52 options
+  au plus), sans textes vides ni correction : ses probabilités sont déjà calibrées et chaque texte est facturé. Noms masqués. Classe `bank_labels` ; les adultes concernés sont les lecteurs des comptes
   qui portent ses lignes (le titulaire d'un compte privé, chaque titulaire d'un compte joint). Lots de 13 textes au plus (16 avec les textes vides), par sens
   et par adultes concernés identiques, 4 requêtes par passage ; un lot refusé faute d'`allow` n'arrête pas les autres, tout autre refus (pas de worker, usage éteint, modèle
   indisponible) arrête le passage. Toutes les 5 min plutôt que 30 s : un lot retenu est redemandé à chaque passage, et chaque refus
   est une ligne de `llm_call`.
 - La réponse est gardée pour le foyer dans `banking.category_guess` (motif, sens, catégorie ou aucune, probabilité calibrée, modèle,
-  empreinte, implémentation, version, placement du worker, date), une par (motif, sens, modèle, empreinte). Créer, renommer,
+  empreinte, implémentation, version, placement du worker ou `cloud` (#812), date), une par (motif, sens, modèle, empreinte). Créer, renommer,
   déplacer, archiver, désarchiver ou fusionner une catégorie efface toutes les réponses dans la même transaction ; « Suggérer à
   nouveau » (`POST /api/v1/banking/category-suggestions/refresh`, un adulte) aussi, et demande un passage dans les secondes qui
   suivent.
@@ -767,12 +791,12 @@ proches et `qwen2.5:1.5b`, non. Conseillé : `qwen2.5:3b` sur un worker. Chiffre
 
 **Livré (#450, écrans)** :
 - Bloc « Suggestions » et onglet « À classer » : chaque base a sa ligne et son `InfoTip` : « proche du nom de la catégorie »
-  (`category_name`), « deviné par IA (modèle local) » ou « (worker distant) » selon `placement` (`ai`), avec ce qui est parti (le
+  (`category_name`), « deviné par IA (modèle local) », « (worker distant) » ou « (fournisseur cloud) » (#812) selon `placement` (`ai`), avec ce qui est parti (le
   libellé masqué et les noms des catégories, jamais un montant, une date, un compte ni un nom), que la réponse peut être fausse, et
   la probabilité calibrée en pour cent quand le modèle en donne une (`agreement`, calculé par le serveur).
 - Administration › IA, ligne « Suggestions de catégories » : le modèle est un modèle `decide` que les workers déclarent, ou « Par le
-  sens » sur le modèle de l'usage `embed` ; le réglage dit que `decide` ne part jamais vers le cloud, même avec « Workers du foyer, puis
-  le cloud ». Dessous, le calibrage : ce qu'il mesure, l'état du dernier (en attente, en cours, fait, échec avec le code en mots, relu
+  sens » sur le modèle de l'usage `embed`, ou (#812) le modèle d'un profil cloud `decide` activé, que le réglage dit envoyé les
+  libellés masqués et les noms des catégories, sous « Libellés bancaires » dans « Données envoyées au cloud ». Dessous, le calibrage : ce qu'il mesure, l'état du dernier (en attente, en cours, fait, échec avec le code en mots, relu
   toutes les 3 s tant qu'il attend ou tourne), « Pas encore calibré : aucune suggestion par IA » sans profil, sinon les chiffres en
   mots (justes, faux, « je ne sais pas » au seuil, la fourchette du taux d'erreur, la part des libellés suggérés, le seuil ; avec et
   sans historique pour les voisins proches ; « sans scores » signalé), le bouton « Calibrer », et, plié, l'échantillon de ce qui part
@@ -797,7 +821,8 @@ proches et `qwen2.5:1.5b`, non. Conseillé : `qwen2.5:3b` sur un worker. Chiffre
   vaudrait pour aucun foyer. La clé est (implémentation, version, modèle, empreinte) ; la **taille de la liste d'options est
   consignée** (`options`, le plus d'options qu'un cas a eu), elle n'entre pas dans la clé.
 - Empreinte : `IModelDigests` (Ai.Contracts) donne celle que les workers actifs déclarent pour un modèle et une capacité, `null` si
-  aucun ne le déclare ou si deux divergent ; le modèle cloud de l'usage `embed` a pour empreinte `cloud:<profil>`. Un modèle tiré à
+  aucun ne le déclare ou si deux divergent ; le modèle cloud de l'usage `embed`, ou de l'usage `decide` (#812), a pour empreinte
+  `cloud:<profil>`. Un modèle tiré à
   nouveau a une autre empreinte : il lui faut un nouveau calibrage.
 - Jeu d'évaluation : `src/Banking/Nid.Banking.Application/Evaluation/category-eval.json` (version 2 depuis #821, ressource embarquée), plus de
   400 libellés bancaires français inventés (carte, prélèvement, virement, retrait ; débits et crédits), chacun avec sa catégorie de
@@ -816,9 +841,11 @@ proches et `qwen2.5:1.5b`, non. Conseillé : `qwen2.5:3b` sur un worker. Chiffre
   modèle. Il consigne, à ce seuil, montrées, correctes, fausses, « je ne sais pas », l'intervalle de Wilson à 95 % du taux d'erreur
   et la couverture. Un modèle changé en cours de route donne `failed` (`ai.model_unavailable`).
 - **Worker `decide` (#450)** : quand l'usage `decide` a un modèle qu'un worker déclare, c'est lui que « Calibrer » mesure, sous la
-  clé (implémentation déclarée ; version déclarée suivie de la stratégie de Banking, `1/2` pour `llm-choice` `1` en deux temps, #821 ;
+  clé (implémentation déclarée ; version déclarée suivie de la stratégie de Banking, `1/2` pour `llm-choice` `1` en deux temps, #821, `1/3` pour `jev-choice` `1`
+  en une étape sur les feuilles, #812 ;
   modèle, empreinte `decide`) ; sinon, les voisins proches sur le modèle `embed`. Chaque cas du jeu part comme le job l'enverrait
-  (même texte, mêmes deux temps sur les catégories de départ, mêmes textes vides, classe `bank_labels`). Avec scores : probabilité =
+  (même texte, mêmes deux temps sur les catégories de départ, mêmes textes vides, ou la même étape unique pour un modèle cloud,
+  classe `bank_labels`). Avec scores : probabilité =
   softmax des scores corrigés, une **température** apprise sur le jeu (0,25 à 4 par 0,05, au plus petit log-vraisemblance négatif
   du sommet attendu, « aucune » pour un cas sans catégorie, puis de la catégorie attendue quand la seconde étape l'offrait), puis le
   plus bas seuil de 0,30 à 0,99
@@ -1063,8 +1090,8 @@ et §3, `authorization.md`), `../security/` (`infrastructure.md`, `README.md`, `
 - **HPKE** : l'API de .NET 11 est encore expérimentale ; la revoir à chaque version majeure de .NET (elle peut changer
   de forme en devenant stable). Le worker est en .NET et partage `Nid.Ai.Protocol` avec Nid : une seule implémentation,
   rejouée contre les vecteurs de l'annexe A à chaque build (#472).
-- **Jev** : accord de traitement des données à lire ; rétention, relecture humaine et région non documentées
-  (`../ingestion/llm-providers.md` §14.1).
+- **Jev** (#812) : conditions lues le 2026-11-27 ; rétention sans durée, relecture humaine non précisée, hébergement aux
+  États-Unis seulement. Son calibrage réel attend une clé (`../ingestion/llm-providers.md` §14.1).
 - **Données de tiers** dans le chat (coordonnées d'une assistante maternelle, personnes à charge) : les retenir aussi
   vers le cloud est à décider avec #173.
 - **Arrêt des tâches de fond à 80 %** du budget, pour garder le reste au chat : à décider avec #172.

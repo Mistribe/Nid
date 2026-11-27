@@ -95,10 +95,10 @@ public sealed class DecideSetup(IEmbeddings embeddings, IDecisions decisions, IM
     {
         if (await decisions.ModelAsync(ct) is not { } model)
             return null;
-        return await decisions.ImplementationAsync(model, ct) is { } implementation
-            ? new Current(implementation.Name, CategoryQuestion.Version(implementation.Version), model,
-                await digests.DigestAsync(ModelUses.Capability(ModelUses.Decide), model, ct))
-            : new Current(null, null, model, null);
+        if (await decisions.ImplementationAsync(model, ct) is not { } implementation)
+            return new Current(null, null, model, null);
+        var digest = await digests.DigestAsync(ModelUses.Capability(ModelUses.Decide), model, ct);
+        return new Current(implementation.Name, CategoryQuestion.Version(implementation.Version, digest), model, digest);
     }
 
     /// <summary>A worker's profile in force: its guesses are shown (<see cref="DecideProfile.Offered"/>).</summary>
@@ -144,25 +144,26 @@ public sealed class DecideCalibrator(IDecideCalibrationStore store, IEmbeddings 
     private async Task<string?> WorkerAsync(DecideKey key, CancellationToken ct)
     {
         if (await decisions.ImplementationAsync(key.Model, ct) is not { } implementation
-            || (implementation.Name, CategoryQuestion.Version(implementation.Version)) != (key.Implementation, key.Version))
+            || (implementation.Name, CategoryQuestion.Version(implementation.Version, key.Digest)) != (key.Implementation, key.Version))
             return JobCodes.ModelUnavailable;
         var set = CategoryEvalSet.Current;
         var guesses = new List<DecideCalibration.Guess>();
         var options = 0;
+        var oneStep = CategoryQuestion.OneStep(key.Digest);
         foreach (var side in set.Cases.Zip(set.CalibrationCases()).GroupBy(c => c.First.Debit))
         {
             var tops = CategoryEvalSet.Tree(side.Key);
-            options = Math.Max(options, Math.Max(tops.Count + 1, tops.Max(t => t.Children.Count)));
+            options = Math.Max(options, oneStep ? CategoryQuestion.Leaves(tops)!.Count + 1 : Math.Max(tops.Count + 1, tops.Max(t => t.Children.Count)));
             foreach (var batch in side.Chunk(CategoryQuestion.Batch))
             {
                 var asked = await CategoryQuestion.AskAsync(decisions,
                     [.. batch.Select(c => CategoryGuesser.Text(c.Second.Pattern, c.First.Label, c.First.Counterparty, c.First.Debit, []))], side.Key, tops,
-                    DataClasses.BankLabels, [], ct);
+                    DataClasses.BankLabels, [], oneStep, ct);
                 if (!asked.TryGetValue(out var result))
                     return asked.TryGetFailure(out var failure) ? failure!.Code : JobCodes.ModelUnavailable;
                 if (result.Key != key)
                     return JobCodes.ModelUnavailable; // another model, or the same re-pulled, since it was queued
-                guesses.AddRange(batch.Zip(result.Guesses, (c, g) => CategoryEvalSet.Expect(g, c.Second.Expected)));
+                guesses.AddRange(batch.Zip(result.Guesses, (c, g) => CategoryEvalSet.Expect(g, c.Second.Expected, oneStep)));
             }
         }
 
