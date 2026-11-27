@@ -25,6 +25,19 @@ public class LoanMathTests
     }
 
     [Fact]
+    public void CostBetween_counts_interest_insurance_and_fees_of_the_period_only()
+    {
+        var (t, s) = Golden(x => x with { Fees = [new LoanFee(FeeKind.File, 1_000m, Loans.Disbursed), new LoanFee(FeeKind.Other, 200m, Loans.First.PlusMonths(15))] });
+        var from = Loans.First.PlusMonths(12);
+        var to = Loans.First.PlusMonths(23);
+        var rows = s.Rows.Where(r => r.DueDate >= from && r.DueDate <= to).ToList();
+        Assert.Equal(12, rows.Count);
+
+        Assert.Equal(rows.Sum(r => r.Interest + r.Insurance) + 200m, LoanMath.CostBetween(t, s, from, to));
+        Assert.Equal(1_000m + s.Rows[0].Interest + s.Rows[0].Insurance, LoanMath.CostBetween(t, s, Loans.Disbursed.PlusDays(-10), Loans.First));
+    }
+
+    [Fact]
     public void After_60_payments_the_figures_match_section_4()
     {
         var (t, s) = Golden(x => x with { Fees = [new LoanFee(FeeKind.File, 1_000m, Loans.Disbursed), new LoanFee(FeeKind.Other, 200m, new LocalDate(2030, 1, 1))] });

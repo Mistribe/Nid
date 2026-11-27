@@ -154,7 +154,17 @@ public interface IItemLoans
 {
     Task<IReadOnlyDictionary<ItemId, IReadOnlyList<ItemLoanBalance>>> BalancesAsync(
         PersonId reader, VisibilityScope scope, IReadOnlyCollection<ItemId> items, LocalDate on, CancellationToken ct);
+
+    /// <summary>
+    /// #650: the cost of credit (interest, insurance, fees, never the capital) of the same loans falling in [<paramref name="from"/>,
+    /// <paramref name="to"/>], converted to the item's currency at <paramref name="to"/>; a null <c>Cost</c> when no rate converts it.
+    /// </summary>
+    Task<IReadOnlyDictionary<ItemId, IReadOnlyList<ItemLoanCost>>> CostsAsync(
+        PersonId reader, VisibilityScope scope, IReadOnlyCollection<ItemId> items, LocalDate from, LocalDate to, CancellationToken ct);
 }
+
+/// <summary>#650: a readable loan financing an item, with its cost of credit over a period in that item's currency.</summary>
+public sealed record ItemLoanCost(ItemId Loan, string Name, Money? Cost);
 
 /// <summary>
 /// #180: what a loan may finance besides a property. An extension point RealEstate declares and Investments implements, as

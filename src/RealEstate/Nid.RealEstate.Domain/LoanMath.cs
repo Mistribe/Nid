@@ -53,6 +53,10 @@ public static class LoanMath
             Capitalised(paid));
     }
 
+    /// <summary>#650: the cost of credit (interest, insurance, fees) falling in [<paramref name="from"/>, <paramref name="to"/>]; never the capital.</summary>
+    public static decimal CostBetween(LoanTerms t, LoanSchedule s, LocalDate from, LocalDate to)
+        => At(t, s, to).CostPaid - At(t, s, from.PlusDays(-1)).CostPaid;
+
     /// <summary>The interest the payments did not pay: a total deferral's, added to the capital (0 on every other row).</summary>
     public static decimal Capitalised(IEnumerable<ScheduleRow> rows) => rows.Sum(r => r.Interest - (r.Payment - r.Principal));
 
