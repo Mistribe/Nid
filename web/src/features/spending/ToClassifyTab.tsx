@@ -57,12 +57,12 @@ export default function ToClassifyTab() {
   const suggestion = (item: LineToClassify) => {
     const s = item.suggestion;
     if (!s) return <span className="text-muted-foreground">—</span>;
-    const basis = basisTexts(s.basis);
+    const basis = basisTexts(t, s);
     return (
       <span className="flex items-center gap-1.5">
         <span className="font-medium">{s.categoryName}</span>
         <InfoTip label={t('banks.to_classify.why', { category: s.categoryName })}>
-          {t(basis.label, { count: s.evidenceCount })}. {t(basis.about, { agreement: s.agreement, category: s.categoryName })}
+          {basis.label}. {basis.about}
         </InfoTip>
       </span>
     );

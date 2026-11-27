@@ -37,6 +37,10 @@ export const handlers = [
   // The shell's bell and banner read the notification counts.
   http.get('*/api/v1/platform/notifications/count', () => HttpResponse.json({ unread: 0, criticalUnread: 0 })),
   http.get('*/api/v1/platform/imports', () => HttpResponse.json([])),
+  // #450: Administration › IA and Dépenses › Catégories read what suggests categories: by meaning, never calibrated.
+  http.get('*/api/v1/banking/category-suggestions/calibrations', () => HttpResponse.json({
+    implementation: 'nearest-neighbours', version: '1', model: 'bge-m3:latest', digest: 'sha256:abc', unavailable: null, latest: null, profile: null,
+  })),
   // The settings tabs, the envelope pages and the routine ask whether bank sync is on: off unless a test turns it on.
   http.get('*/api/v1/banking/status', () => HttpResponse.json({ enabled: false, configured: false })),
   // ... and, once a test turns it on, which bank accounts the person reads (none).

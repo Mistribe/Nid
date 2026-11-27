@@ -89,6 +89,31 @@ describe('« Suggestions » in Opérations (#449)', () => {
     expect(within(block).getByText(/2 opérations à classer · proche du nom de la catégorie/)).toBeInTheDocument();
   });
 
+  it('says when a model on a household worker guessed, what it read and how sure it is (#450)', async () => {
+    server.use(
+      http.get('*/api/v1/banking/operations', () => HttpResponse.json(operations)),
+      http.get('*/api/v1/banking/category-suggestions', () => HttpResponse.json({ items: [{ ...suggestion, basis: 'ai', placement: 'local', evidenceCount: 0, agreement: 92 }], total: 1 })),
+    );
+    const { user, block } = await open();
+    expect(within(block).getByText(/2 opérations à classer · deviné par IA \(modèle local\)/)).toBeInTheDocument();
+    await user.hover(within(block).getByRole('button', { name: 'À propos : deviné par IA (modèle local)' }));
+    const tip = await screen.findByRole('tooltip');
+    expect(tip).toHaveTextContent(/jamais un montant, une date, un compte ni un nom/);
+    expect(tip).toHaveTextContent('Le modèle s’en dit sûr à 92 %');
+  });
+
+  it('says a remote worker guessed, and no probability for a model without scores (#450)', async () => {
+    server.use(
+      http.get('*/api/v1/banking/operations', () => HttpResponse.json(operations)),
+      http.get('*/api/v1/banking/category-suggestions', () => HttpResponse.json({ items: [{ ...suggestion, basis: 'ai', placement: 'remote', evidenceCount: 0, agreement: 0 }], total: 1 })),
+    );
+    const { user, block } = await open();
+    await user.hover(within(block).getByRole('button', { name: 'À propos : deviné par IA (worker distant)' }));
+    const tip = await screen.findByRole('tooltip');
+    expect(tip).toHaveTextContent(/Il peut se tromper/);
+    expect(tip).not.toHaveTextContent(/sûr à/);
+  });
+
   it('ignores a group for the household, the focus on the block while groups remain', async () => {
     const writes = serve([{ ...suggestion, pattern: 'OTHER SHOP', lines: [line('t3', 'OTHER SHOP')] }]);
     const { user, block } = await open();

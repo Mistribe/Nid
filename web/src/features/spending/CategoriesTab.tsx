@@ -28,6 +28,7 @@ import '@/locales/banks';
 import { Buttons, MergeDialog, RenameDialog, useCategoryWrites, useNameError } from './categoryEdits';
 import { fullName as nameIn, mergeTargets } from './categoryTargets';
 import { CategoryRules } from './CategoryRules';
+import { SuggestAgain } from './SuggestAgain';
 import { SuggestionDismissals } from './SuggestionDismissals';
 
 const KINDS = ['expense', 'income', 'transfer'] as const;
@@ -181,6 +182,7 @@ export default function CategoriesTab() {
           </Section>
         )}
       <CategoryRules />
+      <SuggestAgain />
       <SuggestionDismissals />
       {dialog?.mode === 'create' ? <CreateDialog parents={tops.filter((c) => !c.parentId)} kind={kind} onClose={close} onDone={done} /> : null}
       {dialog?.mode === 'rename' ? <RenameDialog category={dialog.category} onClose={close} onDone={done} /> : null}

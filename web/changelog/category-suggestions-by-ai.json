@@ -1,0 +1,4 @@
+{
+  "en": "A small AI model on one of your workers can guess the category of transactions nobody has classified yet, from their masked label only. An administrator picks it and calibrates it in Administration › AI; a guess says so, and « Suggest again » in Spending › Categories asks it afresh.",
+  "fr": "Un petit modèle d’IA sur l’un de vos workers peut deviner la catégorie des opérations que personne n’a encore classées, à partir de leur seul libellé masqué. Un administrateur le choisit et le calibre dans Administration › IA ; une suggestion devinée le dit, et « Suggérer à nouveau » dans Dépenses › Catégories la redemande."
+}

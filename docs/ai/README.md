@@ -747,6 +747,20 @@ livrée par défaut.
 - `GET /api/v1/banking/category-suggestions/sample` (un adulte) montre jusqu'à 3 textes tels que le job les enverrait, masqués,
   tirés des lignes des comptes que le lecteur lit.
 
+**Livré (#450, écrans)** :
+- Bloc « Suggestions » et onglet « À classer » : chaque base a sa ligne et son `InfoTip` : « proche du nom de la catégorie »
+  (`category_name`), « deviné par IA (modèle local) » ou « (worker distant) » selon `placement` (`ai`), avec ce qui est parti (le
+  libellé masqué et les noms des catégories, jamais un montant, une date, un compte ni un nom), que la réponse peut être fausse, et
+  la probabilité calibrée en pour cent quand le modèle en donne une (`agreement`, calculé par le serveur).
+- Administration › IA, ligne « Suggestions de catégories » : le modèle est un modèle `decide` que les workers déclarent, ou « Par le
+  sens » sur le modèle de l'usage `embed` ; le réglage dit que `decide` ne part jamais vers le cloud, même avec « Workers du foyer, puis
+  le cloud ». Dessous, le calibrage : ce qu'il mesure, l'état du dernier (en attente, en cours, fait, échec avec le code en mots, relu
+  toutes les 3 s tant qu'il attend ou tourne), « Pas encore calibré : aucune suggestion par IA » sans profil, sinon les chiffres en
+  mots (justes, faux, « je ne sais pas » au seuil, la fourchette du taux d'erreur, la part des libellés suggérés, le seuil ; avec et
+  sans historique pour les voisins proches ; « sans scores » signalé), le bouton « Calibrer », et, plié, l'échantillon de ce qui part
+  au modèle (`sample`).
+- Dépenses › Catégories : « Suggérer à nouveau » (`refresh`), montré seulement quand un modèle d'un worker a un profil.
+
 ### 7.3 Calibrage et seuils
 
 - Calibrage (température) et seuil sont **appliqués par Nid**, depuis un **profil d'évaluation** versionné
@@ -791,7 +805,7 @@ livrée par défaut.
   réponses qui nomment une catégorie ; au plus 5 % sur au moins 20, et le modèle est proposé avec `threshold` nul et
   `scoreless` ; sinon il ne l'est pas. La vue du calibrage donne `temperature`, `scoreless`, les chiffres de la réponse (`guess`)
   et la fiabilité.
-- L'écran d'admin suit.
+- L'écran d'admin : §7.2, « Livré (#450, écrans) ».
 
 ## 8. L'assistant
 

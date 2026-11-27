@@ -242,4 +242,29 @@ describe('Dépenses › Catégories', () => {
     expect(field).toHaveAttribute('aria-invalid', 'true');
     expect(within(dialog).queryByRole('alert')).toBeNull();
   });
+
+  it('offers « Suggérer à nouveau » only while an AI model guesses, and forgets its guesses (#450)', async () => {
+    serve();
+    const { unmount } = await open();
+    // By default nothing is guessed (test/server.ts): no button.
+    expect(screen.queryByRole('button', { name: 'Suggérer à nouveau' })).toBeNull();
+    unmount();
+
+    let refreshed = 0;
+    server.use(
+      http.get('*/api/v1/banking/category-suggestions/calibrations', () => HttpResponse.json({
+        implementation: 'llm-choice', version: '1', model: 'qwen-small', digest: 'sha256:abc', unavailable: null, latest: null,
+        profile: { evalVersion: 1, options: 38, threshold: 0.6, coldThreshold: null, cases: 412, neighbours: null, withHistory: null, cold: null,
+          measuredAt: '2026-11-27T10:00:00+00:00', temperature: 1, scoreless: false, guess: null, reliability: [] },
+      })),
+      http.post('*/api/v1/banking/category-suggestions/refresh', () => { refreshed++; return new HttpResponse(null, { status: 204 }); }),
+    );
+    const { user } = await open();
+    const again = await screen.findByRole('button', { name: 'Suggérer à nouveau' });
+    await user.hover(screen.getByRole('button', { name: 'À propos : Suggérer à nouveau' }));
+    expect(await screen.findByRole('tooltip')).toHaveTextContent(/les redemande au modèle/);
+    await user.click(again);
+    await waitFor(() => expect(refreshed).toBe(1));
+    expect(await screen.findByText(/seront redemandées dans les minutes qui viennent/)).toBeInTheDocument();
+  });
 });

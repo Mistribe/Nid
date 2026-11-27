@@ -1,6 +1,9 @@
 export const percent = (value: number, sign = false) =>
   new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1, signDisplay: sign ? 'exceptZero' : 'auto' }).format(value);
 
+/** A share the server computed (0.042), as a percentage: « 4,2 % ». */
+export const share = (fraction: number) => new Intl.NumberFormat('fr-FR', { style: 'percent', maximumFractionDigits: 1 }).format(fraction);
+
 const instantDay = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
 const instantTime = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' });
 

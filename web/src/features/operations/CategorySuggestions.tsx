@@ -94,7 +94,7 @@ function Suggestion({ suggestion: s, busy, onRule, onCategorise, onIgnore }: {
 }) {
   const { t } = useTranslation();
   const more = s.lineCount - s.lines.length;
-  const why = basisTexts(s.basis);
+  const why = basisTexts(t, s);
   return (
     <li className="space-y-2 py-3">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
@@ -103,10 +103,8 @@ function Suggestion({ suggestion: s, busy, onRule, onCategorise, onIgnore }: {
           {s.direction === 'credit' ? <span className="text-sm text-muted-foreground"> · {t('banks.suggestions.credits')}</span> : null}
         </p>
         <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-          {t('banks.suggestions.lines', { count: s.lineCount })} · {t(why.label, { count: s.evidenceCount })}
-          <InfoTip label={t(why.label, { count: s.evidenceCount })}>
-            {t(why.about, { agreement: s.agreement, category: s.categoryName })}
-          </InfoTip>
+          {t('banks.suggestions.lines', { count: s.lineCount })} · {why.label}
+          <InfoTip label={why.label}>{why.about}</InfoTip>
         </p>
       </div>
       <div className="flex flex-wrap gap-2">
