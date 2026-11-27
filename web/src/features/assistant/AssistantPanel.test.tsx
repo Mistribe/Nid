@@ -11,12 +11,12 @@ const sse = (...events: [string, unknown][]) => new HttpResponse(
   { headers: { 'content-type': 'text/event-stream' } },
 );
 
-const USES = (model: string | null) => [{ use: 'chat', mode: 'self_hosted', model }];
+const USES = (model: string | null, mode = 'self_hosted') => [{ use: 'chat', mode, model }];
 
-function serve({ enabled = true, model = 'llama3.2' }: { enabled?: boolean; model?: string | null } = {}) {
+function serve({ enabled = true, model = 'llama3.2', mode }: { enabled?: boolean; model?: string | null; mode?: string } = {}) {
   server.use(
     http.get('*/api/v1/ai/assistant/me', () => HttpResponse.json({ enabled, offsiteDefault: 'ask', cloudPossible: false })),
-    http.get('*/api/v1/ai/settings', () => HttpResponse.json({ remoteWorkersAllowed: false, uses: USES(model), conversationRetentionDays: 30 })),
+    http.get('*/api/v1/ai/settings', () => HttpResponse.json({ remoteWorkersAllowed: false, uses: USES(model, mode), conversationRetentionDays: 30 })),
   );
 }
 
@@ -139,6 +139,15 @@ describe('The assistant panel', () => {
     const adminPanel = await openPanel(admin.user);
     expect(await within(adminPanel).findByRole('status')).toHaveTextContent("Aucun modèle n’est choisi pour l’assistant.");
     expect(within(adminPanel).getByRole('link', { name: "Ouvrir les réglages de l’IA" })).toHaveAttribute('href', '/admin/ai');
+  });
+
+  it('asks for no model when the chat goes straight to the cloud (#819)', async () => {
+    serve({ model: null, mode: 'cloud' });
+    const { user } = await renderApp('/dashboard', { capabilities: adminCapabilities });
+    const panel = await openPanel(user);
+
+    expect(await within(panel).findByRole('textbox')).toBeInTheDocument();
+    expect(within(panel).queryByText("Aucun modèle n’est choisi pour l’assistant.")).not.toBeInTheDocument();
   });
 
   it('« Plus anciennes » adds the older conversations below the newer ones (#642)', async () => {

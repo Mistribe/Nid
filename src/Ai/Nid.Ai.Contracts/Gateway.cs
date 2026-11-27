@@ -22,14 +22,26 @@ public static class ModelUses
     public static bool TakesChat(string use) => use is Chat or Extract;
 }
 
-/// <summary>How far a use may go: nowhere, the household's workers, or its workers then an enabled cloud provider.</summary>
+/// <summary>How far a use may go: nowhere, the household's workers, its workers then an enabled cloud provider, or straight to
+/// an enabled cloud provider (#819).</summary>
 public static class UseModes
 {
     public const string Off = "off";
     public const string SelfHosted = "self_hosted";
     public const string SelfHostedThenCloud = "self_hosted_then_cloud";
+    public const string Cloud = "cloud";
 
-    public static readonly IReadOnlyList<string> All = [Off, SelfHosted, SelfHostedThenCloud];
+    public static readonly IReadOnlyList<string> All = [Off, SelfHosted, SelfHostedThenCloud, Cloud];
+
+    /// <summary>#819: <see cref="Cloud"/> only for the chat, whose cloud turn runs on its profile's own model; every other use
+    /// needs a model of its own (one index, one model) or a worker (documents never leave).</summary>
+    public static bool Offers(string use, string mode) => mode != Cloud || use == ModelUses.Chat;
+
+    /// <summary>Whether a use in <paramref name="mode"/> may reach a cloud provider.</summary>
+    public static bool ReachesCloud(string mode) => mode is SelfHostedThenCloud or Cloud;
+
+    /// <summary>Whether a use in <paramref name="mode"/> may reach the household's workers.</summary>
+    public static bool ReachesWorkers(string mode) => mode is SelfHosted or SelfHostedThenCloud;
 
     /// <summary>The default of a use (<c>docs/ai/README.md</c> §5.3): self-hosted, no cloud provider until the household asks
     /// for one (#172); <c>decide</c> off until its feature (#450).</summary>
