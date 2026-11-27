@@ -12,7 +12,9 @@ export const summary = (over: Partial<LoanSummary> = {}): LoanSummary => ({
   endDate: '2045-10-15', canWrite: true, ended: false, owners: [], ...over,
 });
 
-export const list = (items: LoanSummary[]): LoanList => ({ items });
+// Each loan in a group of its own unless the test names the groups: nothing gathered.
+export const list = (items: LoanSummary[], groups?: LoanList['groups']): LoanList =>
+  ({ items, groups: groups ?? items.map((i) => ({ owners: i.owners, items: [i.id], remainingBalance: null, nextPaymentTotal: null })) });
 
 export const loanDetail = (over: Partial<LoanDetail> = {}): LoanDetail => ({
   id: LOAN, name: 'Prêt maison', lender: 'Banque', note: null, currency: 'EUR', visibility: 'private',

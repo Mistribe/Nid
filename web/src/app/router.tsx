@@ -128,7 +128,7 @@ const fxSearch = (search: Record<string, unknown>): DetailSearch & { quote?: str
 };
 
 /** The loans list's own filter: ended loans shown on demand (3B1 design §5), anything but `1` dropped; the tab (loans dashboard §3.1); the timeline's window (§4.2). */
-export type LoansSearch = { ended?: 1; tab?: string; span?: '5y' | '10y' };
+export type LoansSearch = { ended?: 1; flat?: 1; tab?: string; span?: '5y' | '10y' };
 
 /** Issue #412: a new goal opened as an emergency fund of `months` (1 to 24, anything else dropped). */
 export type NewGoalSearch = { kind?: 'emergency_fund'; months?: number };
@@ -680,6 +680,8 @@ const loansRoute = createRoute({
   beforeLoad: requireModule('realestate'),
   validateSearch: (search: Record<string, unknown>): LoansSearch => ({
     ...(search.ended === 1 || search.ended === '1' ? { ended: 1 as const } : {}),
+    // The list's flat view: the owners' groups unfolded for good (#800).
+    ...(search.flat === 1 || search.flat === '1' ? { flat: 1 as const } : {}),
     // The timeline's window; « Tout » stays out of the URL.
     ...(search.span === '5y' || search.span === '10y' ? { span: search.span } : {}),
     ...detailSearch(search),
