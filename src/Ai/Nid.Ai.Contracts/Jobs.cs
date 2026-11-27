@@ -172,20 +172,22 @@ public sealed record LlmDecideRequest(IReadOnlyList<string> Texts, IReadOnlyList
 public sealed record LlmDecision(int? Choice, IReadOnlyDictionary<int, double> Scores);
 
 /// <summary>One decision per text, in the texts' order, with what answered: the model, its digest, the implementation and its version
-/// (prompt included), and the worker's placement (<c>local</c>, <c>remote</c>).</summary>
+/// (prompt included), and where it ran: a worker's placement (<c>local</c>, <c>remote</c>) or <c>cloud</c> (#812).</summary>
 public sealed record LlmDecisions(string Model, string Digest, string Implementation, string Version, string Placement, IReadOnlyList<LlmDecision> Decisions);
 
-/// <summary>How the workers implement <c>decide</c> on a model, the one they agree on; <paramref name="Scoreless"/>: it gives no scores.</summary>
+/// <summary>How the workers implement <c>decide</c> on a model, the one they agree on, or its cloud provider (#812);
+/// <paramref name="Scoreless"/>: it gives no scores.</summary>
 public sealed record LlmDecideImplementation(string Name, string Version, bool Scoreless);
 
-/// <summary>#450: how a module asks the <c>decide</c> use's model (<c>docs/ai/README.md</c> §7): on the household's workers only, no cloud
-/// adapter serving it yet.</summary>
+/// <summary>#450: how a module asks the <c>decide</c> use's model (<c>docs/ai/README.md</c> §7): on the household's workers, or (#812)
+/// a cloud profile's model with <c>self_hosted_then_cloud</c>.</summary>
 public interface IDecisions
 {
     /// <summary>The model the <c>decide</c> use runs on; null while the use is off or has none.</summary>
     Task<string?> ModelAsync(CancellationToken ct);
 
-    /// <summary>What the active workers declare for <paramref name="model"/> under <c>decide</c>: null when none does or two disagree.</summary>
+    /// <summary>What the active workers declare for <paramref name="model"/> under <c>decide</c>, or its cloud provider's implementation
+    /// (#812): null when none does or two disagree.</summary>
     Task<LlmDecideImplementation?> ImplementationAsync(string model, CancellationToken ct);
 
     /// <summary>A refusal carries its <see cref="JobCodes"/> code: the use off or without a model, an input out of bounds, nowhere to send
@@ -197,7 +199,7 @@ public interface IDecisions
 public interface IModelDigests
 {
     /// <summary>The digest the active workers declare for <paramref name="model"/> under <paramref name="capability"/> (<c>embed</c>,
-    /// <c>decide</c>): the one they agree on, null when none declares it or two disagree. The <c>embed</c> use's cloud model is
-    /// <c>cloud:&lt;profile id&gt;</c>: its name is versioned by its provider.</summary>
+    /// <c>decide</c>): the one they agree on, null when none declares it or two disagree. The <c>embed</c> and <c>decide</c> uses'
+    /// cloud model is <c>cloud:&lt;profile id&gt;</c>: its name is versioned by its provider.</summary>
     Task<string?> DigestAsync(string capability, string model, CancellationToken ct);
 }

@@ -41075,7 +41075,7 @@ export interface components {
             host: string;
             model: string;
             trainsOnData: boolean;
-            humanReview: boolean;
+            humanReview?: null | boolean;
             /** Format: int32 */
             retentionDays?: null | number;
             termsUrl: string;

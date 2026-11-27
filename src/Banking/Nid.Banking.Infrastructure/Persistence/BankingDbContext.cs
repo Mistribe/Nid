@@ -229,7 +229,7 @@ public sealed class BankingDbContext(DbContextOptions<BankingDbContext> options)
 
         modelBuilder.Entity<CategoryGuessRow>(e =>
         {
-            e.ToTable("category_guess", t => t.HasCheckConstraint("ck_category_guess_placement", "placement in ('local','remote')"));
+            e.ToTable("category_guess", t => t.HasCheckConstraint("ck_category_guess_placement", "placement in ('local','remote','cloud')"));
             e.HasKey(x => new { x.Pattern, x.Debit, x.Model, x.Digest });
         });
 

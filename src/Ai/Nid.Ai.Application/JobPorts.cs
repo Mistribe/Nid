@@ -167,7 +167,7 @@ public interface IAiSettings
     /// <summary>False when another adult changed it at the same moment: nothing was written.</summary>
     Task<bool> SetRemoteWorkersAllowedAsync(bool allowed, Guid person, NodaTime.Instant at, CancellationToken ct);
 
-    /// <summary>#556: the document types a cloud provider may read (<see cref="CloudDocumentKinds"/>), none until an admin
+    /// <summary>#556: the document types a cloud provider may read (<see cref="CloudKinds"/>), none until an admin
     /// picks some.</summary>
     Task<IReadOnlyList<string>> AllowedKindsAsync(CancellationToken ct);
 

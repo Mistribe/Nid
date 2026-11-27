@@ -47002,7 +47002,6 @@
           "host",
           "model",
           "trainsOnData",
-          "humanReview",
           "termsUrl",
           "reviewedOn",
           "reviewDue",
@@ -47032,7 +47031,10 @@
             "type": "boolean"
           },
           "humanReview": {
-            "type": "boolean"
+            "type": [
+              "null",
+              "boolean"
+            ]
           },
           "retentionDays": {
             "type": [

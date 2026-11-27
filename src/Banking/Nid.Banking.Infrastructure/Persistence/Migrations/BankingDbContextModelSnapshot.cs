@@ -17,7 +17,7 @@ partial class BankingDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261127112901_CategoryGuesses450";
+    public override string LastMigrationId => "20261127150000_CloudCategoryGuesses812";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -378,7 +378,7 @@ partial class BankingDbContextModelSnapshot : ModelSnapshot
 
                 b.ToTable("category_guess", "banking", t =>
                     {
-                        t.HasCheckConstraint("ck_category_guess_placement", "placement in ('local','remote')");
+                        t.HasCheckConstraint("ck_category_guess_placement", "placement in ('local','remote','cloud')");
                     });
             });
 

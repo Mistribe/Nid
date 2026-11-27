@@ -29,12 +29,15 @@ Ces conditions changent : elles servent à remplir les profils du §4 et doivent
 | **Gemini** | Oui : plusieurs modèles Flash et Pro sans frais, [limites variables](https://ai.google.dev/gemini-api/docs/pricing) | Offre gratuite : [contenu utilisé pour améliorer les produits, relecture humaine possible](https://ai.google.dev/gemini-api/terms). **Pour l'EEE, la Suisse et le Royaume-Uni, les termes des services payants s'appliquent à tous les services, y compris le quota gratuit** : pas d'usage pour améliorer les produits. Journaux conservés une durée limitée pour détecter les abus |
 | **OpenAI** | Plus d'offre gratuite générale. Des sources tierces indiquent un crédit d'essai unique et un programme « jetons gratuits contre partage de données » ; ce programme n'apparaît pas dans la [documentation officielle](https://developers.openai.com/api/docs/guides/your-data) | API : pas d'entraînement par défaut sauf partage explicite ; journaux d'abus jusqu'à 30 jours ; rétention nulle sur agrément. **Le gratuit passe par l'autorisation d'entraîner sur les données** |
 | **Anthropic** | Pas d'offre gratuite permanente ; crédit d'essai unique selon des [sources tierces](https://www.verdent.ai/guides/how-to-use-claude-ai-for-free-2026), non vérifié auprès d'Anthropic | [Pas d'entraînement sans autorisation expresse](https://platform.claude.com/docs/en/manage-claude/api-and-data-retention) ; conservation courte |
+| **Jev (TypeSafe AI)**, lu le 2026-11-27 (#812) | Non ; accès anticipé, clé sur [console.typesafe.ai](https://console.typesafe.ai/keys) ; 0,042 $ par million de jetons en entrée, sortie gratuite | Pas d'entraînement : [politique de confidentialité](https://typesafe.ai/legal/privacy-policy) (mise à jour le 19/11/2025), « will not train or fine tune any artificial intelligence or machine learning models on Input » ; [MCA](https://typesafe.ai/legal/mca) §4.1 (23/09/2026), pas de données client dans un jeu d'entraînement sans accord. **Réserve** : MCA §4.1(c) et §4.3, droit perpétuel de tirer une « Telemetry » (statistiques, classifications, mesures, enseignements) et de l'exploiter sans restriction, y compris pour améliorer les services. [DPA](https://typesafe.ai/legal/data-processing) public (24/04/2026) : TypeSafe sous-traitant, clauses types UE module 2 (et 3), droit irlandais, avenant britannique, transferts suisses, notification de violation sous 72 h, [sous-traitants](https://trust.typesafe.ai/subprocessors). Rétention : « aussi longtemps que nécessaire », sans durée ; rétention nulle pour les clients [entreprise](https://typesafe.ai/enterprise) seulement. Relecture humaine : non précisée. Hébergé aux États-Unis seulement, pas de région UE. SOC 2 type II (centre de confiance) |
 
 **Lecture** :
 
 - Une offre gratuite n'est éligible qu'avec **Gemini, dans l'EEE, la Suisse ou le Royaume-Uni** ; c'est un profil cloud à prix nul, après les workers (`../ai/README.md` §5.3). Hors de ces régions, l'offre gratuite de Gemini est inéligible.
 - Le gratuit d'OpenAI implique l'entraînement sur les données : **exclu**.
 - OpenAI et Anthropic ne servent qu'en **payant**, avec l'accord de l'utilisateur.
+- Jev passe la règle (§2, principe 3) : pas d'entraînement, dans toutes les régions. Il reste un opt-in payant pour `decide`
+  seulement, sur des libellés masqués, avec la réserve de la « Telemetry » et un hébergement aux États-Unis, dits à l'admin.
 
 ## 4. Profils de fournisseurs
 
@@ -46,8 +49,8 @@ Un **profil** décrit un fournisseur pour une offre donnée. Les profils sont **
 | `provider`, `tier` | Fournisseur ; offre : `free` ou `paid`. Les modèles des workers appariés ne sont pas des profils : ils viennent de la déclaration du worker (`../ai/README.md` §3.4) |
 | `host` | Le seul hôte que l'adaptateur du profil peut joindre (§9) |
 | `model` | Modèle utilisé ; configurable, non figé dans le code |
-| `capabilities` | Ce que le profil sert : `chat` ou `embed` (#556) ; à venir : `vision`, `pdf_input`, `structured_output`, `max_pages`, `max_input_mb` |
-| `data_terms` | `trains_on_data` (par région), `human_review`, `retention_days?`, `retention_switches` (interrupteurs de rétention du fournisseur et valeur imposée par l'adaptateur, par exemple `store: false` pour les Responses d'OpenAI, `../ai/README.md` §5.4), `terms_url`, `reviewed_on` |
+| `capabilities` | Ce que le profil sert : `chat`, `embed` (#556) ou `decide` (#812) ; à venir : `vision`, `pdf_input`, `structured_output`, `max_pages`, `max_input_mb` |
+| `data_terms` | `trains_on_data` (par région), `human_review` (nul : les conditions ne le disent pas, #812), `retention_days?`, `retention_switches` (interrupteurs de rétention du fournisseur et valeur imposée par l'adaptateur, par exemple `store: false` pour les Responses d'OpenAI, `../ai/README.md` §5.4), `terms_url`, `reviewed_on` |
 | `quotas?` | `rpm`, `rpd`, `tokens_per_day`, tels que publiés par le fournisseur |
 | `pricing?` | Prix par million de jetons en entrée et en sortie, devise (offres payantes) |
 
@@ -75,6 +78,8 @@ Exemple (valeurs illustratives) :
 - **Plongements (#556)** : `openai-embed` (`text-embedding-3-small`), `gemini-embed` (`gemini-embedding-001`) et
   `mistral-embed` (`mistral-embed`), capacité `embed`, avec les conditions du profil de chat du même fournisseur. Anthropic
   n'en propose pas.
+- **Choix dans une liste (#812)** : `jev-choice` (`jev-1.14.0`, fournisseur `typesafe`), capacité `decide`, conditions lues le
+  2026-11-27 (§3, §14.1) ; `humanReview` nul, pas de `retentionDays`.
 
 ## 5. Politique de sélection
 
@@ -242,7 +247,7 @@ Les profils (§4) ne sont **pas** en base : ils sont de la configuration version
 
 ### 14.1 Piste : choix parmi des candidats et Jev (TypeSafe AI), évaluée le 2026-09-23
 
-Sources : [annonce](https://typesafe.ai/blog/introducing-system-one-models-and-jev), [documentation](https://docs.typesafe.ai), [documents légaux](https://docs.typesafe.ai/legal.md). Aucun essai de Jev exécuté ; l'essai local de `decide` (#450) est consigné à la fin de cette section.
+Sources : [annonce](https://typesafe.ai/blog/introducing-system-one-models-and-jev), [documentation](https://docs.typesafe.ai), [documents légaux](https://docs.typesafe.ai/legal.md). Aucun essai de Jev exécuté ; l'essai local de `decide` (#450) et les conditions relues pour #812 sont consignés à la fin de cette section.
 
 **Le principe, indépendant du fournisseur.** Du code déterministe (regex réglées pour trop trouver) repère les valeurs candidates dans le texte ; le modèle **choisit** l'une d'elles dans une liste fermée. La valeur retenue est toujours un texte présent dans le document : le modèle ne peut ni inventer un montant ni inverser un chiffre (LLM09, `../security/ai-ingestion.md` §1). **Un modèle local peut le faire**, servi par un worker apparié (Ollama derrière le worker, `../ai/README.md` §7), avec un schéma JSON dont l'`enum` contient les candidats, sans renoncer au local par défaut. Ce principe est à mettre dans le jeu d'évaluation de l'étape 4 (`../architecture.md` §9.4), face à l'extraction classique.
 
@@ -255,8 +260,8 @@ Sources : [annonce](https://typesafe.ai/blog/introducing-system-one-models-and-j
 |---|---|
 | Local par défaut | Cloud seulement, hébergé sur la côte ouest des États-Unis : ce ne peut être qu'un profil en opt-in |
 | `trains_on_data` | Faux selon la politique de confidentialité |
-| Rétention, relecture humaine, région de traitement | **Non documentées** dans les pages lues ; rétention nulle réservée aux clients entreprise. Accord de traitement des données à relire avant tout profil |
-| Passerelle (§9) | Utilisable derrière `SafeHttpClient`, mais `ILlmProvider` suppose « texte en entrée, JSON en sortie » : il faudrait une tâche `decide` distincte d'`extract` et `ocr` |
+| Rétention, relecture humaine, région de traitement | Relus le 2026-11-27 (#812, ci-dessous) : rétention sans durée, relecture humaine non précisée, États-Unis seulement ; rétention nulle réservée aux clients entreprise |
+| Passerelle (§9) | Livré (#812) : tâche `decide` de la passerelle, adaptateur `JevAdapter` par `CloudHttp` (`../ai/README.md` §5.4) |
 | Images | Non prises en charge |
 
 **Usages envisagés**, par ordre de priorité :
@@ -306,3 +311,14 @@ chiffres ; deux de `qwen2.5:1.5b` diffèrent d'une réponse.
 - **Défaut conseillé pour un foyer : « Par le sens » sur `bge-m3`**, pas un petit LLM : au moins aussi juste ici, dix fois moins
   coûteux par libellé et sans prompt à maintenir ; il ne suggérera rien tant qu'un calibrage ne lui trouve pas de seuil, ce qui
   est le comportement voulu.
+
+**Jev pour `decide` (#812), 2026-11-27.** Conditions lues (§3) : elles passent le §2, profil `jev-choice` livré en opt-in
+(`self_hosted_then_cloud`, `bank_labels` dans `allowed_kinds`, `allow` de chaque adulte concerné, budget). API vérifiée sur la
+documentation publique ([`choice`](https://docs.typesafe.ai/primitives/choice.md), [API](https://docs.typesafe.ai/api),
+[modèles](https://docs.typesafe.ai/models.md)) : `POST https://api.typesafe.ai/v1/systemone`, `Authorization: Bearer`, corps
+`model`, `state`, `questions` (question `choice` : `instructions`, `criteria` nom → description ou nul, 255 options au plus) ;
+réponse `answers` (`choice`, `confidence`, `probabilities`) et `usage` (`input_tokens` facturés, `output_tokens` gratuits) ;
+`jev-latest` désigne `jev-1.14.0` (14/10/2026) et bouge à chaque version, d'où le modèle versionné dans le profil.
+**Aucun essai** : pas de clé. L'adaptateur est testé contre un faux serveur seulement. À faire dès qu'une clé existe : « Calibrer »
+sur le jeu version 1 (412 libellés, ~0,005 $ au prix public) et consigner ici, à côté des modèles du tableau ci-dessus, le seuil
+retenu, le meilleur point du balayage, la température apprise, la latence et le coût mesurés.

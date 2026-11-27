@@ -21,7 +21,7 @@ const USES = ['chat', 'extract', 'embed', 'decide'].map((use) => ({ use, mode: '
 
 const PROFILE = {
   id: 'anthropic-claude', provider: 'anthropic', tier: 'paid', host: 'api.anthropic.com', model: 'claude-opus-5-5', trainsOnData: false,
-  humanReview: true, retentionDays: 30, termsUrl: 'https://www.anthropic.com/legal/commercial-terms', reviewedOn: '2026-11-22', reviewDue: false,
+  humanReview: true as boolean | null, retentionDays: 30 as number | null, termsUrl: 'https://www.anthropic.com/legal/commercial-terms', reviewedOn: '2026-11-22', reviewDue: false,
   eligible: true, enabled: false, keyHint: null as string | null, suspended: false, capabilities: ['chat'],
 };
 
@@ -381,14 +381,67 @@ describe('Administration › IA', () => {
     }));
     const { user } = await renderApp('/admin/ai', { capabilities: adminCapabilities });
 
-    const section = (await screen.findByRole('heading', { name: 'Documents envoyés au cloud' })).closest('section')!;
+    const section = (await screen.findByRole('heading', { name: 'Données envoyées au cloud' })).closest('section')!;
     expect(await within(section).findByRole('checkbox', { name: 'Factures' })).toBeChecked();
-    expect(within(section).getAllByRole('checkbox').map((c) => c.getAttribute('aria-checked'))).toEqual(['false', 'false', 'true', 'false']);
+    expect(within(section).getAllByRole('checkbox').map((c) => c.getAttribute('aria-checked'))).toEqual(['false', 'false', 'true', 'false', 'false']);
     expect(within(section).queryByRole('checkbox', { name: /paie/i })).not.toBeInTheDocument();
 
     await user.click(within(section).getByRole('checkbox', { name: 'Contrats' }));
 
     await waitFor(() => expect(sent).toEqual([{ kinds: ['invoice', 'contract'] }]));
+  });
+
+  it('lets an admin send the masked bank labels to a cloud decide model, off by default, saying what goes (#812)', async () => {
+    serve([worker()]);
+    const sent: unknown[] = [];
+    server.use(http.put('*/api/v1/ai/settings/allowed-kinds', async ({ request }) => {
+      sent.push(await request.json());
+      return HttpResponse.json({ remoteWorkersAllowed: false, uses: USES, allowedKinds: ['bank_labels'] });
+    }));
+    const { user } = await renderApp('/admin/ai', { capabilities: adminCapabilities });
+
+    const section = (await screen.findByRole('heading', { name: 'Données envoyées au cloud' })).closest('section')!;
+    const labels = await within(section).findByRole('checkbox', { name: 'Libellés bancaires' });
+    expect(labels).not.toBeChecked();
+    await user.hover(within(section).getByRole('button', { name: 'À propos : Libellés bancaires' }));
+    expect(await screen.findByRole('tooltip')).toHaveTextContent(/libellé masqué.*noms des catégories du foyer : jamais un montant/);
+
+    await user.click(labels);
+
+    await waitFor(() => expect(sent).toEqual([{ kinds: ['bank_labels'] }]));
+  });
+
+  it('offers an enabled decide profile as the model of the suggestions, said to be sent masked labels only (#812)', async () => {
+    const jev = {
+      ...PROFILE, id: 'jev-choice', provider: 'typesafe', model: 'jev-1.14.0', humanReview: null, retentionDays: null, enabled: true, keyHint: 'WXYZ',
+      capabilities: ['decide'],
+    };
+    let chosen: string | null = null;
+    const uses = () => USES.map((u) => (u.use === 'decide' ? { ...u, mode: 'self_hosted_then_cloud', model: chosen } : u));
+    serve([worker()], false, uses(), [PROFILE, jev]);
+    const sent: unknown[] = [];
+    server.use(
+      http.get('*/api/v1/ai/settings', () => HttpResponse.json({ remoteWorkersAllowed: false, uses: uses(), allowedKinds: [], conversationRetentionDays: 30 })),
+      http.put('*/api/v1/ai/settings/uses/decide/model', async ({ request }) => {
+        const body = await request.json() as { model: string | null };
+        sent.push(body);
+        chosen = body.model;
+        return HttpResponse.json({ remoteWorkersAllowed: false, uses: uses(), allowedKinds: [] });
+      }),
+    );
+    const { user } = await renderApp('/admin/ai', { capabilities: adminCapabilities });
+
+    const decide = (await screen.findByRole('heading', { name: 'Suggestions de catégories' })).parentElement!;
+    expect(decide).toHaveTextContent(/si « Libellés bancaires » est coché plus bas/);
+    await user.click(within(decide).getByRole('combobox', { name: 'Modèle' }));
+    await user.click(await screen.findByRole('option', { name: 'jev-1.14.0 (TypeSafe AI (Jev), cloud)' }));
+    await waitFor(() => expect(sent).toEqual([{ model: 'jev-1.14.0' }]));
+    await waitFor(() => expect(decide).toHaveTextContent(/reçoit les libellés masqués et les noms des catégories/));
+
+    // Its terms do not say whether a person may read a request: said so, not guessed.
+    const cloud = screen.getByRole('heading', { name: 'Fournisseurs cloud' }).closest('section')!;
+    expect(cloud).toHaveTextContent('Ses conditions ne disent pas si une personne peut relire une demande');
+    expect(cloud).toHaveTextContent(/Hébergé aux États-Unis seulement/);
   });
 
   it('shows what a provider may do with the data', async () => {
@@ -476,7 +529,7 @@ describe('Administration › IA', () => {
       const decide = await decideRow();
       expect(await within(decide).findByText('Deviné par IA, avec qwen-small.')).toBeInTheDocument();
       expect(within(decide).getByText('Pas encore calibré : aucune suggestion par IA.')).toBeInTheDocument();
-      expect(within(decide).getByText(/jamais vers un fournisseur cloud/)).toBeInTheDocument();
+      expect(decide).not.toHaveTextContent(/Libellés bancaires/); // no cloud decide profile enabled: nothing said of one
       await expectNoAxeViolations(container);
       await user.click(within(decide).getByRole('button', { name: 'Calibrer' }));
 

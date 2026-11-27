@@ -128,8 +128,9 @@ public sealed class CloudEmbedTests(PostgresFixture fixture) : IClassFixture<Pos
 
         Assert.Equal(["gemini", "mistral", "openai"], shipped.Select(p => p.Provider).Order());
         Assert.All(shipped, p => Assert.Equal(0, p.Pricing!.OutputPerMillion));
-        Assert.All(CloudDocumentKinds.All, k => Assert.Contains(k, DocumentRoles.All));
-        Assert.DoesNotContain(DocumentRoles.Payslip, CloudDocumentKinds.All);
+        Assert.All(CloudKinds.Documents, k => Assert.Contains(k, DocumentRoles.All));
+        Assert.Equal([.. CloudKinds.Documents, DataClasses.BankLabels], CloudKinds.All);
+        Assert.DoesNotContain(DocumentRoles.Payslip, CloudKinds.All);
     }
 
     private Task<NidApp> StartAsync(FakeProvider provider)

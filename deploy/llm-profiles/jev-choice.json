@@ -1,0 +1,26 @@
+{
+  "id": "jev-choice",
+  "provider": "typesafe",
+  "tier": "paid",
+  "host": "api.typesafe.ai",
+  "model": "jev-1.14.0",
+  "contextTokens": 32768,
+  "capabilities": [
+    "decide"
+  ],
+  "dataTerms": {
+    "trainsOnData": {
+      "eea_ch_uk": false,
+      "other": false
+    },
+    "humanReview": null,
+    "retentionSwitches": [],
+    "termsUrl": "https://typesafe.ai/legal/mca",
+    "reviewedOn": "2026-11-27"
+  },
+  "pricing": {
+    "inputPerMillion": 0.042,
+    "outputPerMillion": 0,
+    "currency": "USD"
+  }
+}
