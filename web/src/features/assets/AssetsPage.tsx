@@ -85,7 +85,7 @@ export function AssetsPage() {
         : rows.length === 0 ? <p className="text-muted-foreground">{t('assets_list.no_match')}</p>
         : (
           <>
-            <Table rows={rows} />
+            <Table key={search.flat === 1 ? 'flat' : 'grouped'} rows={rows} />
             <Pager page={page} total={total} label={t('assets_list.pages')} onPage={(n) => go({ page: n > 1 ? n : undefined })} />
           </>
         )}

@@ -29,7 +29,8 @@ test('alice creates a private loan and reads its schedule; bob never sees it', a
   await expect(schedule.getByRole('button', { expanded: true })).toHaveCount(1);
   await expect(schedule.getByText('prochaine échéance')).toBeVisible();
 
-  await alice.goto('/loans?tab=list&scope=me');
+  // Flat: alice's other loans would fold this one into her group (#800).
+  await alice.goto('/loans?tab=list&scope=me&flat=1');
   await expect(alice.getByRole('table', { name: 'Liste des crédits' }).getByRole('row').filter({ hasText: name })).toContainText('1 159,92 €');
 
   const bob = await browser.newPage();

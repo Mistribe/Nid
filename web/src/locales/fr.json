@@ -662,6 +662,9 @@
     "add": "Ajouter un crédit",
     "show_ended": "Afficher les crédits terminés",
     "ended_mark": "Terminé",
+    "group_one": "{{count}} crédit",
+    "group_other": "{{count}} crédits",
+    "expand_group": "Déplier les crédits",
     "empty_title": "Aucun crédit pour l’instant",
     "empty_body": "Ajoutez un prêt pour suivre son échéancier, ce qu’il coûte et ce qu’il reste à rembourser.",
     "none_running_title": "Aucun crédit en cours",
@@ -696,7 +699,10 @@
     "empty_body": "Ajoutez un bien pour suivre sa valeur, ce qu’il a coûté et ce qu’il vaut une fois ses crédits déduits.",
     "not_estimated": "Pas encore estimé",
     "stale": "À réestimer",
-    "unknown_rate": "—"
+    "unknown_rate": "—",
+    "group_one": "{{count}} bien",
+    "group_other": "{{count}} biens",
+    "expand_group": "Déplier les biens"
   },
   "property_form": {
     "with_loan": "Achat avec un crédit",

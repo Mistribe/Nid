@@ -25,7 +25,14 @@ public sealed record GoalSummary(
     GoalMoneyView? Target, GoalMoneyView? Reached, decimal? ProgressPct, GoalMoneyView? Remaining, GoalMoneyView? MonthlyNeeded,
     GoalMoneyView? MonthlyPace, LocalDate? ProjectedOn, string? Status, bool Partial, IReadOnlyList<string> Flags);
 
-public sealed record GoalList(IReadOnlyList<GoalSummary> Items) : IExposesItems
+/// <summary>
+/// #801: the listed goals of the same owners and shares, open or closed alike. <paramref name="Reached"/> and <paramref name="Target"/> add up theirs in the
+/// household's currency; null when none has one.
+/// </summary>
+public sealed record GoalGroupView(IReadOnlyList<ItemOwnerView> Owners, IReadOnlyList<Guid> Items, GoalMoneyView? Reached, GoalMoneyView? Target);
+
+/// <param name="Groups">The rows by owners and shares, in the rows' order.</param>
+public sealed record GoalList(IReadOnlyList<GoalSummary> Items, IReadOnlyList<GoalGroupView> Groups) : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems() => Items.Select(i => new ItemId(i.Id));
 }
