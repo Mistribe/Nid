@@ -22,7 +22,7 @@ export const ASSET_COSTS = '/api/v1/assets/{id}/costs' as const;
 export const ASSET_COST = '/api/v1/assets/{id}/costs/{flowId}' as const;
 
 /** The categories of a vehicle's running cost, in the order the form offers them. */
-export const ASSET_COST_CATEGORIES = ['service', 'repair', 'tyres', 'other'] as const;
+export const ASSET_COST_CATEGORIES = ['service', 'repair', 'tyres', 'fuel', 'other'] as const;
 
 /** The kinds of an asset, in the order the form offers them. */
 export const ASSET_ENERGIES = ['petrol', 'diesel', 'hybrid', 'plug_in_hybrid', 'electric', 'lpg', 'other'] as const;

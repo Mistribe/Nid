@@ -116,7 +116,8 @@ public sealed record BankTransactionView(
 public sealed record PartView(Guid Id, string Amount, CategoryView? Category, string? Note);
 
 /// <summary>A line's category; <paramref name="Kind"/> is <c>expense</c>, <c>income</c> or <c>transfer</c>.</summary>
-public sealed record CategoryView(Guid Id, string Name, Guid? ParentId, string? ParentName, string Kind);
+/// <param name="Key">A seeded category's stable key (<c>transport.fuel</c>), null for one the household made (#650: a fuel line is a vehicle's fuel).</param>
+public sealed record CategoryView(Guid Id, string Name, Guid? ParentId, string? ParentName, string Kind, string? Key = null);
 
 /// <summary>A line's link: to a charge of an item (<paramref name="Module"/>, <paramref name="ItemId"/>), or to the counterpart account of an internal one.</summary>
 public sealed record LinkView(string Outcome, string? Module, Guid? ItemId, string? ItemName, string? Key, string? CounterpartName,
@@ -219,7 +220,7 @@ public sealed class BankLines(
 
         // Decision 6: the category shows whatever D19 masks; it names a category, never the link's target.
         CategoryView? Category(Guid? id) => id is { } key && named.TryGetValue(key, out var c)
-            ? new CategoryView(c.Id, c.Name, c.Parent, c.Parent is { } parent && named.TryGetValue(parent, out var p) ? p.Name : null, Wire(c.Kind))
+            ? new CategoryView(c.Id, c.Name, c.Parent, c.Parent is { } parent && named.TryGetValue(parent, out var p) ? p.Name : null, Wire(c.Kind), c.Key)
             : null;
 
         LinkView? View(BankLink link) => link switch

@@ -217,6 +217,7 @@
       "service": "Entretien",
       "repair": "Réparation",
       "tyres": "Pneus",
+      "fuel": "Carburant / recharge",
       "other": "Autre"
     },
     "invoice": "Facture",

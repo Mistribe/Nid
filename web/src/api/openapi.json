@@ -45308,6 +45308,12 @@
           },
           "kind": {
             "type": "string"
+          },
+          "key": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },

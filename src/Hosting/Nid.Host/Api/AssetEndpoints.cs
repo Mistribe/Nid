@@ -178,7 +178,7 @@ public static class AssetEndpoints
 
     /// <summary>
     /// #649: <c>{ occurredOn, amount, category, note?, externalRef?, documentId? }</c>: an expense of a vehicle, <c>category</c> one of
-    /// service, repair, tyres, other; <c>externalRef</c> (<c>bank:{lineId}</c>) is unique among the asset's costs; <c>documentId</c> is its invoice (a correction keeps the stored one unless it gives another, or <c>clearDocument</c> is true).
+    /// service, repair, tyres, fuel, other; <c>externalRef</c> (<c>bank:{lineId}</c>) is unique among the asset's costs; <c>documentId</c> is its invoice (a correction keeps the stored one unless it gives another, or <c>clearDocument</c> is true).
     /// </summary>
     public sealed record AssetCostBody(string? OccurredOn, string? Amount, string? Category, string? Note, string? ExternalRef = null, Guid? DocumentId = null, bool? ClearDocument = null)
     {

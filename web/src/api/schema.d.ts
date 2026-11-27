@@ -40270,6 +40270,7 @@ export interface components {
             parentId?: null | string;
             parentName?: null | string;
             kind: string;
+            key?: null | string;
         };
         CeilingView: {
             ceiling: components["schemas"]["AmountView"];
