@@ -255,4 +255,25 @@ public class AccountTests(PostgresFixture fixture) : IClassFixture<PostgresFixtu
         await BankingApi.AssertRefusedAsync(await PatchAsync(app, app.AdultB, courant, new { name = "Le mien" }), HttpStatusCode.NotFound, BankingCodes.AccountNotFound);
         Assert.True((await ByNameAsync(app, app.AdultA)).ContainsKey("Courant"));
     }
+
+    /// <summary>A new card goes with its connection's only checking account; with two, or detached by its owner, it waits for the owner's choice.</summary>
+    [Fact]
+    public async Task A_new_card_goes_with_its_connections_only_checking_account()
+    {
+        await using var app = await BankingApi.StartAsync(fixture);
+        await BankingApi.ConnectAsync(app, app.AdultA, "code-a",
+            BankingApi.Account("uid-1", "hash-1", null, "Courant"), BankingApi.Account("uid-2", "hash-2", null, "Carte", "CARD"));
+        await BankingApi.ConnectAsync(app, app.AdultB, "code-b", BankingApi.Account("uid-3", "hash-3", null, "Courant 1"),
+            BankingApi.Account("uid-4", "hash-4", null, "Courant 2"), BankingApi.Account("uid-5", "hash-5", null, "Carte B", "CARD"));
+
+        var mine = await ByNameAsync(app, app.AdultA);
+        Assert.Equal(mine["Courant"].GetProperty("id").GetGuid(), mine["Carte"].GetProperty("cardOfAccountId").GetGuid());
+        Assert.Equal(JsonValueKind.Null, (await ByNameAsync(app, app.AdultB))["Carte B"].GetProperty("cardOfAccountId").ValueKind);
+
+        var card = mine["Carte"].GetProperty("id").GetGuid();
+        Assert.Equal(HttpStatusCode.OK, (await PatchAsync(app, app.AdultA, card, new { clearCard = true })).StatusCode);
+        await BankingApi.ConnectAsync(app, app.AdultA, "code-a2",
+            BankingApi.Account("uid-1", "hash-1", null, "Courant"), BankingApi.Account("uid-2", "hash-2", null, "Carte", "CARD"));
+        Assert.Equal(JsonValueKind.Null, (await ByNameAsync(app, app.AdultA))["Carte"].GetProperty("cardOfAccountId").ValueKind);
+    }
 }

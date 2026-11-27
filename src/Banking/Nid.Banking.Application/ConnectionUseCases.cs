@@ -165,8 +165,20 @@ public sealed class CompleteConnectionHandler(
         await using (var transaction = await unitOfWork.BeginAsync(ct))
         {
             await connections.ActivateAsync(connection.Id, session!.SessionId, session.ValidUntil, ct);
+            var known = (await accounts.AllAsync(ct)).Select(a => a.Id).ToHashSet();
             var seen = await accounts.UpsertFromSessionAsync(connection.Id,
                 session.Accounts.Where(a => Currency.TryCreate(a.Currency.ToUpperInvariant(), out _)).ToList(), ct);
+            // A new card goes with the only checking account its connection sees (#353's sure case), so its echoes pair from its first
+            // lines; one seen before keeps what its owner chose, attached or not.
+            if (seen.Where(a => a.Kind == BankAccountKind.Checking).ToList() is [var checking]
+                && (await access.AccountAsync(checking.Id, AccessKind.Write, ct)).IsSuccess)
+                foreach (var card in seen.Where(a => a is { Kind: BankAccountKind.Card, CardOf: null } && !known.Contains(a.Id)))
+                    if (await access.OwnsAsync(card, ct))
+                    {
+                        if ((await accounts.UpdateAsync(card with { CardOf = checking.Id }, ct)).TryGetFailure(out var attach))
+                            return Result.Failure<Guid>(attach!);
+                        await receipts.FollowAsync(card.Id, ct);
+                    }
             // A bank connection outranks a statement file: an account another adult imported becomes the connecting person's, and leaves
             // an envelope they cannot read, which would hide their own account from them (D7).
             foreach (var found in seen)

@@ -75,7 +75,7 @@ public class SpendingTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
         await using var app = await BankingApi.StartAsync(fixture);
         await BankingApi.ConnectAsync(app, app.AdultA, "code-a",
             BankingApi.Account("uid-1", "hash-1", null, "Commun"), BankingApi.Account("uid-2", "hash-2", null, "Carte", "CARD"),
-            BankingApi.Account("uid-3", "hash-3", null, "Vieille carte", "CARD"));
+            BankingApi.Account("uid-3", "hash-3", null, "Vieille carte", "CARD"), BankingApi.Account("uid-4", "hash-4", null, "Perso"));
         var a = await AccountsAsync(app, app.AdultA);
         await PatchAsync(app, app.AdultA, a["Commun"], new { envelopeId = (await app.NewEnvelopeAsync("Commun", Visibility.Shared, (app.AdultA, 5_000), (app.AdultB, 5_000))).Value });
         await LineAsync(app, a["Carte"], new(2025, 10, 3), -40m);
