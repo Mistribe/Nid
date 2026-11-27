@@ -45571,9 +45571,42 @@
           }
         }
       },
+      "ChildcareGroupView": {
+        "required": [
+          "owners",
+          "items"
+        ],
+        "type": "object",
+        "properties": {
+          "owners": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ItemOwnerView"
+            }
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "monthlyBasePay": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ChildcareMoneyView"
+              }
+            ]
+          }
+        }
+      },
       "ChildcareList": {
         "required": [
-          "items"
+          "items",
+          "groups"
         ],
         "type": "object",
         "properties": {
@@ -45581,6 +45614,12 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ChildcareSummary"
+            }
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChildcareGroupView"
             }
           }
         }
@@ -52745,9 +52784,52 @@
           }
         }
       },
+      "GoalGroupView": {
+        "required": [
+          "owners",
+          "items"
+        ],
+        "type": "object",
+        "properties": {
+          "owners": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ItemOwnerView"
+            }
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "reached": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/GoalMoneyView"
+              }
+            ]
+          },
+          "target": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/GoalMoneyView"
+              }
+            ]
+          }
+        }
+      },
       "GoalList": {
         "required": [
-          "items"
+          "items",
+          "groups"
         ],
         "type": "object",
         "properties": {
@@ -52755,6 +52837,12 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/GoalSummary"
+            }
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GoalGroupView"
             }
           }
         }
@@ -58882,6 +58970,48 @@
           }
         }
       },
+      "LoanGroupView": {
+        "required": [
+          "owners",
+          "items"
+        ],
+        "type": "object",
+        "properties": {
+          "owners": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ItemOwnerView"
+            }
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "remainingBalance": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
+              }
+            ]
+          },
+          "nextPaymentTotal": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
+              }
+            ]
+          }
+        }
+      },
       "LoanInsuranceBody": {
         "type": "object",
         "properties": {
@@ -59021,7 +59151,8 @@
       },
       "LoanList": {
         "required": [
-          "items"
+          "items",
+          "groups"
         ],
         "type": "object",
         "properties": {
@@ -59029,6 +59160,12 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/LoanSummary"
+            }
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LoanGroupView"
             }
           }
         }
@@ -65096,9 +65233,52 @@
           }
         }
       },
+      "PropertyGroupView": {
+        "required": [
+          "owners",
+          "items"
+        ],
+        "type": "object",
+        "properties": {
+          "owners": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ItemOwnerView"
+            }
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "value": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PropertyMoneyView"
+              }
+            ]
+          },
+          "netValue": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PropertyMoneyView"
+              }
+            ]
+          }
+        }
+      },
       "PropertyList": {
         "required": [
-          "items"
+          "items",
+          "groups"
         ],
         "type": "object",
         "properties": {
@@ -65106,6 +65286,12 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/PropertySummary"
+            }
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PropertyGroupView"
             }
           }
         }
@@ -65137,6 +65323,21 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "PropertyMoneyView": {
+        "required": [
+          "amount",
+          "currency"
+        ],
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
           }
         }
       },
@@ -68030,6 +68231,7 @@
           "name",
           "currency",
           "cadence",
+          "kind",
           "due",
           "ucShareBelowFloor"
         ],
@@ -68046,6 +68248,9 @@
             "type": "string"
           },
           "cadence": {
+            "type": "string"
+          },
+          "kind": {
             "type": "string"
           },
           "lastValue": {

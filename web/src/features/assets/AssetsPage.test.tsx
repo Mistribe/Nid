@@ -74,4 +74,23 @@ describe('AssetsPage', () => {
     await user.click(within(rows()[0]!).getByRole('button', { name: 'Déplier les biens' }));
     expect(rows().map((r) => within(r).getAllByRole('cell')[0]!.textContent)).toEqual(['2 biens', 'CitadinePartagé', 'TableauPartagé', 'VéloPartagé']);
   });
+
+  it('lists every asset on its own row once the grouping is switched off, and keeps that in the URL', async () => {
+    const alice = [{ personId: '0192f0aa-0000-7000-8000-0000000000a1', shareBp: 10000 }];
+    server.use(
+      http.get('*/api/v1/core/persons', () => HttpResponse.json(persons)),
+      http.get('*/api/v1/assets', () => HttpResponse.json(list([row({ id: 'a', name: 'Citadine', owners: alice }), row({ id: 'b', name: 'Tableau', owners: alice })],
+        [{ owners: alice, items: ['a', 'b'], value: { amount: '10000.00', currency: 'EUR' } }]))),
+    );
+    const { user, router } = await renderApp('/other-assets');
+
+    const table = await screen.findByRole('table', { name: 'Liste des biens' });
+    expect(within(table).getAllByRole('row').slice(1)).toHaveLength(1);
+    await user.click(screen.getByRole('switch', { name: 'Regrouper par propriétaire' }));
+
+    await waitFor(() => expect(router.state.location.search).toMatchObject({ flat: 1 }));
+    expect(within(await screen.findByRole('table', { name: 'Liste des biens' })).getAllByRole('row').slice(1)).toHaveLength(2);
+    await user.click(screen.getByRole('switch', { name: 'Regrouper par propriétaire' }));
+    await waitFor(() => expect(router.state.location.search).not.toHaveProperty('flat'));
+  });
 });

@@ -78,6 +78,34 @@ public class ChildcareApiTests(PostgresFixture fixture) : IClassFixture<Postgres
     }
 
     [Fact]
+    public async Task The_list_gathers_the_arrangements_of_the_same_owners_with_their_open_pay() // #802
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var first = await CreateAsync(app);
+        var second = await CreateAsync(app);
+        // A closed arrangement pays nothing any more: listed in its group, left out of the total.
+        var ended = await CreateAsync(app);
+        await ChildcareApi.ValidateAsync(app, $"{Url}/{ended.Value}", "2025-09");
+        Assert.Equal(HttpStatusCode.OK, (await app.RawAsync(app.AdultA, HttpMethod.Post, $"{Url}/{ended.Value}/close",
+            new { on = "2025-10-31", reason = "withdrawal", notified = "2025-10-01" })).StatusCode);
+        var ofB = Body(app);
+        ofB["owners"] = new[] { new { personId = app.AdultB.Value, shareBp = 10_000 } };
+        var created = await app.RawAsync(app.AdultB, HttpMethod.Post, Url, ofB);
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var bs = (await JsonAsync(created)).GetProperty("id").GetGuid();
+
+        var list = await GetAsync(app, app.AdultA, $"{Url}?scope=household&closed=true");
+
+        var groups = list.GetProperty("groups").EnumerateArray().ToDictionary(g => g.GetProperty("owners")[0].GetProperty("personId").GetGuid());
+        Assert.Equal(2, groups.Count);
+        var ofA = groups[app.AdultA.Value];
+        Assert.Equal(new[] { first.Value, second.Value, ended.Value }.Order(), ofA.GetProperty("items").EnumerateArray().Select(i => i.GetGuid()).Order());
+        Assert.Equal(("1252.74", "EUR"), (ofA.GetProperty("monthlyBasePay").GetProperty("amount").GetString(), ofA.GetProperty("monthlyBasePay").GetProperty("currency").GetString()));
+        Assert.Equal([bs], groups[app.AdultB.Value].GetProperty("items").EnumerateArray().Select(i => i.GetGuid()));
+        Assert.Equal("626.37", groups[app.AdultB.Value].GetProperty("monthlyBasePay").GetProperty("amount").GetString());
+    }
+
+    [Fact]
     public async Task Adult_as_child_is_refused()
     {
         await using var app = await NidApp.StartAsync(fixture);

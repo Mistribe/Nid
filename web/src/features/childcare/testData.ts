@@ -12,7 +12,9 @@ export const summary = (over: Partial<ChildcareSummary> = {}): ChildcareSummary 
   closed: false, canWrite: true, start: '2025-09-01', end: null, inForceFrom: '2025-09-01', monthlyBasePay: eur('626.37'), weeklyHours: '38.00', toPrepare: [], ...over,
 });
 
-export const list = (items: ChildcareSummary[]): ChildcareList => ({ items });
+// Each arrangement in a group of its own unless the test names the groups: nothing gathered.
+export const list = (items: ChildcareSummary[], groups?: ChildcareList['groups']): ChildcareList =>
+  ({ items, groups: groups ?? items.map((i) => ({ owners: i.owners, items: [i.id], monthlyBasePay: i.monthlyBasePay })) });
 
 export const terms = (over: Partial<ChildcareTerms> = {}): ChildcareTerms => ({
   from: '2025-09-01', to: null, netHourlyRate: '4.30', grossHourlyRate: null, overtimePct: '10', upkeepPer9h: '3.80', lunchPrice: '3.2', snackPrice: null, lunchProvider: 'nanny', snackProvider: 'nanny', unpaidAbsences: ['child_sick', 'carer_absent'],

@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
@@ -46,6 +46,33 @@ describe('ChildcarePage', () => {
   it('lists every arrangement under « Liste »', async () => {
     serve(list([summary({ id: 'a', name: 'Ancienne garde', closed: true, end: '2025-06-30' }), summary()]));
     await renderApp('/childcare?tab=list');
+    expect(await rows()).toHaveLength(2);
+  });
+
+  it('folds the arrangements of the same owners into one row with the server total; the switch lists them flat, kept in the URL', async () => {
+    const alice = [{ personId: '0192f0aa-0000-7000-8000-0000000000a1', shareBp: 10000 }];
+    const other = summary({ id: 'c', name: 'Garde de Tom' });
+    serve(list([summary({ id: 'a', name: 'Ancienne garde', closed: true, end: '2025-06-30', owners: alice }), summary({ owners: alice }), other], [
+      { owners: alice, items: ['a', summary().id], monthlyBasePay: eur('626.37') },
+      { owners: other.owners, items: ['c'], monthlyBasePay: other.monthlyBasePay },
+    ]));
+    const { user, router } = await renderApp('/childcare?tab=list');
+
+    expect(await rows()).toHaveLength(2);
+    const [group] = await rows();
+    expect(group).toHaveTextContent('2 gardes');
+    expect(group).toHaveTextContent('626,37');
+    await user.click(within(group!).getByRole('button', { name: 'Déplier les gardes' }));
+    const names = async () => (await rows()).map((r) => within(r).getAllByRole('cell')[0]!.textContent);
+    expect(await names()).toEqual(['2 gardes', 'Ancienne garde', 'Garde de Léa', 'Garde de Tom']);
+
+    const grouping = screen.getByRole('switch', { name: 'Regrouper par propriétaire' });
+    expect(grouping).toBeChecked();
+    await user.click(grouping);
+    await waitFor(() => expect(router.state.location.search).toMatchObject({ flat: 1 }));
+    expect(await names()).toEqual(['Ancienne garde', 'Garde de Léa', 'Garde de Tom']);
+    await user.click(screen.getByRole('switch', { name: 'Regrouper par propriétaire' }));
+    await waitFor(() => expect(router.state.location.search).not.toHaveProperty('flat'));
     expect(await rows()).toHaveLength(2);
   });
 
