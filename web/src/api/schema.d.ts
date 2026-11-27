@@ -41992,8 +41992,15 @@ export interface components {
             estimated: boolean;
             flags: string[];
         };
+        GoalGroupView: {
+            owners: components["schemas"]["ItemOwnerView"][];
+            items: string[];
+            reached?: null | components["schemas"]["GoalMoneyView"];
+            target?: null | components["schemas"]["GoalMoneyView"];
+        };
         GoalList: {
             items: components["schemas"]["GoalSummary"][];
+            groups: components["schemas"]["GoalGroupView"][];
         };
         GoalMoneyView: {
             amount: string;
