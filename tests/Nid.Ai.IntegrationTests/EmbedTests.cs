@@ -36,6 +36,13 @@ public sealed class EmbedTests(PostgresFixture fixture) : IClassFixture<Postgres
         Assert.Equal(Texts, engine.EmbedRequests.Single()["input"]!.AsArray().Select(t => t!.GetValue<string>()));
         var call = Assert.Single(await CallsAsync(world));
         Assert.Equal(("embed", "embed", "succeeded", "nomic-embed-text", paired.Id), (call.Task, call.Use, call.Status, call.Model, call.WorkerId));
+
+        // #450: the build the worker declares, under the capability it serves the model for.
+        await using var scope = Scope(world);
+        var digests = scope.ServiceProvider.GetRequiredService<IModelDigests>();
+        Assert.StartsWith("sha256:", await digests.DigestAsync("embed", "nomic-embed-text", TestContext.Current.CancellationToken));
+        Assert.Null(await digests.DigestAsync("decide", "nomic-embed-text", TestContext.Current.CancellationToken));
+        Assert.Null(await digests.DigestAsync("embed", "unknown-model", TestContext.Current.CancellationToken));
     }
 
     [Fact]

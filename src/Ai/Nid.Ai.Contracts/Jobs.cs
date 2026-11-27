@@ -161,3 +161,43 @@ public interface IEmbeddings
     /// worker failed.</summary>
     Task<Result<LlmEmbeddings>> EmbedAsync(LlmEmbedRequest request, CancellationToken ct);
 }
+
+/// <summary>#450: short texts (16 at most, 400 characters each), each to put in one of the same <see cref="Options"/> (52 at most, « none of
+/// these » included, as the caller names it), with the class of their data and the adults whose <c>allow</c> they need to leave the premises.
+/// The model is the <c>decide</c> use's.</summary>
+public sealed record LlmDecideRequest(IReadOnlyList<string> Texts, IReadOnlyList<string> Options, string DataClass, IReadOnlyList<Guid>? Concerned = null);
+
+/// <summary>The option a text was put in, by its place in the request's options (null: the model's answer was none of them), and the raw
+/// score of each option the model scored, by place (a log-probability; none when the implementation gives none).</summary>
+public sealed record LlmDecision(int? Choice, IReadOnlyDictionary<int, double> Scores);
+
+/// <summary>One decision per text, in the texts' order, with what answered: the model, its digest, the implementation and its version
+/// (prompt included), and the worker's placement (<c>local</c>, <c>remote</c>).</summary>
+public sealed record LlmDecisions(string Model, string Digest, string Implementation, string Version, string Placement, IReadOnlyList<LlmDecision> Decisions);
+
+/// <summary>How the workers implement <c>decide</c> on a model, the one they agree on; <paramref name="Scoreless"/>: it gives no scores.</summary>
+public sealed record LlmDecideImplementation(string Name, string Version, bool Scoreless);
+
+/// <summary>#450: how a module asks the <c>decide</c> use's model (<c>docs/ai/README.md</c> §7): on the household's workers only, no cloud
+/// adapter serving it yet.</summary>
+public interface IDecisions
+{
+    /// <summary>The model the <c>decide</c> use runs on; null while the use is off or has none.</summary>
+    Task<string?> ModelAsync(CancellationToken ct);
+
+    /// <summary>What the active workers declare for <paramref name="model"/> under <c>decide</c>: null when none does or two disagree.</summary>
+    Task<LlmDecideImplementation?> ImplementationAsync(string model, CancellationToken ct);
+
+    /// <summary>A refusal carries its <see cref="JobCodes"/> code: the use off or without a model, an input out of bounds, nowhere to send
+    /// it, an answer that does not hold.</summary>
+    Task<Result<LlmDecisions>> DecideAsync(LlmDecideRequest request, CancellationToken ct);
+}
+
+/// <summary>#450: which build of a model answers, for what was measured on it to hold (<c>docs/ai/README.md</c> §7.3).</summary>
+public interface IModelDigests
+{
+    /// <summary>The digest the active workers declare for <paramref name="model"/> under <paramref name="capability"/> (<c>embed</c>,
+    /// <c>decide</c>): the one they agree on, null when none declares it or two disagree. The <c>embed</c> use's cloud model is
+    /// <c>cloud:&lt;profile id&gt;</c>: its name is versioned by its provider.</summary>
+    Task<string?> DigestAsync(string capability, string model, CancellationToken ct);
+}

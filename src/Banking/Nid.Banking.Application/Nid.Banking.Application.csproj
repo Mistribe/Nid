@@ -1,5 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
+    <EmbeddedResource Include="Evaluation\category-eval.json" LogicalName="Nid.Banking.Application.Evaluation.category-eval.json" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="UnambitiousFx.Synapse" />
     <ProjectReference Include="..\Nid.Banking.Contracts\Nid.Banking.Contracts.csproj" />
     <ProjectReference Include="..\Nid.Banking.Domain\Nid.Banking.Domain.csproj" />

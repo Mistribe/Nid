@@ -795,6 +795,12 @@ public static class RequestCatalogue
         new(typeof(ListSuggestionDismissalsQuery), false, (_, _) => new ListSuggestionDismissalsQuery()),
         new(typeof(DismissCategorySuggestionCommand), false, (_, _) => new DismissCategorySuggestionCommand("BENCH", "debit", Nid.Banking.Domain.CategorySeed.Find("food.groceries")!.Id)),
         new(typeof(WithdrawSuggestionDismissalCommand), false, (_, _) => new WithdrawSuggestionDismissalCommand(Guid.NewGuid())),
+        // #450: a model's calibration on invented labels: no household data in it; queued by an admin.
+        new(typeof(GetCategorySuggestionCalibrationQuery), false, (_, _) => new GetCategorySuggestionCalibrationQuery()),
+        new(typeof(CalibrateCategorySuggestionsCommand), false, (_, _) => new CalibrateCategorySuggestionsCommand()),
+        // #450: the masked sample reads the actor's own accounts only; « Suggérer à nouveau » forgets the model's guesses, no item's.
+        new(typeof(GetCategoryGuessSampleQuery), false, (_, _) => new GetCategoryGuessSampleQuery()),
+        new(typeof(RefreshCategoryGuessesCommand), false, (_, _) => new RefreshCategoryGuessesCommand()),
         new(typeof(ListBankRulesQuery), false, (_, _) => new ListBankRulesQuery()),
         new(typeof(DeleteBankRuleCommand), false, (_, _) => new DeleteBankRuleCommand(Guid.NewGuid())),
         // A preview: the actor's own new account from a file, rolled back; dropped on the row's item, refused unless they write an envelope.

@@ -439,4 +439,117 @@ describe('Administration › IA', () => {
     expect(done).toHaveTextContent(`confirm-rotation ${'ef56'.repeat(16)}`);
     expect(done).toHaveTextContent(/n’a pas pu prévenir.*Box/);
   });
+
+  describe('« Suggestions de catégories »: the model, its calibration and what it is sent (#450)', () => {
+    const DECIDE_USES = USES.map((u) => (u.use === 'embed' ? { ...u, model: 'bge-m3:latest' } : u.use === 'decide' ? { ...u, model: 'qwen-small' } : u));
+    const figures = { threshold: 0.62, shown: 160, correct: 155, wrong: 5, dontKnow: 252, wrongLow: 0.0134, wrongHigh: 0.0711, coverage: 0.388 };
+    const profile = (over: Record<string, unknown> = {}) => ({
+      evalVersion: 1, options: 38, threshold: 0.62, coldThreshold: null, cases: 412, neighbours: null, withHistory: null, cold: null,
+      measuredAt: '2026-11-27T10:00:00+00:00', temperature: 1.2, scoreless: false, guess: figures, reliability: [], ...over,
+    });
+    const setup = (over: Record<string, unknown> = {}) => ({
+      implementation: 'llm-choice', version: '1', model: 'qwen-small', digest: 'sha256:abc', unavailable: null, latest: null, profile: null, ...over,
+    });
+    const decideRow = async () => (await screen.findByRole('heading', { name: 'Suggestions de catégories' })).parentElement!;
+
+    function serveDecide(views: object[]) {
+      serve([worker()], false, DECIDE_USES);
+      let read = 0;
+      const posted: unknown[] = [];
+      server.use(
+        http.get('*/api/v1/ai/models', () => HttpResponse.json({ models: [{ name: 'qwen-small', capability: 'decide', workers: 1 }] })),
+        // Each read gives the next view, the last one again once they are all read.
+        http.get('*/api/v1/banking/category-suggestions/calibrations', () => HttpResponse.json(views[Math.min(read++, views.length - 1)])),
+        http.post('*/api/v1/banking/category-suggestions/calibrations', () => {
+          posted.push('calibrate');
+          return HttpResponse.json({ id: 'c1', status: 'queued', code: null, queuedAt: '2026-11-27T10:00:00+00:00', finishedAt: null }, { status: 202 });
+        }),
+      );
+      return posted;
+    }
+
+    it('says plainly that a model never calibrated suggests nothing, calibrates it and follows the run to its figures', async () => {
+      const queued = { id: 'c1', status: 'queued', code: null, queuedAt: '2026-11-27T10:00:00+00:00', finishedAt: null };
+      const posted = serveDecide([setup(), setup({ latest: queued }), setup({ latest: { ...queued, status: 'done', finishedAt: '2026-11-27T10:01:00+00:00' }, profile: profile() })]);
+      const { user, container } = await renderApp('/admin/ai', { capabilities: adminCapabilities });
+
+      const decide = await decideRow();
+      expect(await within(decide).findByText('Deviné par IA, avec qwen-small.')).toBeInTheDocument();
+      expect(within(decide).getByText('Pas encore calibré : aucune suggestion par IA.')).toBeInTheDocument();
+      expect(within(decide).getByText(/jamais vers un fournisseur cloud/)).toBeInTheDocument();
+      await expectNoAxeViolations(container);
+      await user.click(within(decide).getByRole('button', { name: 'Calibrer' }));
+
+      await waitFor(() => expect(posted).toEqual(['calibrate']));
+      await waitFor(() => expect(toasts()).toHaveTextContent('Calibrage demandé'));
+      expect(await within(decide).findByText('Calibrage en attente…')).toBeInTheDocument();
+      expect(within(decide).getByRole('button', { name: 'Calibrer' })).toBeDisabled();
+      // Read again while it waits, until it is done.
+      expect(await within(decide).findByText(/^Calibré le/)).toBeInTheDocument();
+      expect(within(decide).getByText('Sur 412 libellés d’essai : 155 justes, 5 faux, 252 « je ne sais pas ».')).toBeInTheDocument();
+      expect(within(decide).getByText('Erreurs : entre 1,3 % et 7,1 % des suggestions faites.')).toBeInTheDocument();
+      expect(within(decide).getByText('Suggestions faites : 38,8 % des libellés.')).toBeInTheDocument();
+      expect(within(decide).getByText('Proposé quand le modèle s’en dit sûr à 62 % au moins.')).toBeInTheDocument();
+      expect(within(decide).getByRole('button', { name: 'Calibrer' })).toBeEnabled();
+    });
+
+    it('flags a model without scores, and says why a failed run failed', async () => {
+      serveDecide([setup({
+        latest: { id: 'c2', status: 'failed', code: 'ai.model_unavailable', queuedAt: '2026-11-27T10:00:00+00:00', finishedAt: '2026-11-27T10:00:30+00:00' },
+        profile: profile({ threshold: null, scoreless: true }),
+      })]);
+      const { user } = await renderApp('/admin/ai', { capabilities: adminCapabilities });
+
+      const decide = await decideRow();
+      expect(await within(decide).findByText('Le dernier calibrage a échoué : Aucun worker actif ne propose le modèle choisi.')).toBeInTheDocument();
+      expect(within(decide).getByText('sans scores')).toBeInTheDocument();
+      expect(within(decide).queryByText(/Proposé quand/)).not.toBeInTheDocument();
+      await user.hover(within(decide).getByRole('button', { name: 'À propos : sans scores' }));
+      expect(await screen.findByRole('tooltip')).toHaveTextContent(/ne dit pas à quel point il est sûr/);
+    });
+
+    it('shows by meaning, with history and on the names alone, one of them not offered', async () => {
+      serve([worker()], false, USES.map((u) => (u.use === 'embed' ? { ...u, model: 'bge-m3:latest' } : u)));
+      server.use(http.get('*/api/v1/banking/category-suggestions/calibrations', () => HttpResponse.json(setup({
+        implementation: 'nearest-neighbours', model: 'bge-m3:latest',
+        profile: profile({ guess: null, temperature: null, threshold: 0.81, neighbours: 5, withHistory: { ...figures, threshold: 0.81 }, cold: null }),
+      }))));
+      await renderApp('/admin/ai', { capabilities: adminCapabilities });
+
+      const decide = await decideRow();
+      expect(await within(decide).findByText('Par le sens, avec bge-m3:latest (le modèle de la recherche par le sens).')).toBeInTheDocument();
+      expect(within(decide).getByText('Avec les opérations déjà classées par le foyer')).toBeInTheDocument();
+      expect(within(decide).getByText('Proposé à partir d’une ressemblance de 81 %.')).toBeInTheDocument();
+      expect(within(decide).getByText('Avec les seuls noms des catégories')).toBeInTheDocument();
+      expect(within(decide).getByText('Pas assez fiable sur les libellés d’essai : rien n’est proposé ainsi.')).toBeInTheDocument();
+      expect(within(decide).queryByRole('button', { name: 'Voir ce qui est envoyé au modèle' })).not.toBeInTheDocument();
+    });
+
+    it("offers the workers' decide model or by meaning, and shows what the model is sent once unfolded", async () => {
+      serveDecide([setup()]);
+      const sent: unknown[] = [];
+      let sampled = 0;
+      server.use(
+        http.put('*/api/v1/ai/settings/uses/decide/model', async ({ request }) => {
+          sent.push(await request.json());
+          return HttpResponse.json({ remoteWorkersAllowed: false, uses: DECIDE_USES });
+        }),
+        http.get('*/api/v1/banking/category-suggestions/sample', () => {
+          sampled++;
+          return HttpResponse.json({ texts: ['Sens : débit\nMotif : PHARMACIE DU PORT\nLibellé : CB PHARMACIE DU PORT [N]'] });
+        }),
+      );
+      const { user } = await renderApp('/admin/ai', { capabilities: adminCapabilities });
+
+      const decide = await decideRow();
+      expect(sampled).toBe(0);
+      await user.click(await within(decide).findByRole('button', { name: 'Voir ce qui est envoyé au modèle' }));
+      expect(await within(decide).findByText(/Motif : PHARMACIE DU PORT/)).toBeInTheDocument();
+      expect(sampled).toBe(1);
+
+      await user.click(within(decide).getByRole('combobox', { name: 'Modèle' }));
+      await user.click(await screen.findByRole('option', { name: 'Par le sens (bge-m3:latest, celui de la recherche par le sens)' }));
+      await waitFor(() => expect(sent).toEqual([{ model: null }]));
+    });
+  });
 });

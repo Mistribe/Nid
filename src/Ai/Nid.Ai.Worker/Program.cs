@@ -19,6 +19,7 @@ builder.Services.TryAddSingleton(new EngineTransport(new SocketsHttpHandler { Co
 builder.Services.AddSingleton<EngineClient>();
 builder.Services.AddSingleton<IRequestHandler, ChatRequest>();
 builder.Services.AddSingleton<IRequestHandler, EmbedRequest>();
+builder.Services.AddSingleton<IRequestHandler, DecideRequest>();
 builder.Services.AddSingleton<JobTable>();
 builder.Services.AddSingleton(sp => new NonceCache(sp.GetRequiredService<TimeProvider>()));
 builder.Services.AddHttpContextAccessor();

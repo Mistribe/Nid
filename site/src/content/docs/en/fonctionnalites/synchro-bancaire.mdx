@@ -26,7 +26,7 @@ Nid reads your accounts' balances and transactions, read-only. It matches them t
 - **Recurring debits** that are spotted become a subscription proposal.
 - **Spending by category**, with budgets and what is left this month.
 - **Category suggestions** drawn from what the household has already categorised itself, and a « To classify » tab that shows each transaction with no category next to Nid's suggestion, accepted in one click; the transactions with the same label are categorised at once, and a new rule also categorises the past transactions it matches.
-- <Badge text="Preview" variant="caution" /> **Labels never seen before**, matched by meaning to those already categorised, with the household's AI model (an option to turn on).
+- <Badge text="Preview" variant="caution" /> **Labels never seen before**, matched by meaning to those already categorised or to a category's name, or guessed by a small AI model running on one of the household's workers, never in the cloud. That model reads only the masked label (no household name, IBAN or long number) and the categories' names: never an amount, a date or an account. Nothing is on by default: an administrator picks the model and calibrates it, and Nid shows its suggestions only if it is wrong 5 times in 100 at most on test labels.
 - **Each adult** links their own accounts; a joint account is seen by both.
 
 ## The terms
@@ -34,3 +34,4 @@ Nid reads your accounts' balances and transactions, read-only. It matches them t
 - **Enable Banking**: a licensed provider that gives read access to bank accounts, with your consent, bank by bank.
 - **OFX, CAMT.053**: two statement formats most banks offer for download.
 - **Matching**: linking a bank transaction to the expected expense it settles.
+- **Calibration**: trying an AI model on a few hundred invented bank labels whose right category Nid knows, to learn from what confidence its suggestions are safe enough.

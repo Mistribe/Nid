@@ -9,12 +9,12 @@ const line = (id: string, label: string, amount = '-12.50') => ({
   id, bookedOn: '2026-10-27', valueOn: null, amount, currency: 'EUR', label, counterparty: null, fromCard: false, cardName: null, fetchedVia: 'api',
   linkState: 'unlinked', link: null, accountName: 'Compte courant', accountId: 'a1', category: null, categorySource: null, suggestedPattern: null, sharedAccount: true,
 });
-const suggestion = (categoryId: string, categoryName: string, byMeaning = false) =>
-  ({ categoryId, categoryName, evidenceCount: 3, agreement: 100, byMeaning, pattern: 'SHOP' });
+const suggestion = (categoryId: string, categoryName: string, basis = 'history') =>
+  ({ categoryId, categoryName, evidenceCount: 3, agreement: 100, basis, pattern: 'SHOP' });
 const page = {
   items: [
     { line: line('t1', 'CB SHOP ONE 12/10'), suggestion: suggestion('groceries', 'Courses') },
-    { line: line('t2', 'CB CITY MARKET 14/10'), suggestion: suggestion('groceries', 'Courses', true) },
+    { line: line('t2', 'CB CITY MARKET 14/10'), suggestion: suggestion('groceries', 'Courses', 'meaning') },
     { line: line('t3', 'PRLV ENERGIE'), suggestion: suggestion('energy', 'Énergie') },
     { line: line('t4', 'VIR INCONNU'), suggestion: null },
   ],

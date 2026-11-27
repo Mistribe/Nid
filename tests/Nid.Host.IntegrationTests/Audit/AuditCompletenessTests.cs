@@ -65,8 +65,9 @@ public partial class AuditCompletenessTests(PostgresFixture fixture) : IClassFix
         ["src/Banking/Nid.Banking.Infrastructure/Persistence/ConnectionStore.cs"] = 1, // a person's file-import advisory lock: no row written
         ["src/Banking/Nid.Banking.Infrastructure/Persistence/CategoryStore.cs"] = 5, // transaction, transaction_part: excluded (a line's category, its categorised_by is its record)
         ["src/Banking/Nid.Banking.Infrastructure/Persistence/CategoryRuleStore.cs"] = 1, // last_used_at (not audited, as the link rules')
+        ["src/Banking/Nid.Banking.Infrastructure/Persistence/CategorySuggestionStore.cs"] = 1, // #450: category_guess, excluded (a model's answers): « Suggérer à nouveau »
         ["src/Banking/Nid.Banking.Infrastructure/Persistence/BankingDeletionPart.cs"] = 1, // transaction: excluded (its lines unlinked, left to the next pass)
-        ["src/Banking/Nid.Banking.Infrastructure/Persistence/PatternIndexStore.cs"] = 1, // #450: pattern_embedding, derived from the labels (pgvector's type, in SQL), as chunk_embedding
+        ["src/Banking/Nid.Banking.Infrastructure/Persistence/PatternIndexStore.cs"] = 3, // #450: pattern_embedding and category_embedding, derived from the labels and the category names (pgvector's type, in SQL), as chunk_embedding: their inserts, a renamed category's old vector
         ["src/Banking/Nid.Banking.Infrastructure/Persistence/RuleStore.cs"] = 2,     // last_used_at (not audited); recurring_group: excluded (the job's memory)
         ["src/Banking/Nid.Banking.Infrastructure/Persistence/SyncRunLog.cs"] = 3,    // sync_run: excluded
         ["src/Banking/Nid.Banking.Infrastructure/Persistence/TransactionStore.cs"] = 4, // transaction: excluded; the account's advisory lock; reconciled_at, set by the job's mark and cleared when a card is attached (the job's mark, données brutes de la banque, ni décision ni réglage)

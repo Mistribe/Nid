@@ -10,7 +10,7 @@ const line = (id: string, label: string) => ({
   linkState: 'unlinked', link: null, accountName: 'Compte courant', accountId: 'a1', category: null, categorySource: null, suggestedPattern: 'SHOP ONE', sharedAccount: true,
 });
 const suggestion = {
-  pattern: 'SHOP ONE', direction: 'debit', categoryId: 'groceries', categoryName: 'Courses', lineCount: 2, evidenceCount: 5, agreement: 100, byMeaning: false,
+  pattern: 'SHOP ONE', direction: 'debit', categoryId: 'groceries', categoryName: 'Courses', lineCount: 2, evidenceCount: 5, agreement: 100, basis: 'history',
   lines: [line('t1', 'CB SHOP ONE 12/10'), line('t2', 'CB SHOP ONE 14/10')],
 };
 const operations = { items: [], total: 0, totals: { out: '0', in: '0', net: '0', currency: 'EUR', incomplete: false }, facets: { accounts: [], owners: [], categories: [] }, accountOwners: [] };
@@ -74,10 +74,44 @@ describe('« Suggestions » in Opérations (#449)', () => {
   it('says when the evidence is that of labels near by meaning (#450)', async () => {
     server.use(
       http.get('*/api/v1/banking/operations', () => HttpResponse.json(operations)),
-      http.get('*/api/v1/banking/category-suggestions', () => HttpResponse.json({ items: [{ ...suggestion, byMeaning: true, evidenceCount: 3 }], total: 1 })),
+      http.get('*/api/v1/banking/category-suggestions', () => HttpResponse.json({ items: [{ ...suggestion, basis: 'meaning', evidenceCount: 3 }], total: 1 })),
     );
     const { block } = await open();
     expect(within(block).getByText(/2 opérations à classer · proche par le sens de 3 opérations classées à la main/)).toBeInTheDocument();
+  });
+
+  it('says when only the category name is near, with no line behind it (#450)', async () => {
+    server.use(
+      http.get('*/api/v1/banking/operations', () => HttpResponse.json(operations)),
+      http.get('*/api/v1/banking/category-suggestions', () => HttpResponse.json({ items: [{ ...suggestion, basis: 'category_name', evidenceCount: 0, agreement: 84 }], total: 1 })),
+    );
+    const { block } = await open();
+    expect(within(block).getByText(/2 opérations à classer · proche du nom de la catégorie/)).toBeInTheDocument();
+  });
+
+  it('says when a model on a household worker guessed, what it read and how sure it is (#450)', async () => {
+    server.use(
+      http.get('*/api/v1/banking/operations', () => HttpResponse.json(operations)),
+      http.get('*/api/v1/banking/category-suggestions', () => HttpResponse.json({ items: [{ ...suggestion, basis: 'ai', placement: 'local', evidenceCount: 0, agreement: 92 }], total: 1 })),
+    );
+    const { user, block } = await open();
+    expect(within(block).getByText(/2 opérations à classer · deviné par IA \(modèle local\)/)).toBeInTheDocument();
+    await user.hover(within(block).getByRole('button', { name: 'À propos : deviné par IA (modèle local)' }));
+    const tip = await screen.findByRole('tooltip');
+    expect(tip).toHaveTextContent(/jamais un montant, une date, un compte ni un nom/);
+    expect(tip).toHaveTextContent('Le modèle s’en dit sûr à 92 %');
+  });
+
+  it('says a remote worker guessed, and no probability for a model without scores (#450)', async () => {
+    server.use(
+      http.get('*/api/v1/banking/operations', () => HttpResponse.json(operations)),
+      http.get('*/api/v1/banking/category-suggestions', () => HttpResponse.json({ items: [{ ...suggestion, basis: 'ai', placement: 'remote', evidenceCount: 0, agreement: 0 }], total: 1 })),
+    );
+    const { user, block } = await open();
+    await user.hover(within(block).getByRole('button', { name: 'À propos : deviné par IA (worker distant)' }));
+    const tip = await screen.findByRole('tooltip');
+    expect(tip).toHaveTextContent(/Il peut se tromper/);
+    expect(tip).not.toHaveTextContent(/sûr à/);
   });
 
   it('ignores a group for the household, the focus on the block while groups remain', async () => {

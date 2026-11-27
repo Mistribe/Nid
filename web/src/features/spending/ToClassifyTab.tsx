@@ -17,6 +17,7 @@ import { SortableTable } from '@/components/page/SortableTable';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { useLineActions } from '../investments/operations/api';
+import { basisTexts } from '../operations/suggestionBasis';
 import '@/locales/banks';
 import '@/locales/spending';
 
@@ -56,12 +57,12 @@ export default function ToClassifyTab() {
   const suggestion = (item: LineToClassify) => {
     const s = item.suggestion;
     if (!s) return <span className="text-muted-foreground">—</span>;
-    const why = s.byMeaning ? t('banks.suggestions.by_meaning', { count: s.evidenceCount }) : t('banks.suggestions.evidence', { count: s.evidenceCount });
+    const basis = basisTexts(t, s);
     return (
       <span className="flex items-center gap-1.5">
         <span className="font-medium">{s.categoryName}</span>
         <InfoTip label={t('banks.to_classify.why', { category: s.categoryName })}>
-          {why}. {t(s.byMeaning ? 'banks.suggestions.by_meaning_about' : 'banks.suggestions.evidence_about', { agreement: s.agreement, category: s.categoryName })}
+          {basis.label}. {basis.about}
         </InfoTip>
       </span>
     );

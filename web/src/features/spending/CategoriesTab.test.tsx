@@ -5,7 +5,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { pick } from '@/test/controls';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
-import type { BankCategory } from '@/api/banking';
+import { SUGGESTION_CALIBRATIONS, type BankCategory } from '@/api/banking';
 
 const category = (over: Partial<BankCategory>): BankCategory => ({ id: 'c', parentId: null, key: null, name: '', kind: 'expense', archived: false, mergedIntoId: null, defaultName: null, lines: 0, ...over });
 // Usage is the server's: a parent's lines count its children's.
@@ -241,5 +241,35 @@ describe('Dépenses › Catégories', () => {
     await waitFor(() => expect(field).toHaveAccessibleDescription('Un nom compte de 1 à 60 caractères, différent de celui des catégories voisines.'));
     expect(field).toHaveAttribute('aria-invalid', 'true');
     expect(within(dialog).queryByRole('alert')).toBeNull();
+  });
+
+  it('offers « Suggérer à nouveau » only while an AI model guesses, and forgets its guesses (#450)', async () => {
+    serve();
+    const profile = { evalVersion: 1, options: 38, threshold: 0.6, coldThreshold: null, cases: 412, neighbours: null, withHistory: null, cold: null,
+      measuredAt: '2026-11-27T10:00:00+00:00', temperature: 1, scoreless: false, guess: null, reliability: [] };
+    // Calibrated, but by meaning: no model keeps a guess, so nothing to ask again.
+    server.use(http.get('*/api/v1/banking/category-suggestions/calibrations', () => HttpResponse.json({
+      implementation: 'nearest-neighbours', version: '1', model: 'bge-m3:latest', digest: 'sha256:abc', unavailable: null, latest: null, profile,
+    })));
+    const { unmount, queryClient } = await open();
+    await waitFor(() => expect(queryClient.getQueryCache().findAll({ queryKey: ['get', SUGGESTION_CALIBRATIONS] }).map((q) => q.state.status)).toContain('success'));
+    await new Promise((resolve) => { setTimeout(resolve, 0); }); // the answer rendered
+    expect(screen.queryByRole('button', { name: 'Suggérer à nouveau' })).toBeNull();
+    unmount();
+
+    let refreshed = 0;
+    server.use(
+      http.get('*/api/v1/banking/category-suggestions/calibrations', () => HttpResponse.json({
+        implementation: 'llm-choice', version: '1', model: 'qwen-small', digest: 'sha256:abc', unavailable: null, latest: null, profile,
+      })),
+      http.post('*/api/v1/banking/category-suggestions/refresh', () => { refreshed++; return new HttpResponse(null, { status: 204 }); }),
+    );
+    const { user } = await open();
+    const again = await screen.findByRole('button', { name: 'Suggérer à nouveau' });
+    await user.hover(screen.getByRole('button', { name: 'À propos : Suggérer à nouveau' }));
+    expect(await screen.findByRole('tooltip')).toHaveTextContent(/les redemande aussitôt au modèle/);
+    await user.click(again);
+    await waitFor(() => expect(refreshed).toBe(1));
+    expect(await screen.findByText(/vont être redemandées au modèle/)).toBeInTheDocument();
   });
 });

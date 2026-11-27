@@ -242,7 +242,7 @@ Les profils (§4) ne sont **pas** en base : ils sont de la configuration version
 
 ### 14.1 Piste : choix parmi des candidats et Jev (TypeSafe AI), évaluée le 2026-09-23
 
-Sources : [annonce](https://typesafe.ai/blog/introducing-system-one-models-and-jev), [documentation](https://docs.typesafe.ai), [documents légaux](https://docs.typesafe.ai/legal.md). Aucun essai exécuté.
+Sources : [annonce](https://typesafe.ai/blog/introducing-system-one-models-and-jev), [documentation](https://docs.typesafe.ai), [documents légaux](https://docs.typesafe.ai/legal.md). Aucun essai de Jev exécuté ; l'essai local de `decide` (#450) est consigné à la fin de cette section.
 
 **Le principe, indépendant du fournisseur.** Du code déterministe (regex réglées pour trop trouver) repère les valeurs candidates dans le texte ; le modèle **choisit** l'une d'elles dans une liste fermée. La valeur retenue est toujours un texte présent dans le document : le modèle ne peut ni inventer un montant ni inverser un chiffre (LLM09, `../security/ai-ingestion.md` §1). **Un modèle local peut le faire**, servi par un worker apparié (Ollama derrière le worker, `../ai/README.md` §7), avec un schéma JSON dont l'`enum` contient les candidats, sans renoncer au local par défaut. Ce principe est à mettre dans le jeu d'évaluation de l'étape 4 (`../architecture.md` §9.4), face à l'extraction classique.
 
@@ -267,3 +267,42 @@ Sources : [annonce](https://typesafe.ai/blog/introducing-system-one-models-and-j
 4. **`fetch-mail`**, tri des emails (facture ou renouvellement, puis pour quel abonnement).
 
 Limites : la confiance **trie ou avertit, elle n'approuve jamais** (§2, principe 4), même si la documentation de Jev conseille d'agir seul quand elle est élevée. Décider si un document est un bulletin de paie **reste local** : l'envoyer pour le savoir, c'est déjà le divulguer (§5.2). Vitesse et coût comptent peu pour deux utilisateurs.
+
+**Essai de référence de `decide` (#450), 2026-11-27.** Le jeu d'évaluation version 1 (412 libellés inventés, 222 lignes
+d'historique ; 36 options côté débit, 6 côté crédit, plus « Aucune de ces catégories ») passé par le **code réel** : `EngineClient`
+du worker (`/v1/embeddings`, et `/v1/chat/completions` avec le prompt `llm-choice` version `1`), les textes et les options bâtis
+comme `DecideCalibrator` les bâtit, puis `DecideCalibration.Neighbours` et `DecideCalibration.Worker`. Machine : Apple M3 Pro
+(6 cœurs performance, 6 efficacité), **CPU seul**, Ollama `0.40.18` (image `ollama/ollama:0.40.18`, arm64) dans Docker
+(OrbStack, 12 vCPU, 16 Go). Les logprobs reviennent sur `/v1/chat/completions` : 0 réponse `engine_invalid` sur les 1 236 appels
+des trois modèles, chaque réponse note au moins une option.
+
+| Modèle (tag Ollama) | Mode | Seuil retenu (5 % au plus sur 20 montrées) | Meilleur point du balayage (fausses / montrées, Wilson 95 %, couverture) | Coût mesuré |
+|---|---|---|---|---|
+| `bge-m3:latest` (1024) | voisins, avec historique | **aucun** | 0,75 : 12/41 = 29 % [18–45 %], 10 % | 660 textes en 20 s ; ~1,2 Go |
+| | voisins, sans historique | **aucun** | 0,60 : 12/28 = 43 % [27–61 %], 7 % | |
+| `nomic-embed-text:latest` (768) | voisins, avec historique | **aucun** | 0,75 : 10/38 = 26 % [15–42 %], 9 % | 660 textes en 8 s ; ~0,4 Go |
+| | voisins, sans historique | **aucun** | 0,70 : 5/21 = 24 % [11–45 %], 5 % | |
+| `qwen2.5:1.5b` | `llm-choice` 1, T = 4 | **aucun** | 0,30 : 6/26 = 23 % [11–42 %], 6 % ; lettre juste 15/343 au débit, 26/69 au crédit | 155 ms par libellé (p90 208) ; 1,4 Go |
+| `qwen2.5:3b` | `llm-choice` 1, T = 4 | **aucun** | 0,70 : 9/29 = 31 % [17–49 %], 7 % ; au-delà, moins de 20 montrées (0,80 : 4/16, 0,90 : 0/9) ; lettre juste 40/343 au débit, 40/69 au crédit | 300 ms (p90 411) ; 2,4 Go |
+| `gemma3:1b` | `llm-choice` 1, T = 4 | **aucun** | 90 % de fausses ou plus à tout seuil ; lettre juste 10/343 au débit, 12/69 au crédit | 1,7 s (p90 1,7 s) ; 1,2 Go |
+
+« Meilleur point » : le plus bas taux de fausses parmi les seuils à 20 montrées au moins ; « lettre juste » compte « aucune »
+quand c'est l'attendu. Balayage lu par pas de 0,05 (voisins) ou aux seuils 0,30 / 0,50 / 0,70 / 0,80 / 0,90 / 0,95 / 0,99 (petits LLM) ; mémoire = taille
+du modèle chargé (`ollama ps`, contexte 4096), conteneur seul à peu près égal. Deux passages de `qwen2.5:3b` donnent les mêmes
+chiffres ; deux de `qwen2.5:1.5b` diffèrent d'une réponse.
+
+- **Aucun modèle n'est proposé** : le calibrage refuse chacun, il fait son travail. Avec ces modèles, un foyer n'aurait aucune
+  suggestion `meaning`, `category_name` ni `ai` ; l'étape A (son propre historique, à l'identique) reste la seule.
+- **Petits LLM** : la température apprise bute sur la borne haute (4) pour les trois, signe de logprobs trop sûres d'elles.
+  Fiabilité de `qwen2.5:3b` : confiance moyenne 0,91 pour 75 % de justes (16 cas), 0,68 pour 61 % (33), 0,47 pour 17 % (191).
+  Le côté crédit (7 options) va bien mieux que le côté débit (37 options, `A`–`Z` puis `a`–`k`) : `qwen2.5:3b` y hésite entre
+  lettres de casse différente (`H` « Logement › Internet & téléphone » et `h` « Banque & frais » se disputent la tête sur des
+  libellés sans rapport) ; dans les cas relus, `qwen2.5:1.5b` répond `h` à chaque débit. Piste, non mesurée : des identifiants sans casse, ou moins d'options par question.
+- **Plongements** : les motifs sont des noms d'enseignes de deux mots au plus ; leur sens n'est pas dans le nom, d'où des voisins
+  proches qui se trompent un tiers du temps.
+- **À régler au déploiement** : dans Docker sur Apple Silicon, Ollama prend 12 fils (cœurs performance et efficacité) ; un
+  plongement de 4 jetons y prend environ 3 s, contre 30 ms avec `num_thread` 6. L'essai a mesuré des copies des modèles ci-dessus
+  avec `PARAMETER num_thread 6` (mêmes poids) ; le nom d'une copie change l'empreinte, donc demande son propre calibrage.
+- **Défaut conseillé pour un foyer : « Par le sens » sur `bge-m3`**, pas un petit LLM : au moins aussi juste ici, dix fois moins
+  coûteux par libellé et sans prompt à maintenir ; il ne suggérera rien tant qu'un calibrage ne lui trouve pas de seuil, ce qui
+  est le comportement voulu.

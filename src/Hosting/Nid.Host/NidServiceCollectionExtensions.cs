@@ -330,6 +330,7 @@ public static class NidServiceCollectionExtensions
         services.AddSingleton<Nid.Ai.Application.IModelContract, Nid.Ai.Application.EchoJobContract>();
         services.AddSingleton<Nid.Ai.Application.IModelContract, Nid.Ai.Application.DocumentTextJobContract>();
         services.AddSingleton<Nid.Ai.Application.IModelContract, Nid.Ai.Application.EmbedRequestContract>();
+        services.AddSingleton<Nid.Ai.Application.IModelContract, Nid.Ai.Application.DecideRequestContract>(); // #450
         services.AddSingleton<Nid.Ai.Application.IModelContract, Nid.Ai.Application.EchoRequestContract>();
         services.AddSingleton<Nid.Ai.Application.IModelContract, Nid.Ai.Application.ChatRequestContract>();
         services.AddSingleton<Nid.Ai.Application.ModelContracts>();
@@ -351,6 +352,8 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<Nid.Ai.Application.ILlmProvider, Nid.Ai.Application.WorkerProvider>();
         services.AddScoped<Nid.Ai.Application.ILlmGateway, Nid.Ai.Application.LlmGateway>();
         services.AddScoped<Nid.Ai.Contracts.IEmbeddings, Nid.Ai.Application.LlmEmbedder>();
+        services.AddScoped<Nid.Ai.Contracts.IModelDigests, Nid.Ai.Application.ModelDigests>(); // #450
+        services.AddScoped<Nid.Ai.Contracts.IDecisions, Nid.Ai.Application.LlmDecider>(); // #450
         // #487: the cloud profiles Nid ships, their keys and settings, after the workers in the chain. The client reaches
         // nothing but the loaded profiles' hosts, on Myelin's address checks.
         services.TryAddSingleton<Nid.Ai.Application.ILlmProfiles, Nid.Ai.Infrastructure.Cloud.LlmProfileLoader>();
@@ -421,6 +424,11 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<ICategorySuggestionStore, CategorySuggestionStore>();
         services.AddScoped<IPatternIndexStore, PatternIndexStore>();
         services.AddScoped<PatternIndexer>();
+        services.AddScoped<IDecideCalibrationStore, DecideCalibrationStore>();
+        services.AddScoped<DecideSetup>();
+        services.AddScoped<DecideCalibrator>();
+        services.AddScoped<CategoryGuesser>();
+        services.AddSingleton<CategoryGuessSignal>();
         services.AddScoped<CategoryPicks>();
         services.AddScoped<IBankSyncRunLog, SyncRunLog>();
         services.AddScoped<IAccountReadLog, AccountReadLog>();

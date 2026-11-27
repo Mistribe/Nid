@@ -21,10 +21,11 @@ public sealed record LineToClassifyView(BankTransactionView Line, LineSuggestion
 
 /// <summary>
 /// The category suggested for a line, as <see cref="CategorySuggestionView"/> says it for its pattern: <paramref name="EvidenceCount"/> lines
-/// categorised by a person back it, <paramref name="Agreement"/> % of them agree; <paramref name="ByMeaning"/> when they are lines of patterns
-/// near the line's by meaning (#450). <paramref name="Pattern"/> is what « Ignorer » dismisses.
+/// categorised by a person back it, <paramref name="Agreement"/> % of them agree; <paramref name="Basis"/> what they are (#450: <c>history</c>,
+/// <c>meaning</c>, <c>category_name</c>, <c>ai</c> with its <paramref name="Placement"/>). <paramref name="Pattern"/> is what « Ignorer » dismisses.
 /// </summary>
-public sealed record LineSuggestionView(Guid CategoryId, string CategoryName, int EvidenceCount, int Agreement, bool ByMeaning, string Pattern);
+public sealed record LineSuggestionView(Guid CategoryId, string CategoryName, int EvidenceCount, int Agreement, string Basis, string Pattern,
+    string? Placement = null);
 
 [RequestHandler<ListLinesToClassifyQuery, LinesToClassifyPage>]
 public sealed class ListLinesToClassifyHandler(
@@ -52,7 +53,7 @@ public sealed class ListLinesToClassifyHandler(
             // A line someone left « Sans catégorie » on purpose, or a split one, is not suggested anything.
             => line.Category is null && line.CategorySource is null && CategoryRules.Suggest(line.NormalizedLabel) is { } pattern
                && picks.TryGetValue((pattern, line.Amount < 0), out var pick)
-                ? new LineSuggestionView(pick.Category, found.Categories[pick.Category].Name, pick.Lines, pick.Agreement, pick.ByMeaning, pick.Pattern)
+                ? new LineSuggestionView(pick.Category, found.Categories[pick.Category].Name, pick.Lines, pick.Agreement, pick.Basis, pick.Pattern, pick.Placement)
                 : null;
 
         var views = await lines.ViewsAsync(items, readable.ToDictionary(a => a.Id), ct);

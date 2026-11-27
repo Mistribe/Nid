@@ -136,3 +136,9 @@ export const LINES_TO_CLASSIFY = '/api/v1/banking/lines-to-classify' as const;
 export type LineToClassify = components['schemas']['LineToClassifyView'];
 export const SUGGESTION_DISMISSALS = '/api/v1/banking/category-suggestions/dismissals' as const;
 export const SUGGESTION_DISMISSAL = '/api/v1/banking/category-suggestions/dismissals/{id}' as const;
+/** #450: the suggestions' model, calibrated on invented labels (read by an adult, queued by an admin); what it is sent, masked; « Suggérer à nouveau ». */
+export type SuggestionCalibration = components['schemas']['CategorySuggestionCalibrationView'];
+export type CalibrationFigures = components['schemas']['CalibrationFiguresView'];
+export const SUGGESTION_CALIBRATIONS = '/api/v1/banking/category-suggestions/calibrations' as const;
+export const SUGGESTION_SAMPLE = '/api/v1/banking/category-suggestions/sample' as const;
+export const SUGGESTIONS_REFRESH = '/api/v1/banking/category-suggestions/refresh' as const;

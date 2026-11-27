@@ -72,8 +72,9 @@ export NID_WORKER_PAIRING="$code $fingerprint"
 echo "ok: a model worker is up, waiting for its pairing"
 
 # NID_JOURNEYS=sample runs only the subscriptions journeys, which sign alice and bob in (the persons check below needs both), and
-# the worker's, which runs a job on it: a quick local run. CI (ci.yml) runs them all.
-if [ "${NID_JOURNEYS:-all}" = "all" ]; then playwright; else playwright e2e/subscriptions.spec.ts e2e/ai-workers.spec.ts; fi
+# the worker's, which runs a job on it: a quick local run, without the whole chromium project the worker's waits for
+# (--no-deps, web/playwright.config.ts). CI (ci.yml) runs them all.
+if [ "${NID_JOURNEYS:-all}" = "all" ]; then playwright; else playwright --no-deps e2e/subscriptions.spec.ts e2e/ai-workers.spec.ts; fi
 echo "ok: journeys (${NID_JOURNEYS:-all})"
 
 # #603: the worker ran the journey's job (its « Tester ») with no route to nid. From the worker's network, none of nid's

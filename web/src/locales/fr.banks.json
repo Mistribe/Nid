@@ -601,6 +601,13 @@
       "by_meaning_one": "proche par le sens d’une opération classée à la main",
       "by_meaning_other": "proche par le sens de {{count}} opérations classées à la main",
       "by_meaning_about": "Personne n’a encore classé ce libellé. Un modèle d’IA le rapproche, par le sens, de libellés qu’un adulte a classés lui-même : {{agreement}} % de ces opérations sont en {{category}}. Seul le début du libellé, sans chiffres ni nom du foyer, a été lu par le modèle. Le rapprochement peut se tromper : vérifiez avant de classer.",
+      "by_name": "proche du nom de la catégorie",
+      "by_name_about": "Personne n’a encore classé d’opération semblable. Un modèle d’IA trouve ce libellé proche du nom de la catégorie {{category}} ({{agreement}} %). Seul le début du libellé, sans chiffres ni nom du foyer, a été lu par le modèle. Le rapprochement peut se tromper : vérifiez avant de classer.",
+      "by_ai": "deviné par IA",
+      "by_ai_local": "deviné par IA (modèle local)",
+      "by_ai_remote": "deviné par IA (worker distant)",
+      "by_ai_about": "Personne n’a encore classé d’opération semblable. Un modèle d’IA, sur un worker du foyer, a choisi {{category}} parmi vos catégories. Il n’a lu que le libellé, masqué (sans chiffres longs, IBAN, e-mail, téléphone ni nom du foyer), et les noms des catégories : jamais un montant, une date, un compte ni un nom. Il peut se tromper : vérifiez avant de classer.",
+      "by_ai_sure": "Le modèle s’en dit sûr à {{agreement}} %, une fois sa confiance mesurée sur des libellés d’essai.",
       "create_rule": "Créer la règle",
       "categorise_one": "Classer cette opération",
       "categorise_other": "Classer ces {{count}} opérations",
@@ -619,7 +626,10 @@
       "dismissed_at": "Ignorée le",
       "restore": "Rétablir",
       "restore_of": "Rétablir « {{pattern}} » en {{category}}",
-      "restored": "Suggestion rétablie."
+      "restored": "Suggestion rétablie.",
+      "again": "Suggérer à nouveau",
+      "again_tip": "Nid garde les catégories devinées par IA tant que vos catégories ne changent pas. Si elles vous semblent dépassées (après avoir beaucoup classé à la main, par exemple), Nid les oublie et les redemande aussitôt au modèle.",
+      "again_done": "Les catégories devinées par IA vont être redemandées au modèle."
     }
   }
 }
