@@ -14,8 +14,8 @@ const fingerprint = groups.join(' ');
  */
 test('alice pairs the worker, tests it, finds its job and asks the assistant', async ({ page }) => {
   test.skip(!code || !fingerprint, 'needs NID_WORKER_PAIRING (deploy/smoke.sh)');
-  // #450: the guess pass runs every 5 minutes (ModelWorkLoop.GuessEvery); the journey waits for one.
-  test.setTimeout(10 * 60_000);
+  // #450: a calibration (30-second passes) and the guess pass it asks for.
+  test.setTimeout(5 * 60_000);
   await signIn(page, 'alice', '/admin/ai');
   // A run that stopped before its revoke left the worker registered here; smoke.sh's `unpair` already reset the worker's side.
   const { csrf } = (await (await page.request.get('/auth/session')).json()) as { csrf: string };
@@ -92,9 +92,12 @@ test('alice pairs the worker, tests it, finds its job and asks the assistant', a
 async function guessesACategory(page: Page, headers: Record<string, string>) {
   const stamp = Date.now();
   const shop = `PHARMACIE ${String(stamp).replace(/\d/g, (d) => 'ABCDEFGHIJ'[Number(d)])}`;
-  // As banks.spec.ts: bank sync on for the journey, off again after. Asked again before each read: banks.spec.ts turns it off between its journeys.
-  const bankSync = async (on: boolean) =>
-    expect((await page.request.patch('/api/v1/admin/household', { headers, data: { bankingEnabled: on, enableBankingAppId: '' } })).ok()).toBe(true);
+  // Bank sync on for the journey, then as it was. No other journey runs meanwhile (the `workers` project, playwright.config.ts):
+  // banks.spec.ts turns it on and off too.
+  const before = (await (await page.request.get('/api/v1/admin/household')).json()) as { bankingEnabled: boolean; enableBankingAppId: string | null };
+  const bankSync = async (on: boolean) => expect((await page.request.patch('/api/v1/admin/household', {
+    headers, data: { bankingEnabled: on, enableBankingAppId: before.enableBankingAppId ?? '' },
+  })).ok()).toBe(true);
   await bankSync(true);
   const session = (await (await page.request.get('/auth/session')).json()) as { person: { id: string } };
   const created = await page.request.post('/api/v1/investments/envelopes', {
@@ -125,10 +128,10 @@ async function guessesACategory(page: Page, headers: Record<string, string>) {
   await expect(row).toContainText('Sur 412 libellés d’essai');
   await expect(row).not.toContainText('Pas encore calibré');
 
-  // The guess pass: every 5 minutes. The largest groups come first: a one-line group may be on a later page.
+  // A calibration done asks for a guess pass at the loop's next 5-second tick. The largest groups come first: a one-line group may
+  // be on a later page.
   let onPage = 1;
   const guessed = async () => {
-    await bankSync(true);
     for (onPage = 1; ; onPage++) {
       const { items, total } = (await (await page.request.get(`/api/v1/banking/category-suggestions?page=${onPage}`)).json()) as
         { items: { pattern: string; basis: string; categoryName: string }[]; total: number };
@@ -137,10 +140,9 @@ async function guessesACategory(page: Page, headers: Record<string, string>) {
       if (items.length === 0 || onPage * 10 >= total) return null;
     }
   };
-  await expect.poll(guessed, { timeout: 6 * 60_000, intervals: [10_000] }).toBe('ai Médecin & pharmacie');
+  await expect.poll(guessed, { timeout: 90_000, intervals: [5_000] }).toBe('ai Médecin & pharmacie');
 
   await expect(async () => {
-    await bankSync(true);
     await page.goto('/spending?tab=operations');
     const block = page.getByRole('region', { name: /suggestions? de catégorie/ });
     await block.getByRole('button', { name: /^Voir (la|les \d+) suggestions?$/ }).click({ timeout: 5_000 });
@@ -151,9 +153,9 @@ async function guessesACategory(page: Page, headers: Record<string, string>) {
     const suggestion = block.getByRole('listitem').filter({ hasText: `${shop} → Médecin & pharmacie` });
     await expect(suggestion).toContainText('deviné par IA (modèle local)', { timeout: 5_000 });
     await suggestion.getByRole('button', { name: 'Classer cette opération' }).click({ timeout: 5_000 });
-  }).toPass({ timeout: 60_000 });
+  }).toPass({ timeout: 30_000 });
   await expect(toasts(page)).toContainText('1 opération classée en Médecin & pharmacie.');
 
   expect((await page.request.put('/api/v1/ai/settings/uses/decide/model', { headers, data: { model: null } })).ok()).toBe(true);
-  await bankSync(false);
+  await bankSync(before.bankingEnabled);
 }
