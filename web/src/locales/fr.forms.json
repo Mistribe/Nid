@@ -249,6 +249,7 @@
   },
   "lists": {
     "sep": "·",
+    "group_by_owner": "Regrouper par propriétaire",
     "col": {
       "name": "Nom", "kind": "Type", "owner": "Propriétaire", "value": "Valeur", "gain": "Gain", "updated": "Mise à jour",
       "net_value": "Valeur nette", "gross_yield": "Rendement brut", "property": "Bien", "remaining": "Restant dû",

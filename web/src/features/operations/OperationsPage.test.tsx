@@ -6,6 +6,12 @@ import userEvent from '@testing-library/user-event';
 import { pick } from '@/test/controls';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
+import { todayIso } from '@/lib/today';
+import { monthDays } from '../spending/MonthStepper';
+
+// The lines of the current month, asked when the URL names no dates.
+const NOW = monthDays(todayIso().slice(0, 7));
+const MONTH = `?from=${NOW.from}&to=${NOW.to}`;
 
 const base = { bookedOn: '2026-10-27', valueOn: null, currency: 'EUR', counterparty: null, fromCard: false, cardName: null, fetchedVia: 'file', link: null, accountName: 'Compte courant', accountId: 'a1', sharedAccount: false };
 const netflix = { ...base, id: 't1', amount: '-13.49', label: 'PRLV NETFLIX', linkState: 'unlinked', category: null };
@@ -43,7 +49,7 @@ describe('« Opérations »', () => {
     expect(within(stats).getByText('Entrées').nextElementSibling).toHaveTextContent('2 000,00 €');
     expect(within(stats).getByText('Solde').nextElementSibling).toHaveTextContent('1 986,51 €');
     expect(screen.getByText('2 opérations')).toBeInTheDocument();
-    expect(asked).toBe('');
+    expect(asked).toBe(MONTH);
   });
 
   it('?state=unlinked asks for the lines to link and links one', async () => {
@@ -59,7 +65,7 @@ describe('« Opérations »', () => {
     const { user } = await renderApp('/spending?tab=operations&state=unlinked');
 
     const row = within(await screen.findByRole('table', { name: 'Opérations' })).getAllByRole('row')[1]!;
-    expect(asked).toBe('?state=unlinked');
+    expect(asked).toBe(`${MONTH}&state=unlinked`);
     await user.click(within(row).getByRole('button', { name: /Actions/ }));
     await user.click(await screen.findByRole('menuitem', { name: 'Relier…' }));
     await screen.findByRole('combobox', { name: 'Charge attendue' });
@@ -71,8 +77,8 @@ describe('« Opérations »', () => {
 
   // #437: a figure's lines: those it counts, on the Foyer / Moi accounts; « Foyer » is the scope the URL leaves out.
   it.each([
-    ['/spending?scope=me&tab=operations&state=counted', '?state=counted&scope=me'],
-    ['/spending?tab=operations&state=counted', '?state=counted&scope=household'],
+    ['/spending?scope=me&tab=operations&state=counted', `${MONTH}&state=counted&scope=me`],
+    ['/spending?tab=operations&state=counted', `${MONTH}&state=counted&scope=household`],
   ])('%s asks for the lines the scope counts', async (url, expected) => {
     let asked = '';
     server.use(http.get('*/api/v1/banking/operations', ({ request }) => { asked = new URL(request.url).search; return HttpResponse.json(answer([netflix])); }));
@@ -83,6 +89,21 @@ describe('« Opérations »', () => {
     expect(screen.getByRole('list', { name: 'Filtres actifs' })).toHaveTextContent('Comptée dans les dépenses');
     fireEvent.click(filters());
     expect(screen.getByRole('combobox', { name: 'État' })).toHaveTextContent('Comptée dans les dépenses');
+  });
+
+  it('shows one month at a time, the dates of a filter over it', async () => {
+    const asked: string[] = [];
+    server.use(http.get('*/api/v1/banking/operations', ({ request }) => { asked.push(new URL(request.url).search); return HttpResponse.json(answer([netflix])); }));
+    const { user, router } = await renderApp('/spending?tab=operations&month=2024-03&page=2');
+
+    await waitFor(() => expect(asked.at(-1)).toBe('?from=2024-03-01&to=2024-03-31&page=2'));
+    await user.click(screen.getByRole('button', { name: 'Mois précédent' }));
+    await waitFor(() => expect(asked.at(-1)).toBe('?from=2024-02-01&to=2024-02-29'));
+    expect(router.state.location.search).toMatchObject({ tab: 'operations', month: '2024-02' });
+
+    await router.navigate({ to: '/spending', search: { tab: 'operations', month: '2024-02', from: '2023-01-01' } });
+    await waitFor(() => expect(asked.at(-1)).toBe('?from=2023-01-01'));
+    expect(screen.queryByRole('group', { name: 'Mois' })).toBeNull();
   });
 
   it('a card purchase says which account it was debited from', async () => {
@@ -112,7 +133,7 @@ describe('« Opérations »', () => {
     server.use(http.get('*/api/v1/banking/operations', ({ request }) => { asked.push(new URL(request.url).search); return HttpResponse.json(answer([netflix], 120)); }));
     const { user, router } = await renderApp('/spending?tab=operations&page=2');
     await screen.findByRole('table', { name: 'Opérations' });
-    expect(asked[0]).toBe('?page=2');
+    expect(asked[0]).toBe(`${MONTH}&page=2`);
 
     await user.click(filters());
     await pick(user, 'État', 'À relier');
@@ -169,8 +190,8 @@ describe('« Opérations »', () => {
     fireEvent.change(screen.getByRole('searchbox', { name: 'Rechercher' }), { target: { value: 'net' } });
     expect(router.state.location.search).toEqual({ tab: 'operations' });
     await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'operations', q: 'net' }));
-    await waitFor(() => expect(asked.at(-1)).toBe('?q=net'));
-    expect(asked).not.toContain('?q=ne');
+    await waitFor(() => expect(asked.at(-1)).toBe(`${MONTH}&q=net`));
+    expect(asked).not.toContain(`${MONTH}&q=ne`);
   });
 
   it('goes to page 2', async () => {
@@ -179,7 +200,7 @@ describe('« Opérations »', () => {
     const { user, router } = await renderApp('/spending?tab=operations');
     await user.click(await screen.findByRole('button', { name: 'Suivant' }));
     await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'operations', page: 2 }));
-    await waitFor(() => expect(asked.at(-1)).toBe('?page=2'));
+    await waitFor(() => expect(asked.at(-1)).toBe(`${MONTH}&page=2`));
   });
 
   it('says so when nothing matches', async () => {
@@ -199,7 +220,7 @@ describe('« Opérations »', () => {
     server.use(http.get('*/api/v1/banking/operations', ({ request }) => { asked.push(new URL(request.url).search); return HttpResponse.json(answer([netflix])); }));
     await renderApp('/spending?tab=operations&min=-5&max=1e21');
     await screen.findByRole('table', { name: 'Opérations' });
-    expect(asked).toEqual(['']);
+    expect(asked).toEqual([MONTH]);
   });
 
   it('does not search a lone letter and a space', async () => {
@@ -207,7 +228,7 @@ describe('« Opérations »', () => {
     server.use(http.get('*/api/v1/banking/operations', ({ request }) => { asked.push(new URL(request.url).search); return HttpResponse.json(answer([netflix])); }));
     await renderApp('/spending?tab=operations&q=a%20');
     await screen.findByRole('table', { name: 'Opérations' });
-    expect(asked).toEqual(['']);
+    expect(asked).toEqual([MONTH]);
   });
 
   it('keeps one id of a longer category list', async () => {

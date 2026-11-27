@@ -51,6 +51,33 @@ describe('PropertiesPage', () => {
     await expectNoAxeViolations(container);
   });
 
+  it('folds the properties of the same owners into one row with the server totals; the switch lists them flat, kept in the URL', async () => {
+    const alice = [{ personId: '0192f0aa-0000-7000-8000-0000000000a1', shareBp: 10000 }];
+    const studio = propertySummary({ id: 'x', name: 'Studio', value: '90000.00', owners: alice });
+    serve(propertyList([propertySummary({ owners: alice }), studio, parking], [
+      { owners: alice, items: [PROPERTY, 'x'], value: { amount: '380000.00', currency: 'EUR' }, netValue: null },
+      { owners: parking.owners, items: [parking.id], value: null, netValue: null },
+    ]));
+    const { user, router } = await renderApp('/properties?tab=list');
+
+    expect(await rows()).toHaveLength(2);
+    const [group] = await rows();
+    expect(group).toHaveTextContent('2 biens');
+    expect(group).toHaveTextContent('380 000,00 €');
+    await user.click(within(group!).getByRole('button', { name: 'Déplier les biens' }));
+    const names = async () => (await rows()).map((r) => within(r).getAllByRole('cell')[0]!.textContent);
+    expect(await names()).toEqual(['2 biens', 'Maison de NantesPartagé', 'StudioPartagé', 'Parking garePrivé']);
+
+    const grouping = screen.getByRole('switch', { name: 'Regrouper par propriétaire' });
+    expect(grouping).toBeChecked();
+    await user.click(grouping);
+    await waitFor(() => expect(router.state.location.search).toMatchObject({ flat: 1 }));
+    expect(await names()).toEqual(['Maison de NantesPartagé', 'StudioPartagé', 'Parking garePrivé']);
+    await user.click(screen.getByRole('switch', { name: 'Regrouper par propriétaire' }));
+    await waitFor(() => expect(router.state.location.search).not.toHaveProperty('flat'));
+    expect(await rows()).toHaveLength(2);
+  });
+
   it('sorts by value', async () => {
     serve(propertyList([propertySummary(), parking, propertySummary({ id: 'x', name: 'Studio', value: '90000.00' })]));
     const { user } = await renderApp('/properties?tab=list');

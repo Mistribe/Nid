@@ -22,3 +22,11 @@ public sealed class AssetRow
     public Guid? ImportedBy { get; set; }
     public uint Version { get; set; }
 }
+
+/// <summary>#650: one mileage reading of a vehicle, one per day.</summary>
+public sealed class MileageReadingRow
+{
+    public Guid ItemId { get; set; }
+    public LocalDate ReadOn { get; set; }
+    public int Km { get; set; }
+}

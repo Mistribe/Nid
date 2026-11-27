@@ -275,6 +275,9 @@ public interface ITransactionStore
 
     Task MarkReconciledAsync(IReadOnlyCollection<Guid> ids, Instant at, CancellationToken ct);
 
+    /// <summary>The account's lines but the ignored ones go through the next pass again: a card just attached pairs its stored lines' echoes.</summary>
+    Task RequeueAsync(Guid account, CancellationToken ct);
+
     /// <summary>
     /// Retention (D3): deletes the unlinked and ignored lines booked before <paramref name="before"/>, except those with a note or parts and those of
     /// <paramref name="keep"/> (#84: a receipt's); returns how many.

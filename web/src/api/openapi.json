@@ -12899,6 +12899,104 @@
         }
       }
     },
+    "/api/v1/assets/{id}/ownership-cost": {
+      "get": {
+        "tags": [
+          "Nid.Host"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "year",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OwnershipCostView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/assets/{id}/costs/{flowId}": {
       "put": {
         "tags": [
@@ -45308,6 +45406,12 @@
           },
           "kind": {
             "type": "string"
+          },
+          "key": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -45571,9 +45675,42 @@
           }
         }
       },
+      "ChildcareGroupView": {
+        "required": [
+          "owners",
+          "items"
+        ],
+        "type": "object",
+        "properties": {
+          "owners": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ItemOwnerView"
+            }
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "monthlyBasePay": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ChildcareMoneyView"
+              }
+            ]
+          }
+        }
+      },
       "ChildcareList": {
         "required": [
-          "items"
+          "items",
+          "groups"
         ],
         "type": "object",
         "properties": {
@@ -45581,6 +45718,12 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ChildcareSummary"
+            }
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChildcareGroupView"
             }
           }
         }
@@ -47157,6 +47300,40 @@
               {
                 "$ref": "#/components/schemas/LoanMoneyView"
               }
+            ]
+          }
+        }
+      },
+      "CostPartView": {
+        "required": [
+          "code"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "amount": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MoneyView"
+              }
+            ]
+          },
+          "sourceId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
             ]
           }
         }
@@ -52745,9 +52922,52 @@
           }
         }
       },
+      "GoalGroupView": {
+        "required": [
+          "owners",
+          "items"
+        ],
+        "type": "object",
+        "properties": {
+          "owners": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ItemOwnerView"
+            }
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "reached": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/GoalMoneyView"
+              }
+            ]
+          },
+          "target": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/GoalMoneyView"
+              }
+            ]
+          }
+        }
+      },
       "GoalList": {
         "required": [
-          "items"
+          "items",
+          "groups"
         ],
         "type": "object",
         "properties": {
@@ -52755,6 +52975,12 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/GoalSummary"
+            }
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GoalGroupView"
             }
           }
         }
@@ -58882,6 +59108,48 @@
           }
         }
       },
+      "LoanGroupView": {
+        "required": [
+          "owners",
+          "items"
+        ],
+        "type": "object",
+        "properties": {
+          "owners": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ItemOwnerView"
+            }
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "remainingBalance": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
+              }
+            ]
+          },
+          "nextPaymentTotal": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LoanMoneyView"
+              }
+            ]
+          }
+        }
+      },
       "LoanInsuranceBody": {
         "type": "object",
         "properties": {
@@ -59021,7 +59289,8 @@
       },
       "LoanList": {
         "required": [
-          "items"
+          "items",
+          "groups"
         ],
         "type": "object",
         "properties": {
@@ -59029,6 +59298,12 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/LoanSummary"
+            }
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LoanGroupView"
             }
           }
         }
@@ -61954,6 +62229,60 @@
           "shareBp": {
             "type": "integer",
             "format": "int32"
+          }
+        }
+      },
+      "OwnershipCostView": {
+        "required": [
+          "from",
+          "to",
+          "total",
+          "monthly",
+          "incomplete",
+          "parts",
+          "years"
+        ],
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          },
+          "total": {
+            "$ref": "#/components/schemas/MoneyView"
+          },
+          "monthly": {
+            "$ref": "#/components/schemas/MoneyView"
+          },
+          "perKm": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MoneyView"
+              }
+            ]
+          },
+          "incomplete": {
+            "type": "boolean"
+          },
+          "parts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CostPartView"
+            }
+          },
+          "years": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            }
           }
         }
       },
@@ -65096,9 +65425,52 @@
           }
         }
       },
+      "PropertyGroupView": {
+        "required": [
+          "owners",
+          "items"
+        ],
+        "type": "object",
+        "properties": {
+          "owners": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ItemOwnerView"
+            }
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "value": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PropertyMoneyView"
+              }
+            ]
+          },
+          "netValue": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PropertyMoneyView"
+              }
+            ]
+          }
+        }
+      },
       "PropertyList": {
         "required": [
-          "items"
+          "items",
+          "groups"
         ],
         "type": "object",
         "properties": {
@@ -65106,6 +65478,12 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/PropertySummary"
+            }
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PropertyGroupView"
             }
           }
         }
@@ -65137,6 +65515,21 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "PropertyMoneyView": {
+        "required": [
+          "amount",
+          "currency"
+        ],
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
           }
         }
       },
@@ -68030,6 +68423,7 @@
           "name",
           "currency",
           "cadence",
+          "kind",
           "due",
           "ucShareBelowFloor"
         ],
@@ -68046,6 +68440,9 @@
             "type": "string"
           },
           "cadence": {
+            "type": "string"
+          },
+          "kind": {
             "type": "string"
           },
           "lastValue": {

@@ -19,6 +19,7 @@ import { SourceLink } from '@/features/documents/SourceLink';
 import { presentRefusal } from '@/features/loans/refusal';
 import { AssetCostDialog } from './AssetCostForm';
 import { categoryText } from './cost';
+import { OwnershipCostSection } from './OwnershipCostSection';
 import '@/locales/assets';
 import '@/locales/loans';
 
@@ -26,7 +27,7 @@ import '@/locales/loans';
  * #649: a vehicle's running costs of one year, newest first, with the year's total (the server's). Adding and correcting open a
  * dialog; a cost taken from a bank line says so. Only a vehicle's writer adds, corrects or removes.
  */
-export function AssetCostsSection({ asset }: { asset: AssetView }) {
+export function AssetCostsSection({ asset, onTab }: { asset: AssetView; onTab: (tab: 'subscriptions' | 'valuations') => void }) {
   const { t } = useTranslation();
   const { $api } = useApi();
   const [year, setYear] = useState<number | undefined>();
@@ -38,6 +39,7 @@ export function AssetCostsSection({ asset }: { asset: AssetView }) {
 
   return (
     <Section title={t('assets_costs.title')} headingRef={s.headingRef}>
+      {asset.kind === 'vehicle' ? <OwnershipCostSection asset={asset} onTab={onTab} /> : null}
       {answer.error ? <ProblemMessage problem={present(toProblem(answer.error))} /> : null}
       <div className="flex flex-wrap items-end justify-between gap-3">
         {costs ? (

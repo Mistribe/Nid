@@ -29,6 +29,9 @@ public interface IAssetRecordStore
 
     Task<AssetRecord?> FindAsync(ItemId id, CancellationToken ct);
 
+    /// <summary>#650: the vehicle's mileage readings, oldest first.</summary>
+    Task<IReadOnlyList<MileageReading>> ReadingsAsync(ItemId id, CancellationToken ct);
+
     Task<IReadOnlyList<AssetRecord>> FindManyAsync(IReadOnlyCollection<ItemId> ids, CancellationToken ct);
 
     /// <summary>Replaces every field; false when the asset changed since <paramref name="version"/> was read (or is gone).</summary>

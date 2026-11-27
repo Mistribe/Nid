@@ -102,6 +102,18 @@ public class TransactionCategoryTests(PostgresFixture fixture) : IClassFixture<P
     }
 
     [Fact]
+    public async Task A_line_names_the_key_of_a_seeded_category()
+    {
+        await using var s = await StartAsync(fixture);
+        var app = s.App;
+        var line = await AddAsync(app, s.Courant, "a", -60m, "CB STATION");
+
+        await OkAsync(await PutAsync(app, app.AdultA, line, Seed("transport.fuel")));
+
+        Assert.Equal("transport.fuel", (await LineAsync(app, app.AdultA, line)).Line.GetProperty("category").GetProperty("key").GetString());
+    }
+
+    [Fact]
     public async Task Same_label_lists_the_other_lines_nothing_classified_on_the_accounts_the_reader_writes()
     {
         await using var s = await StartAsync(fixture);

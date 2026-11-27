@@ -10,6 +10,7 @@ import { Loading, TableSkeleton } from '@/components/page/skeletons';
 import { Badge } from '@/components/ui/badge';
 import type { RootSearch } from '@/lib/search';
 import { ImportStatement } from '../investments/operations/ImportStatement';
+import { monthDays, MonthStepper, useMonth } from './MonthStepper';
 import '@/locales/spending';
 
 // Each tab loads when opened: the overview's figures, the bank lines, the categories and their rules.
@@ -27,22 +28,25 @@ export function SpendingPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [tab] = useDetailTab(TABS);
-  // A tab's filters stay on it (an `?category=` would silently filter another); only Foyer / Moi carries over.
+  const { search, month } = useMonth();
+  // The filters' own dates (a figure's lines, a range typed in) win over the month.
+  const dated = !!(search.from || search.to);
+  // A tab's filters stay on it (an `?category=` would silently filter another); only Foyer / Moi and the month carry over.
   const change = (next: (typeof TABS)[number]) => void navigate({
     from: '/spending', to: '/spending', replace: true, resetScroll: false,
-    search: (prev: RootSearch & SpendingSearch) => ({ scope: prev.scope, tab: next === 'overview' ? undefined : next }),
+    search: (prev: RootSearch & SpendingSearch) => ({ scope: prev.scope, month: prev.month, tab: next === 'overview' ? undefined : next }),
   });
   const lazyTab = (content: ReactNode) => (
     <Suspense fallback={<Loading label={t('spending.loading')}><TableSkeleton columns={4} /></Loading>}>{content}</Suspense>
   );
-  const actions = tab === 'overview' ? <Suspense fallback={null}><SpendingControls /></Suspense> : tab === 'operations' ? <ImportStatement /> : null;
+  const actions = tab === 'overview' ? <Suspense fallback={null}><SpendingControls /></Suspense> : tab === 'operations' ? <>{dated ? null : <MonthStepper />}<ImportStatement /></> : null;
   const toClassify = useToClassify();
   return (
     <div className="space-y-4">
       <PageHeader title={t('spending.title')} actions={actions} />
       <DetailTabs value={tab} onChange={change} tabs={[
         { id: 'overview', label: t('spending.tabs.overview'), content: lazyTab(<SpendingOverview />) },
-        { id: 'operations', label: t('spending.tabs.operations'), content: lazyTab(<OperationsPage />) },
+        { id: 'operations', label: t('spending.tabs.operations'), content: lazyTab(<OperationsPage month={dated ? undefined : monthDays(month)} />) },
         { id: 'to-classify', label: t('spending.tabs.to_classify'), content: lazyTab(<ToClassifyTab />), badge: toClassify ? (
           <Badge variant="outline" className="border-transparent bg-status-warning/15 text-status-warning-text"><span aria-hidden="true">{toClassify}</span><span className="sr-only">{t('spending.to_classify', { count: toClassify })}</span></Badge>
         ) : null },

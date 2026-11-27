@@ -146,4 +146,66 @@ public class AssetRecordStoreTests(PostgresFixture fixture) : IClassFixture<Post
         Assert.False(await part.ImportedAsync(new ItemAccess(plain, "A", Visibility.Shared, []) with { Module = "assets", Kind = "asset" }, Ct));
         Assert.True(await part.ImportedAsync(new ItemAccess(imported, "B", Visibility.Shared, []) with { Module = "assets", Kind = "asset" }, Ct));
     }
+
+    private static AssetDetails Car(int? km, LocalDate? on)
+        => new(AssetKinds.Vehicle, 9000m, new LocalDate(2024, 1, 1), null, null, null, MileageKm: km, MileageOn: on);
+
+    [Fact]
+    public async Task Each_mileage_written_is_kept_as_a_reading()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await using var scope = app.Services.CreateAsyncScope();
+        var store = scope.ServiceProvider.GetRequiredService<IAssetRecordStore>();
+        var id = await NewItemAsync(scope.ServiceProvider, app);
+        await store.AddAsync(id, Car(12_000, new LocalDate(2026, 1, 10)), Ct);
+
+        Assert.True(await store.UpdateAsync(id, Car(15_000, new LocalDate(2026, 6, 10)), (await store.FindAsync(id, Ct))!.Version, Ct));
+
+        Assert.Equal([new MileageReading(new LocalDate(2026, 1, 10), 12_000), new MileageReading(new LocalDate(2026, 6, 10), 15_000)],
+            await store.ReadingsAsync(id, Ct));
+    }
+
+    [Fact]
+    public async Task A_reading_on_the_same_day_replaces_it()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await using var scope = app.Services.CreateAsyncScope();
+        var store = scope.ServiceProvider.GetRequiredService<IAssetRecordStore>();
+        var id = await NewItemAsync(scope.ServiceProvider, app);
+        await store.AddAsync(id, Car(15_000, new LocalDate(2026, 6, 10)), Ct);
+
+        Assert.True(await store.UpdateAsync(id, Car(15_200, new LocalDate(2026, 6, 10)), (await store.FindAsync(id, Ct))!.Version, Ct));
+
+        Assert.Equal([new MileageReading(new LocalDate(2026, 6, 10), 15_200)], await store.ReadingsAsync(id, Ct));
+    }
+
+    [Fact]
+    public async Task Clearing_the_mileage_keeps_the_readings()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await using var scope = app.Services.CreateAsyncScope();
+        var store = scope.ServiceProvider.GetRequiredService<IAssetRecordStore>();
+        var id = await NewItemAsync(scope.ServiceProvider, app);
+        await store.AddAsync(id, Car(12_000, new LocalDate(2026, 1, 10)), Ct);
+
+        Assert.True(await store.UpdateAsync(id, Car(null, null), (await store.FindAsync(id, Ct))!.Version, Ct));
+
+        Assert.Equal([new MileageReading(new LocalDate(2026, 1, 10), 12_000)], await store.ReadingsAsync(id, Ct));
+    }
+
+    [Fact]
+    public async Task Deletion_part_removes_the_readings()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await using var scope = app.Services.CreateAsyncScope();
+        var sp = scope.ServiceProvider;
+        var store = sp.GetRequiredService<IAssetRecordStore>();
+        var id = await NewItemAsync(sp, app);
+        await store.AddAsync(id, Car(12_000, new LocalDate(2026, 1, 10)), Ct);
+        var access = (await sp.GetRequiredService<IItemRegistry>().FindManyAsync([id], Ct)).Values.Single();
+
+        await sp.GetServices<IItemDeletionPart>().OfType<AssetsDeletionPart>().Single().RemoveAsync(access, Ct);
+
+        Assert.Empty(await store.ReadingsAsync(id, Ct));
+    }
 }

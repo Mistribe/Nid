@@ -126,6 +126,21 @@ public class VehicleCostLinkTests(PostgresFixture fixture) : IClassFixture<Postg
     }
 
     [Fact]
+    public async Task A_fuel_line_linked_without_a_category_records_fuel()
+    {
+        var (app, account) = await StartAsync(fixture);
+        await using var _ = app;
+        var car = await VehicleAsync(app);
+        var line = await AddAsync(app, account, "a", D(10, 20), -60m);
+        (await app.RawAsync(app.AdultA, HttpMethod.Put, $"{BankingApi.Root}/transactions/{line}/category",
+            new { categoryId = Nid.Banking.Domain.CategorySeed.Find("transport.fuel")!.Id })).EnsureSuccessStatusCode();
+
+        Assert.Equal(HttpStatusCode.OK, (await LinkAsync(app, line, car)).StatusCode);
+
+        Assert.Equal("fuel", Assert.Single((await CostsAsync(app, car)).GetProperty("rows").EnumerateArray()).GetProperty("category").GetString());
+    }
+
+    [Fact]
     public async Task The_link_proposal_carries_the_category_and_records_the_cost_when_approved()
     {
         var (app, account) = await StartAsync(fixture);
@@ -143,7 +158,7 @@ public class VehicleCostLinkTests(PostgresFixture fixture) : IClassFixture<Postg
         Assert.Equal("repair", Assert.Single((await CostsAsync(app, car)).GetProperty("rows").EnumerateArray()).GetProperty("category").GetString());
         var bad = await app.RawAsync(app.AdultA, HttpMethod.Post, Proposals, new
         {
-            kind = "banking.link_transaction", targetItemId = car, payload = new { transactionId = line, module = "assets", itemId = car, category = "fuel" },
+            kind = "banking.link_transaction", targetItemId = car, payload = new { transactionId = line, module = "assets", itemId = car, category = "parking" },
         });
         Assert.Equal(HttpStatusCode.UnprocessableEntity, bad.StatusCode);
     }
@@ -171,7 +186,7 @@ public class VehicleCostLinkTests(PostgresFixture fixture) : IClassFixture<Postg
         var car = await VehicleAsync(app);
         var line = await AddAsync(app, account, "a", D(10, 20), -85.40m);
 
-        await BankingApi.AssertRefusedAsync(await LinkAsync(app, line, car, "fuel"), HttpStatusCode.UnprocessableEntity, FieldErrors.ShapeCode);
+        await BankingApi.AssertRefusedAsync(await LinkAsync(app, line, car, "parking"), HttpStatusCode.UnprocessableEntity, FieldErrors.ShapeCode);
 
         Assert.Null(await LinkOfAsync(app, line));
         Assert.Empty((await CostsAsync(app, car)).GetProperty("rows").EnumerateArray());

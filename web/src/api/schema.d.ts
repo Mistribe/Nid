@@ -12060,6 +12060,99 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/assets/{id}/ownership-cost": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    year?: number;
+                };
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OwnershipCostView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/assets/{id}/costs/{flowId}": {
         parameters: {
             query?: never;
@@ -40270,6 +40363,7 @@ export interface components {
             parentId?: null | string;
             parentName?: null | string;
             kind: string;
+            key?: null | string;
         };
         CeilingView: {
             ceiling: components["schemas"]["AmountView"];
@@ -40335,8 +40429,14 @@ export interface components {
             /** @default false */
             monthCostEstimated: boolean;
         };
+        ChildcareGroupView: {
+            owners: components["schemas"]["ItemOwnerView"][];
+            items: string[];
+            monthlyBasePay?: null | components["schemas"]["ChildcareMoneyView"];
+        };
         ChildcareList: {
             items: components["schemas"]["ChildcareSummary"][];
+            groups: components["schemas"]["ChildcareGroupView"][];
         };
         ChildcareMoneyView: {
             amount: string;
@@ -40695,6 +40795,13 @@ export interface components {
             amount: string;
             currency: string;
             amountConverted?: null | components["schemas"]["LoanMoneyView"];
+        };
+        CostPartView: {
+            code: string;
+            amount?: null | components["schemas"]["MoneyView"];
+            /** Format: uuid */
+            sourceId?: null | string;
+            name?: null | string;
         };
         CostReportBody: {
             /** Format: double */
@@ -41992,8 +42099,15 @@ export interface components {
             estimated: boolean;
             flags: string[];
         };
+        GoalGroupView: {
+            owners: components["schemas"]["ItemOwnerView"][];
+            items: string[];
+            reached?: null | components["schemas"]["GoalMoneyView"];
+            target?: null | components["schemas"]["GoalMoneyView"];
+        };
         GoalList: {
             items: components["schemas"]["GoalSummary"][];
+            groups: components["schemas"]["GoalGroupView"][];
         };
         GoalMoneyView: {
             amount: string;
@@ -43378,6 +43492,12 @@ export interface components {
             message: string;
             reference?: null | string;
         };
+        LoanGroupView: {
+            owners: components["schemas"]["ItemOwnerView"][];
+            items: string[];
+            remainingBalance?: null | components["schemas"]["LoanMoneyView"];
+            nextPaymentTotal?: null | components["schemas"]["LoanMoneyView"];
+        };
         LoanInsuranceBody: {
             mode?: null | string;
             monthlyAmount?: null | string;
@@ -43411,6 +43531,7 @@ export interface components {
         };
         LoanList: {
             items: components["schemas"]["LoanSummary"][];
+            groups: components["schemas"]["LoanGroupView"][];
         };
         LoanMoneyView: {
             amount: string;
@@ -44083,6 +44204,18 @@ export interface components {
             personId: string;
             /** Format: int32 */
             shareBp: number;
+        };
+        OwnershipCostView: {
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            to: string;
+            total: components["schemas"]["MoneyView"];
+            monthly: components["schemas"]["MoneyView"];
+            perKm?: null | components["schemas"]["MoneyView"];
+            incomplete: boolean;
+            parts: components["schemas"]["CostPartView"][];
+            years: number[];
         };
         OwnerView: {
             /** Format: uuid */
@@ -44791,8 +44924,15 @@ export interface components {
             /** Format: uuid */
             documentId?: null | string;
         };
+        PropertyGroupView: {
+            owners: components["schemas"]["ItemOwnerView"][];
+            items: string[];
+            value?: null | components["schemas"]["PropertyMoneyView"];
+            netValue?: null | components["schemas"]["PropertyMoneyView"];
+        };
         PropertyList: {
             items: components["schemas"]["PropertySummary"][];
+            groups: components["schemas"]["PropertyGroupView"][];
         };
         PropertyLoanView: {
             /** Format: uuid */
@@ -44801,6 +44941,10 @@ export interface components {
             currency: string;
             balance: string;
             balanceConverted?: null | string;
+        };
+        PropertyMoneyView: {
+            amount: string;
+            currency: string;
         };
         PropertyOverviewRow: {
             /** Format: uuid */
@@ -45496,6 +45640,7 @@ export interface components {
             name: string;
             currency: string;
             cadence: string;
+            kind: string;
             lastValue?: null | components["schemas"]["AmountView"];
             /** Format: date */
             lastAsOf?: null | string;

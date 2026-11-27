@@ -1,7 +1,10 @@
 using System.Globalization;
 using System.Net;
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Contracts;
+using Nid.RealEstate.Contracts;
+using NodaTime;
 using Nid.TestSupport;
 using static Nid.Assets.IntegrationTests.AssetApi;
 using static Nid.TestSupport.LoanApi;
@@ -59,6 +62,29 @@ public class AssetLoanTests(PostgresFixture fixture) : IClassFixture<PostgresFix
         Assert.True(view.GetProperty("valueEstimated").GetBoolean());
         Assert.True(value < 250000m);
         Assert.Equal((value - 162253.12m).ToString("0.00", CultureInfo.InvariantCulture), view.GetProperty("netValue").GetProperty("amount").GetString());
+    }
+
+    [Fact]
+    public async Task Costs_of_a_vehicle_loan_are_read_through_the_port()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var asset = await CreateAsync(app, Body(app, "Voiture", "vehicle", purchasePrice: "250000"));
+        var secret = await NewAsync(app, Golden(app, "Crédit privé de A", "private"));
+        var shared = await NewAsync(app, Golden(app, "Crédit commun"));
+        (await LinkAsync(app, secret, asset)).EnsureSuccessStatusCode();
+        (await LinkAsync(app, shared, asset)).EnsureSuccessStatusCode();
+        await using var scope = app.Services.CreateAsyncScope();
+        var port = scope.ServiceProvider.GetRequiredService<IItemLoans>();
+        var (from, to) = (new LocalDate(2025, 1, 1), new LocalDate(2025, 10, 15));
+
+        var seenByA = (await port.CostsAsync(app.AdultA, VisibilityScope.Me, [asset], from, to, TestContext.Current.CancellationToken))[asset];
+        var seenByB = (await port.CostsAsync(app.AdultB, VisibilityScope.Me, [asset], from, to, TestContext.Current.CancellationToken))[asset];
+
+        Assert.Equal(2, seenByA.Count);
+        var cost = Assert.Single(seenByB);
+        Assert.Equal(("Crédit commun", "EUR"), (cost.Name, cost.Cost!.Value.Currency.Code));
+        Assert.True(cost.Cost!.Value.Amount > 0m);
+        Assert.All(seenByA, c => Assert.Equal(cost.Cost, c.Cost)); // the same golden loan: interest and insurance only, no capital
     }
 
     [Fact]

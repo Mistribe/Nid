@@ -92,7 +92,7 @@ public sealed class ListBankAccountsHandler(IAccountStore accounts, BankAccountR
 [RequestHandler<UpdateBankAccountCommand, Guid>]
 public sealed class UpdateBankAccountHandler(
     IContextAccessor context, BankingAccess access, IAccountStore accounts, IAccessPolicy policy, IEnvelopes envelopes, IItemRegistry items, IHouseholdCalendar calendar,
-    Operations.ReceiptAnchors receipts, SavingsFlows savingsFlows)
+    Operations.ReceiptAnchors receipts, SavingsFlows savingsFlows, ITransactionStore transactions)
     : IRequestHandler<UpdateBankAccountCommand, Guid>
 {
     public async ValueTask<Result<Guid>> HandleAsync(UpdateBankAccountCommand command, CancellationToken ct = default)
@@ -170,6 +170,9 @@ public sealed class UpdateBankAccountHandler(
             return Result.Failure<Guid>(failure!);
         if (changed.Envelope != account.Envelope || changed.CardOf != account.CardOf)
             await receipts.FollowAsync(account.Id, ct);
+        // #416 pairs a pass's lines only: a card attached after its lines were read sends them through the next pass, which pairs their echoes.
+        if (changed.CardOf is not null && changed.CardOf != account.CardOf)
+            await transactions.RequeueAsync(account.Id, ct);
         // #16: newly associated, its lines since the start of the month become the envelope's flows (moved or detached, the old ones stay);
         // hinted first, as they were reconciled when the account was not a savings one yet.
         if (changed.Envelope is not null && changed.Envelope != account.Envelope)
