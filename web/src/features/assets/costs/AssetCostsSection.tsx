@@ -19,6 +19,7 @@ import { SourceLink } from '@/features/documents/SourceLink';
 import { presentRefusal } from '@/features/loans/refusal';
 import { AssetCostDialog } from './AssetCostForm';
 import { categoryText } from './cost';
+import { MileageReadingsSection } from './MileageReadingsSection';
 import { OwnershipCostSection } from './OwnershipCostSection';
 import '@/locales/assets';
 import '@/locales/loans';
@@ -89,6 +90,7 @@ export function AssetCostsSection({ asset, onTab }: { asset: AssetView; onTab: (
           ))}
         </TableBody>
       </Table>
+      {asset.kind === 'vehicle' ? <MileageReadingsSection asset={asset} /> : null}
     </Section>
   );
 }

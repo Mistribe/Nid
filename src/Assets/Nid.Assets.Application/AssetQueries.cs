@@ -1,5 +1,6 @@
 using System.Globalization;
 using Nid.Assets.Contracts;
+using Nid.Assets.Domain;
 using Nid.RealEstate.Contracts;
 using Nid.Subscriptions.Contracts;
 using Nid.Core.Contracts;
@@ -109,7 +110,9 @@ public sealed class GetAssetHandler(
         var loans = await itemLoans.BalancesAsync(actor.Current!.PersonId!.Value, VisibilityScope.Me, [query.ItemId], today, ct);
         var hasCosts = found.Asset.Details.Kind != AssetKinds.Vehicle
             && await flows.ListAsync(query.ItemId, AssetCheck.Everything, new HashSet<FlowKind> { FlowKind.Expense }, ct) is { } costs && costs.TryGetValue(out var held) && held!.Count > 0;
-        return Result.Success(AssetViews.Detail(found.Item, found.Asset, list!, today, canWrite, linked.GetValueOrDefault(query.ItemId) ?? [], hasCosts, loans.GetValueOrDefault(query.ItemId) ?? []));
+        IReadOnlyList<MileageReading> readings = found.Asset.Details.Kind == AssetKinds.Vehicle ? await assets.ReadingsAsync(query.ItemId, ct) : [];
+        return Result.Success(AssetViews.Detail(found.Item, found.Asset, list!, today, canWrite, linked.GetValueOrDefault(query.ItemId) ?? [], hasCosts,
+            loans.GetValueOrDefault(query.ItemId) ?? [], readings));
     }
 }
 
