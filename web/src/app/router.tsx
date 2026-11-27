@@ -62,10 +62,10 @@ export type SubscriptionsSearch = {
 
 /** The envelopes list's own filter: closed envelopes shown on demand (2B2b design); anything but `1` is dropped. */
 /**
- * The envelopes' list filter (closed ones on demand), the tab (investments dashboard §3.1), the curve's span, named as the
+ * The envelopes' list filter (closed ones on demand), its flat view (`flat`: the owners' groups unfolded for good), the tab (investments dashboard §3.1), the curve's span, named as the
  * dashboard's (`12m` is the default and stays out of the URL), and the performance's period (§4.3: both dates or neither).
  */
-export type InvestmentsSearch = { closed?: 1; tab?: string; curve?: '3y' | 'all'; from?: string; to?: string };
+export type InvestmentsSearch = { closed?: 1; flat?: 1; tab?: string; curve?: '3y' | 'all'; from?: string; to?: string };
 
 /**
  * The income page's own filters: ended sources shown on demand (2C2a design §4), the overview period (`year` is the
@@ -244,6 +244,7 @@ const investmentsRoute = createRoute({
   beforeLoad: requireModule('investments'),
   validateSearch: (search: Record<string, unknown>): InvestmentsSearch => ({
     ...(search.closed === 1 || search.closed === '1' ? { closed: 1 as const } : {}),
+    ...(search.flat === 1 || search.flat === '1' ? { flat: 1 as const } : {}),
     ...(search.curve === '3y' || search.curve === 'all' ? { curve: search.curve } : {}),
     ...(isIsoDate(search.from) && isIsoDate(search.to) ? { from: search.from, to: search.to } : {}),
     ...detailSearch(search),
