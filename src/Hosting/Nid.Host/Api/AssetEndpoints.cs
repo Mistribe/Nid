@@ -94,6 +94,11 @@ public static class AssetEndpoints
             => (await invoker.InvokeAsync(new ListAssetCostsQuery(new ItemId(id), year), ct)).ToHttp(view => view))
             .Returns<AssetCostsView>();
 
+        // #650: the vehicle's cost of ownership for a year, or the 12 months to today.
+        api.MapGet("/{id:guid}/ownership-cost", async (Guid id, int? year, IInvoker invoker, CancellationToken ct)
+            => (await invoker.InvokeAsync(new GetOwnershipCostQuery(new ItemId(id), year), ct)).ToHttp(view => view))
+            .Returns<OwnershipCostView>();
+
         api.MapPost("/{id:guid}/costs", async (Guid id, AssetCostBody body, IInvoker invoker, CancellationToken ct) =>
             {
                 var reader = new FieldReader();
