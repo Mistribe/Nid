@@ -82,7 +82,8 @@ public sealed class SubscriptionsOfItems(SubscriptionSet set, ISubscriptionStore
             return new Dictionary<ItemId, IReadOnlyList<ItemSubscriptionCost>>();
 
         var today = await calendar.TodayAsync(ct);
-        var built = (await set.LoadAsync(reader, scope, today, to > today ? to : today, ct, wanted: linked.Values.SelectMany(s => s).ToHashSet()))
+        // An archived subscription (a former insurer) still cost what it charged before its archive day.
+        var built = (await set.LoadAsync(reader, scope, today, to > today ? to : today, ct, includeArchived: true, wanted: linked.Values.SelectMany(s => s).ToHashSet()))
             .ToDictionary(b => b.Input.Subscription.Id);
         // The charges SubscriptionExpectedCharges expects: a phase's, in the period (a purchase is a one-off, not a running cost).
         var charged = built.Values.ToDictionary(b => b.Input.Subscription.Id, b => b.Timeline.Charges

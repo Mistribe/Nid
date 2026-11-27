@@ -81,6 +81,24 @@ public class AssetLinkTests(PostgresFixture fixture) : IClassFixture<PostgresFix
     }
 
     [Fact]
+    public async Task An_archived_insurance_still_costs_its_charges_before_its_archive_day()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var insurance = await app.NewMonthlyAsync(app.AdultA, 50m);
+        var asset = await NewAssetAsync(app, app.AdultA);
+        Assert.Equal(HttpStatusCode.OK, (await LinkAsync(app, app.AdultA, insurance, asset)).StatusCode);
+        await using var scope = app.Services.CreateAsyncScope();
+        scope.ServiceProvider.GetRequiredService<Nid.Platform.Contracts.IActorAccessor>().Current = Nid.Platform.Contracts.Actor.System;
+        Assert.True((await scope.ServiceProvider.GetRequiredService<IItemRegistry>().ArchiveAsync(insurance, Instant.FromUtc(2025, 6, 15, 10, 0),
+            TestContext.Current.CancellationToken)).IsSuccess);
+
+        var costs = (await scope.ServiceProvider.GetRequiredService<ISubscriptionsOfItems>().CostsAsync(app.AdultA, VisibilityScope.Me, [asset],
+            new LocalDate(2025, 3, 1), new LocalDate(2025, 8, 31), TestContext.Current.CancellationToken))[asset];
+
+        Assert.Equal(200m, Assert.Single(costs).Cost!.Value.Amount); // March to June: the charges before the archive day
+    }
+
+    [Fact]
     public async Task Create_with_an_asset_links_it()
     {
         await using var app = await NidApp.StartAsync(fixture);
