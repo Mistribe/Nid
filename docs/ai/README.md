@@ -703,6 +703,10 @@ cet adulte (§6.3). Chaque décision est enregistrée (`consent_id`) et liée au
 La seconde dépend de pgvector : #450 est bloquée par #168. Le candidat retenu par l'évaluation choisit l'implémentation
 livrée par défaut.
 
+**Essai de référence (2026-11-27)** : `bge-m3`, `nomic-embed-text`, `qwen2.5:1.5b`, `qwen2.5:3b` et `gemma3:1b` sur Ollama, CPU
+seul ; aucun ne passe la règle des 5 %, « Par le sens » sur `bge-m3` reste le défaut conseillé. Chiffres et constats :
+`../ingestion/llm-providers.md` §14.1.
+
 **Livré en partie (#450, voisins proches)** :
 - `PatternIndexer` (Banking, dans la boucle de `ModelWorkLoop`, toutes les 30 s) plonge les motifs suggérés (`CategoryRules.Suggest` :
   deux mots au plus, sans chiffre) par `IEmbeddings`, avec le modèle de l'usage `embed`, tant que l'usage `decide` n'est pas `off`.
