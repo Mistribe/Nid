@@ -128,6 +128,9 @@ const fxSearch = (search: Record<string, unknown>): DetailSearch & { quote?: str
 };
 
 /** The loans list's own filter: ended loans shown on demand (3B1 design §5), anything but `1` dropped; the tab (loans dashboard §3.1); the timeline's window (§4.2). */
+/** The childcare list's flat view (`flat`: the owners' groups unfolded for good, #802) and its tab. */
+export type ChildcareListSearch = { flat?: 1; tab?: string };
+
 /** The goals list's flat view (`flat`: the owners' groups unfolded for good, #801) and its tab. */
 export type GoalsSearch = { flat?: 1; tab?: string };
 
@@ -352,7 +355,10 @@ const childcareRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/childcare',
   beforeLoad: requireModule('childcare'),
-  validateSearch: detailSearch,
+  validateSearch: (search: Record<string, unknown>): ChildcareListSearch => ({
+    ...(search.flat === 1 || search.flat === '1' ? { flat: 1 as const } : {}),
+    ...detailSearch(search),
+  }),
   component: lazyRouteComponent(() => import('@/features/childcare/ChildcarePage'), 'ChildcarePage'),
 });
 

@@ -23,7 +23,14 @@ public sealed record ChildcareSummary(
     bool CanWrite, LocalDate Start, LocalDate? End, LocalDate InForceFrom, ChildcareMoneyView MonthlyBasePay, string WeeklyHours,
     IReadOnlyList<string> ToPrepare);
 
-public sealed record ChildcareList(IReadOnlyList<ChildcareSummary> Items) : IExposesItems
+/// <summary>
+/// #802: the listed arrangements of the same owners and shares. <paramref name="MonthlyBasePay"/> adds up the open ones' in the household's
+/// currency (a closed arrangement pays nothing any more); null when a rate is missing or none is open.
+/// </summary>
+public sealed record ChildcareGroupView(IReadOnlyList<ItemOwnerView> Owners, IReadOnlyList<Guid> Items, ChildcareMoneyView? MonthlyBasePay);
+
+/// <param name="Groups">The rows by owners and shares, in the rows' order.</param>
+public sealed record ChildcareList(IReadOnlyList<ChildcareSummary> Items, IReadOnlyList<ChildcareGroupView> Groups) : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems() => Items.Select(i => new ItemId(i.Id));
 }

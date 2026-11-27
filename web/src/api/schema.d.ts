@@ -40335,8 +40335,14 @@ export interface components {
             /** @default false */
             monthCostEstimated: boolean;
         };
+        ChildcareGroupView: {
+            owners: components["schemas"]["ItemOwnerView"][];
+            items: string[];
+            monthlyBasePay?: null | components["schemas"]["ChildcareMoneyView"];
+        };
         ChildcareList: {
             items: components["schemas"]["ChildcareSummary"][];
+            groups: components["schemas"]["ChildcareGroupView"][];
         };
         ChildcareMoneyView: {
             amount: string;
