@@ -65,6 +65,17 @@ describe('A vehicle’s cost of ownership', () => {
     await waitFor(() => expect(asked).toContain('2025'));
   });
 
+  it('marks the cost per km partial when the monthly cost is', async () => {
+    server.use(
+      http.get('*/api/v1/assets/:id', () => HttpResponse.json(assetView({ kind: 'vehicle' }))),
+      http.get('*/api/v1/assets/:id/ownership-cost', () => HttpResponse.json(ownershipCost({ incomplete: true }))),
+    );
+    await renderApp(`/other-assets/${ASSET}`);
+
+    await screen.findByText('Coût au km');
+    expect(screen.getAllByText('partiel')).toHaveLength(2);
+  });
+
   it('puts the monthly cost among the vehicle’s figures', async () => {
     serve();
     await renderApp(`/other-assets/${ASSET}`);

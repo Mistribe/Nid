@@ -38,9 +38,12 @@ public sealed class GetOwnershipCostHandler(
         var loaded = await AssetCosts.VehicleAsync(assets, items, query.ItemId, ct);
         if (!loaded.TryGetValue(out var found))
             return Result.Failure<OwnershipCostView>(loaded.TryGetFailure(out var missing) ? missing! : throw new InvalidOperationException());
-        if (query.Year is < ListAssetCostsHandler.FirstYear or > 9998)
-            return Result.Failure<OwnershipCostView>(AssetCheck.Shape("year", $"A year is {ListAssetCostsHandler.FirstYear} to 9998."));
         var today = await calendar.TodayAsync(ct);
+        var details = found.Asset.Details;
+        // A year is one the vehicle was held in: from its purchase to this one.
+        var firstYear = details.PurchasedOn?.Year ?? ListAssetCostsHandler.FirstYear;
+        if (query.Year is { } asked && (asked < Math.Max(firstYear, ListAssetCostsHandler.FirstYear) || asked > today.Year))
+            return Result.Failure<OwnershipCostView>(AssetCheck.Shape("year", $"A year is one the vehicle was held in, {firstYear} to {today.Year}."));
         var (from, to) = query.Year is { } year
             ? (new LocalDate(year, 1, 1), LocalDate.Min(new LocalDate(year, 12, 31), today))
             : (today.PlusYears(-1).PlusDays(1), today);
@@ -53,8 +56,7 @@ public sealed class GetOwnershipCostHandler(
             return Result.Failure<OwnershipCostView>(series.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
 
         var reader = actor.Current!.PersonId!.Value;
-        var details = found.Asset.Details;
-        var start = details.PurchasedOn is { } bought && bought > from ? bought : from;
+        var start = OwnershipMath.Start(from, details.PurchasedOn);
         var linked = (await subscriptions.CostsAsync(reader, VisibilityScope.Me, [query.ItemId], start, to, ct)).GetValueOrDefault(query.ItemId) ?? [];
         var financing = (await loans.CostsAsync(reader, VisibilityScope.Me, [query.ItemId], start, to, ct)).GetValueOrDefault(query.ItemId) ?? [];
         var values = points!.Select(v => (v.AsOf, v.Value.Amount)).ToList();
@@ -68,7 +70,7 @@ public sealed class GetOwnershipCostHandler(
 
         var currency = found.Item.Currency ?? "EUR";
         MoneyView Money(decimal x) => new(x.ToString("0.00", CultureInfo.InvariantCulture), currency);
-        var first = costs!.Select(f => f.OccurredOn.Year).Append(details.PurchasedOn?.Year ?? today.Year).Append(today.Year).Min();
+        var first = details.PurchasedOn?.Year ?? costs!.Select(f => f.OccurredOn.Year).Append(today.Year).Min();
         var years = Enumerable.Range(first, today.Year - first + 1).Append(query.Year ?? today.Year).Distinct().OrderDescending().ToList();
         return Result.Success(new OwnershipCostView(cost.From, cost.To, Money(cost.Total), Money(cost.Monthly), cost.PerKm is { } km ? Money(km) : null,
             cost.Incomplete, cost.Parts.Select(p => new CostPartView(p.Code, p.Amount is { } a ? Money(a) : null, p.Source, p.Name)).ToList(), years));

@@ -78,6 +78,27 @@ public class OwnershipMathTests
     }
 
     [Fact]
+    public void Depreciation_is_missing_when_no_value_or_rule_falls_in_the_period()
+    {
+        var bought = new AssetValue(20_000m, new LocalDate(2024, 1, 1), true);
+
+        var cost = Compute(valueAt: _ => bought);
+
+        Assert.Null(Part(cost, "depreciation"));
+        Assert.True(cost.Incomplete);
+    }
+
+    [Fact]
+    public void An_estimate_from_a_depreciation_rule_tells_the_value_lost()
+    {
+        var cost = Compute(valueAt: on => on == To
+            ? new AssetValue(18_000m, new LocalDate(2024, 1, 1), true, Estimated: true, BaseAmount: 25_000m)
+            : new AssetValue(20_000m, new LocalDate(2024, 1, 1), true, Estimated: true, BaseAmount: 25_000m));
+
+        Assert.Equal(2_000m, Part(cost, "depreciation"));
+    }
+
+    [Fact]
     public void A_vehicle_bought_in_the_period_starts_the_period_at_its_purchase()
     {
         var bought = new LocalDate(2026, 6, 1);

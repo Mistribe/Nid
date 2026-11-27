@@ -2,6 +2,7 @@ using System.Net;
 using System.Text.Json;
 using Nid.Assets.Contracts;
 using Nid.Core.Contracts;
+using Nid.Platform.Contracts;
 using Nid.TestSupport;
 using static Nid.Assets.IntegrationTests.AssetApi;
 
@@ -56,6 +57,19 @@ public class OwnershipCostTests(PostgresFixture fixture) : IClassFixture<Postgre
         Assert.Equal(("2024-01-10", "2024-12-31"), (view.GetProperty("from").GetString(), view.GetProperty("to").GetString()));
         Assert.Equal("100.00", view.GetProperty("parts").EnumerateArray().Single(p => p.GetProperty("code").GetString() == "running:fuel")
             .GetProperty("amount").GetProperty("amount").GetString());
+    }
+
+    [Fact]
+    public async Task A_year_after_today_or_before_the_purchase_is_refused_and_not_offered()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        // Bought 2025-01-10; a deposit typed as a cost in 2024 does not make 2024 a year of the vehicle.
+        var id = await CreateAsync(app, Body(app, "Citadine", "vehicle"));
+        await AddCostAsync(app, id, "2024-12-01", "500", "other");
+
+        await AssertRefusedAsync(await CostOfAsync(app, id, "?year=2026"), HttpStatusCode.UnprocessableEntity, FieldErrors.ShapeCode, "year");
+        await AssertRefusedAsync(await CostOfAsync(app, id, "?year=2024"), HttpStatusCode.UnprocessableEntity, FieldErrors.ShapeCode, "year");
+        Assert.Equal([2025], (await JsonAsync(await CostOfAsync(app, id))).GetProperty("years").EnumerateArray().Select(y => y.GetInt32()));
     }
 
     [Fact]

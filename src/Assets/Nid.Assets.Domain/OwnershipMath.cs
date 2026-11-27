@@ -30,7 +30,7 @@ public static class OwnershipMath
         IReadOnlyDictionary<string, decimal> runningByCategory, IReadOnlyList<(Guid Id, string Name, decimal? Cost)> subscriptions,
         IReadOnlyList<(Guid Id, string Name, decimal? Cost)> loans, Func<LocalDate, AssetValue?> valueAt, IReadOnlyList<MileageReading> readings)
     {
-        var start = purchasedOn is { } bought && bought > from ? bought : from;
+        var start = Start(from, purchasedOn);
         var parts = new List<CostPart>();
         foreach (var category in AssetCostCategories.All)
         {
@@ -40,13 +40,23 @@ public static class OwnershipMath
         }
         parts.AddRange(subscriptions.Count == 0 ? [new CostPart("subscription", null)] : subscriptions.Select(s => new CostPart("subscription", s.Cost, s.Id, s.Name)));
         parts.AddRange(loans.Select(l => new CostPart("credit", l.Cost, l.Id, l.Name)));
-        parts.Add(new CostPart("depreciation", valueAt(start) is { } first && valueAt(to) is { } last ? first.Amount - last.Amount : null));
+        parts.Add(new CostPart("depreciation", Lost(valueAt(start), valueAt(to), start)));
 
         var months = Math.Max(1m, decimal.Round((Period.DaysBetween(start, to) + 1) / DaysPerMonth, 2, MidpointRounding.AwayFromZero));
         var total = parts.Sum(p => p.Amount ?? 0m);
         var monthly = decimal.Round(total / months, 2, MidpointRounding.AwayFromZero);
         return new OwnershipCost(start, to, months, parts, total, monthly, parts.Any(p => p.Amount is null), PerKm(monthly, start, to, readings));
     }
+
+    /// <summary>The period starts no earlier than the purchase: the running costs, the subscriptions and the loans are read from it too.</summary>
+    public static LocalDate Start(LocalDate from, LocalDate? purchasedOn) => purchasedOn is { } bought && bought > from ? bought : from;
+
+    /// <summary>
+    /// The value lost over the period; null when Nid knows nothing of it: no value at the start, or the end's value is an older figure
+    /// standing still (no valuation in the period, no depreciation rule), which would read as a loss of zero.
+    /// </summary>
+    private static decimal? Lost(AssetValue? first, AssetValue? last, LocalDate start)
+        => first is null || last is null || (!last.Estimated && last.On <= start) ? null : first.Amount - last.Amount;
 
     /// <summary>The readings in the period and the nearest one on each side; the farthest two, 30 days apart and going up, give the km a month.</summary>
     private static decimal? PerKm(decimal monthly, LocalDate from, LocalDate to, IReadOnlyList<MileageReading> readings)
