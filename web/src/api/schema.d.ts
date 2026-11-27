@@ -44791,8 +44791,15 @@ export interface components {
             /** Format: uuid */
             documentId?: null | string;
         };
+        PropertyGroupView: {
+            owners: components["schemas"]["ItemOwnerView"][];
+            items: string[];
+            value?: null | components["schemas"]["PropertyMoneyView"];
+            netValue?: null | components["schemas"]["PropertyMoneyView"];
+        };
         PropertyList: {
             items: components["schemas"]["PropertySummary"][];
+            groups: components["schemas"]["PropertyGroupView"][];
         };
         PropertyLoanView: {
             /** Format: uuid */
@@ -44801,6 +44808,10 @@ export interface components {
             currency: string;
             balance: string;
             balanceConverted?: null | string;
+        };
+        PropertyMoneyView: {
+            amount: string;
+            currency: string;
         };
         PropertyOverviewRow: {
             /** Format: uuid */

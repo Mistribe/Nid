@@ -65096,9 +65096,52 @@
           }
         }
       },
+      "PropertyGroupView": {
+        "required": [
+          "owners",
+          "items"
+        ],
+        "type": "object",
+        "properties": {
+          "owners": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ItemOwnerView"
+            }
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "value": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PropertyMoneyView"
+              }
+            ]
+          },
+          "netValue": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PropertyMoneyView"
+              }
+            ]
+          }
+        }
+      },
       "PropertyList": {
         "required": [
-          "items"
+          "items",
+          "groups"
         ],
         "type": "object",
         "properties": {
@@ -65106,6 +65149,12 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/PropertySummary"
+            }
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PropertyGroupView"
             }
           }
         }
@@ -65137,6 +65186,21 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "PropertyMoneyView": {
+        "required": [
+          "amount",
+          "currency"
+        ],
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
           }
         }
       },
