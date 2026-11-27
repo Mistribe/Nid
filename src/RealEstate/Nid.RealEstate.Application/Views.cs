@@ -26,7 +26,14 @@ public sealed record LoanSummary(
     public string? AssetName { get; init; }
 }
 
-public sealed record LoanList(IReadOnlyList<LoanSummary> Items) : IExposesItems
+/// <summary>
+/// #800: the listed loans of the same owners and shares. <paramref name="RemainingBalance"/> and <paramref name="NextPaymentTotal"/> add up
+/// theirs in the household's currency, converted today; null when a rate is missing or none has one.
+/// </summary>
+public sealed record LoanGroupView(IReadOnlyList<ItemOwnerView> Owners, IReadOnlyList<Guid> Items, LoanMoneyView? RemainingBalance, LoanMoneyView? NextPaymentTotal);
+
+/// <param name="Groups">The rows by owners and shares, in the rows' order.</param>
+public sealed record LoanList(IReadOnlyList<LoanSummary> Items, IReadOnlyList<LoanGroupView> Groups) : IExposesItems
 {
     public IEnumerable<ItemId> ExposedItems() => Items.Select(i => i.Id);
 }

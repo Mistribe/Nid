@@ -43378,6 +43378,12 @@ export interface components {
             message: string;
             reference?: null | string;
         };
+        LoanGroupView: {
+            owners: components["schemas"]["ItemOwnerView"][];
+            items: string[];
+            remainingBalance?: null | components["schemas"]["LoanMoneyView"];
+            nextPaymentTotal?: null | components["schemas"]["LoanMoneyView"];
+        };
         LoanInsuranceBody: {
             mode?: null | string;
             monthlyAmount?: null | string;
@@ -43411,6 +43417,7 @@ export interface components {
         };
         LoanList: {
             items: components["schemas"]["LoanSummary"][];
+            groups: components["schemas"]["LoanGroupView"][];
         };
         LoanMoneyView: {
             amount: string;
