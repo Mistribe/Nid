@@ -587,6 +587,7 @@
     "before_tax": "Gains avant fiscalité.",
     "add": "Ajouter une enveloppe",
     "show_closed": "Afficher les clôturées",
+    "group_by_owner": "Regrouper par propriétaire",
     "closed_mark": "Clôturée",
     "group_one": "{{count}} compte",
     "group_other": "{{count}} comptes",
