@@ -628,8 +628,8 @@
       "restore_of": "Rétablir « {{pattern}} » en {{category}}",
       "restored": "Suggestion rétablie.",
       "again": "Suggérer à nouveau",
-      "again_tip": "Nid garde les catégories devinées par IA tant que vos catégories ne changent pas. Si elles vous semblent dépassées (après avoir beaucoup classé à la main, par exemple), Nid les oublie et les redemande au modèle dans les minutes qui suivent.",
-      "again_done": "Les catégories devinées par IA seront redemandées dans les minutes qui viennent."
+      "again_tip": "Nid garde les catégories devinées par IA tant que vos catégories ne changent pas. Si elles vous semblent dépassées (après avoir beaucoup classé à la main, par exemple), Nid les oublie et les redemande aussitôt au modèle.",
+      "again_done": "Les catégories devinées par IA vont être redemandées au modèle."
     }
   }
 }

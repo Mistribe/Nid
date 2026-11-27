@@ -546,9 +546,12 @@ public class CategorySuggestionTests(PostgresFixture fixture) : IClassFixture<Po
         Assert.Equal(4, labels.Decisions.SelectMany(d => d.Texts).Count());
         Assert.Equal((Groceries, "ai"), Suggested(await PageAsync(app, app.AdultA), "COURSES EXPRESS"));
 
-        // « Suggérer à nouveau », by any adult.
+        // « Suggérer à nouveau », by any adult: forgotten, and asked again at the loop's next tick.
+        var signal = app.Services.GetRequiredService<CategoryGuessSignal>();
+        signal.TryTake();
         Assert.Equal(HttpStatusCode.NoContent, (await app.RawAsync(app.AdultB, HttpMethod.Post, $"{Suggestions}/refresh")).StatusCode);
         Assert.Null(Group(await PageAsync(app, app.AdultA), "COURSES EXPRESS"));
+        Assert.True(signal.TryTake());
     }
 
     /// <summary>#450: a guess chose among the categories as they were: renaming, archiving, bringing back or merging one forgets them all.</summary>
@@ -611,8 +614,13 @@ public class CategorySuggestionTests(PostgresFixture fixture) : IClassFixture<Po
         await using var s = await StartAsync(fixture, labels);
         var app = s.App;
 
+        var signal = app.Services.GetRequiredService<CategoryGuessSignal>();
+        signal.TryTake();
         await QueueAsync(app);
+        Assert.False(signal.TryTake());
         await CalibrateAsync(app);
+        // Done: the guesses are asked at the loop's next tick, not in 5 minutes.
+        Assert.True(signal.TryTake());
 
         var view = JsonDocument.Parse(await app.GetRawAsync(app.AdultB, Calibrations)).RootElement;
         Assert.Equal(("llm-choice", "1", "fake-decide", Labels.DecideDigest, "done"), (view.GetProperty("implementation").GetString(),

@@ -724,7 +724,8 @@ livrée par défaut.
 
 **Livré (#450, capacité `decide` d'un worker, candidat 3)** :
 - Le worker (§3.7) sert `decide` avec un petit LLM de son moteur (`llm-choice`, version `1`, scores par logprobs).
-- `CategoryGuesser` (Banking, dans `ModelWorkLoop`, toutes les 5 min) tourne quand l'usage `decide` a un modèle et que ce modèle a un
+- `CategoryGuesser` (Banking, dans `ModelWorkLoop`, toutes les 5 min, et au tick suivant (5 s) quand un calibrage finit `done` ou que
+  « Suggérer à nouveau » le demande : `CategoryGuessSignal`, un singleton de l'hôte) tourne quand l'usage `decide` a un modèle et que ce modèle a un
   profil en vigueur (§7.3). Il prend les motifs ouverts de **tous** les comptes (lignes sans catégorie, ni ignorées, ni virements
   internes, qu'aucune règle ne prend) que l'étape A ne décide pas pour le foyer et qui n'ont pas encore de réponse de ce modèle à
   cette empreinte, cette implémentation et cette version. Pour chacun, un texte masqué (§6.5) : le sens (débit ou crédit), le
@@ -738,7 +739,8 @@ livrée par défaut.
 - La réponse est gardée pour le foyer dans `banking.category_guess` (motif, sens, catégorie ou aucune, probabilité calibrée, modèle,
   empreinte, implémentation, version, placement du worker, date), une par (motif, sens, modèle, empreinte). Créer, renommer,
   déplacer, archiver, désarchiver ou fusionner une catégorie efface toutes les réponses dans la même transaction ; « Suggérer à
-  nouveau » (`POST /api/v1/banking/category-suggestions/refresh`, un adulte) aussi : le passage suivant redemande.
+  nouveau » (`POST /api/v1/banking/category-suggestions/refresh`, un adulte) aussi, et demande un passage dans les secondes qui
+  suivent.
 - À la lecture, l'ordre est : étape A, puis `meaning`, puis `category_name`, puis la réponse du modèle (`basis` = `ai`), chacun
   seulement si le précédent ne donne **aucune suggestion non ignorée** : ignorer une suggestion laisse essayer la suivante. Une
   réponse se montre si sa catégorie est en usage, sa probabilité au moins le `threshold` du profil (ou le profil est sans scores),

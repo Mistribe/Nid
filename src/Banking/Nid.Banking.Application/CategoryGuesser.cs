@@ -133,7 +133,21 @@ public sealed class CategoryGuesser(
     }
 }
 
-/// <summary>#450, « Suggérer à nouveau » (an adult): every guess goes, the next pass asks the model again.</summary>
+/// <summary>
+/// #450: asks <c>ModelWorkLoop</c> for a guess pass at its next tick rather than at the next 5 minutes: once a calibration is done, or
+/// « Suggérer à nouveau ». One per host (a singleton); a host that restarts runs a pass at its first tick anyway.
+/// </summary>
+public sealed class CategoryGuessSignal
+{
+    private int _requested;
+
+    public void Request() => Interlocked.Exchange(ref _requested, 1);
+
+    /// <summary>True once per <see cref="Request"/>, however many came before.</summary>
+    public bool TryTake() => Interlocked.Exchange(ref _requested, 0) == 1;
+}
+
+/// <summary>#450, « Suggérer à nouveau » (an adult): every guess goes, and a pass asks the model again within seconds.</summary>
 public sealed record RefreshCategoryGuessesCommand : ICommand<int>, IRequiresBanking;
 
 /// <summary>#450 (an adult): up to three texts the guess job would send, masked, taken from lines of accounts the reader reads.</summary>
@@ -144,10 +158,15 @@ public sealed record GetCategoryGuessSampleQuery : IQuery<CategoryGuessSampleVie
 public sealed record CategoryGuessSampleView(IReadOnlyList<string> Texts);
 
 [RequestHandler<RefreshCategoryGuessesCommand, int>]
-public sealed class RefreshCategoryGuessesHandler(ICategorySuggestionStore suggestions) : IRequestHandler<RefreshCategoryGuessesCommand, int>
+public sealed class RefreshCategoryGuessesHandler(ICategorySuggestionStore suggestions, CategoryGuessSignal signal)
+    : IRequestHandler<RefreshCategoryGuessesCommand, int>
 {
     public async ValueTask<Result<int>> HandleAsync(RefreshCategoryGuessesCommand command, CancellationToken ct = default)
-        => Result.Success(await suggestions.ForgetGuessesAsync(ct));
+    {
+        var forgotten = await suggestions.ForgetGuessesAsync(ct);
+        signal.Request();
+        return Result.Success(forgotten);
+    }
 }
 
 [RequestHandler<GetCategoryGuessSampleQuery, CategoryGuessSampleView>]

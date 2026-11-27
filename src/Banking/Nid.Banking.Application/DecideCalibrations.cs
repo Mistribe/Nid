@@ -97,7 +97,8 @@ public sealed class DecideSetup(IEmbeddings embeddings, IDecisions decisions, IM
 /// so <see cref="DataClasses.None"/>) with the model calibrated, then sweep its thresholds (<see cref="DecideCalibration.Neighbours"/>); a
 /// worker's <c>decide</c> is asked each case as the guess job would ask it, then calibrated (<see cref="DecideCalibration.Worker"/>).
 /// </summary>
-public sealed class DecideCalibrator(IDecideCalibrationStore store, IEmbeddings embeddings, IDecisions decisions, IModelDigests digests, IClock clock)
+public sealed class DecideCalibrator(IDecideCalibrationStore store, IEmbeddings embeddings, IDecisions decisions, IModelDigests digests, IClock clock,
+    CategoryGuessSignal signal)
 {
     public async Task RunOnceAsync(CancellationToken ct)
     {
@@ -116,6 +117,9 @@ public sealed class DecideCalibrator(IDecideCalibrationStore store, IEmbeddings 
             throw;
         }
         await store.SetStatusAsync(run.Id, code is null ? CalibrationStatuses.Done : CalibrationStatuses.Failed, code, clock.GetCurrentInstant(), ct);
+        // A new profile may offer a worker's guesses, or show others: asked now rather than at the next 5 minutes.
+        if (code is null)
+            signal.Request();
     }
 
     /// <summary>Null once the profile is saved, else the gateway's refusal.</summary>

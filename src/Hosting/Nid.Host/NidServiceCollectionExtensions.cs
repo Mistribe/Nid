@@ -428,6 +428,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<DecideSetup>();
         services.AddScoped<DecideCalibrator>();
         services.AddScoped<CategoryGuesser>();
+        services.AddSingleton<CategoryGuessSignal>();
         services.AddScoped<CategoryPicks>();
         services.AddScoped<IBankSyncRunLog, SyncRunLog>();
         services.AddScoped<IAccountReadLog, AccountReadLog>();
