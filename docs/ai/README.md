@@ -54,7 +54,8 @@ Chaque décision a sa sous-section : décision, raison, options écartées, et l
 - **Décision** : `decide` est une tâche de la passerelle à deux implémentations : la capacité `decide` d'un worker, ou des
   voisins proches calculés par Nid sur `embed` et pgvector. Calibrage et seuils sont toujours appliqués par Nid, depuis
   un profil d'évaluation versionné, clé par **empreinte du modèle** (pas son étiquette), version de l'implémentation et
-  du prompt du worker, et taille de la liste d'options. Les options sont présentées comme des **identifiants d'un seul
+  du prompt du worker, et taille de la liste d'options (livré autrement, §7.3 : profil calculé par le foyer, taille
+  consignée hors de la clé). Les options sont présentées comme des **identifiants d'un seul
   jeton** (1 à N). Pour les voisins proches, le job ne calcule que des plongements ; **le vote se fait à l'affichage, en
   SQL, filtré par les droits du lecteur** (dans Banking). L'éligibilité suit le type de données (`bank_labels`), pas la
   tâche. Un modèle sans profil n'est pas proposé. Détail : §7.
