@@ -50,6 +50,10 @@
     <PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
     <PackageVersion Include="MailKit" Version="5.0.0" />
     <PackageVersion Include="MimeKit" Version="5.0.0" />
+    <!-- #811: the worker's zero-shot encoder for decide (MIT): ONNX Runtime on the CPU (linux-x64, linux-arm64, osx-arm64 natives), and
+         the SentencePiece Unigram tokenizer of its checkpoint. -->
+    <PackageVersion Include="Microsoft.ML.OnnxRuntime" Version="1.32.0" />
+    <PackageVersion Include="Microsoft.ML.Tokenizers" Version="3.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="11.0.1" />
     <PackageVersion Include="Microsoft.Extensions.ServiceDiscovery" Version="11.0.1" />
     <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.21.0" />
