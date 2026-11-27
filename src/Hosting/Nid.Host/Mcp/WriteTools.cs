@@ -215,7 +215,7 @@ public sealed partial class WriteTools
         [Description("'subscriptions' (a subscription), 'realestate' (a loan or a property) or 'assets' (a vehicle, for an expense line).")] string module,
         [Description("The item's id: the subscription, loan or property the line pays.")] Guid itemId,
         [Description("The charge's key (list_expected_charges), when the item has several; else the nearest charge is taken.")] string? key = null,
-        [Description("For a vehicle ('assets') only: the cost's category, one of service, repair, tyres, other (other when left out).")] string? category = null,
+        [Description("For a vehicle ('assets') only: the cost's category, one of service, repair, tyres, fuel, other (other when left out).")] string? category = null,
         [Description("The document's name, e.g. 'Relevé octobre 2026', 200 characters at most.")] string? sourceLabel = null,
         [Description("true: write directly instead of proposing.")] bool apply = false,
         CancellationToken ct = default)

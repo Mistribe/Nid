@@ -14,4 +14,5 @@ namespace Nid.Host.Api.Json;
 [JsonSerializable(typeof(AssetEndpoints.AssetValuationBody))]
 [JsonSerializable(typeof(AssetEndpoints.AssetCostBody))]
 [JsonSerializable(typeof(AssetCostsView))]
+[JsonSerializable(typeof(OwnershipCostView))]
 internal sealed partial class AssetsJsonContext : JsonSerializerContext;

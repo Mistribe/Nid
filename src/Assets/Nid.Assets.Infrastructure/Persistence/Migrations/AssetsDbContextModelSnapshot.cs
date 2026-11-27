@@ -17,7 +17,7 @@ partial class AssetsDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261125153100_Depreciation";
+    public override string LastMigrationId => "20261127095353_MileageReadings";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -129,6 +129,29 @@ partial class AssetsDbContextModelSnapshot : ModelSnapshot
                     });
             });
 
+        modelBuilder.Entity("Nid.Assets.Infrastructure.Persistence.MileageReadingRow", b =>
+            {
+                b.Property<Guid>("ItemId")
+                    .HasColumnType("uuid")
+                    .HasColumnName("item_id");
+
+                b.Property<LocalDate>("ReadOn")
+                    .HasColumnType("date")
+                    .HasColumnName("read_on");
+
+                b.Property<int>("Km")
+                    .HasColumnType("integer")
+                    .HasColumnName("km");
+
+                b.HasKey("ItemId", "ReadOn")
+                    .HasName("pk_asset_mileage_reading");
+
+                b.ToTable("asset_mileage_reading", "assets", t =>
+                    {
+                        t.HasCheckConstraint("ck_asset_mileage_reading_km", "km >= 0");
+                    });
+            });
+
         modelBuilder.Entity("Nid.Platform.Infrastructure.Audit.AuditEntryRow", b =>
             {
                 var seq = b.Property<long>("Seq")
@@ -232,6 +255,16 @@ partial class AssetsDbContextModelSnapshot : ModelSnapshot
 
                         t.HasCheckConstraint("ck_audit_log_category", "category in ('write','security','import')");
                     });
+            });
+
+        modelBuilder.Entity("Nid.Assets.Infrastructure.Persistence.MileageReadingRow", b =>
+            {
+                b.HasOne("Nid.Assets.Infrastructure.Persistence.AssetRow", null)
+                    .WithMany()
+                    .HasForeignKey("ItemId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired()
+                    .HasConstraintName("fk_asset_mileage_reading_asset_item_id");
             });
 #pragma warning restore 612, 618
     }

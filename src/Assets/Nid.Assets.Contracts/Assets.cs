@@ -31,8 +31,10 @@ public static class AssetCostCategories
     public const string Service = "service";
     public const string Repair = "repair";
     public const string Tyres = "tyres";
+    /// <summary>#650: fuel or charging, attached line by line so each vehicle gets its own.</summary>
+    public const string Fuel = "fuel";
     public const string Other = "other";
-    public static readonly IReadOnlyList<string> All = [Service, Repair, Tyres, Other];
+    public static readonly IReadOnlyList<string> All = [Service, Repair, Tyres, Fuel, Other];
 }
 
 /// <summary>A vehicle a person may record a cost on.</summary>

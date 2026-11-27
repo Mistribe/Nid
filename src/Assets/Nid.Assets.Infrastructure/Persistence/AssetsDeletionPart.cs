@@ -3,7 +3,7 @@ using Nid.Core.Contracts;
 
 namespace Nid.Assets.Infrastructure.Persistence;
 
-/// <summary>An asset has no dependants: deleting its item removes its row.</summary>
+/// <summary>Deleting an asset's item removes its row and its mileage readings (#650).</summary>
 public sealed class AssetsDeletionPart(AssetsDbContext db) : IItemDeletionPart
 {
     private static bool IsAsset(ItemAccess item) => item.Module == "assets" && item.Kind == "asset";
@@ -20,6 +20,7 @@ public sealed class AssetsDeletionPart(AssetsDbContext db) : IItemDeletionPart
         if (!IsAsset(item))
             return;
         // Tracked remove: the audit sees the row.
+        db.MileageReadings.RemoveRange(await db.MileageReadings.Where(r => r.ItemId == item.Id.Value).ToListAsync(ct));
         db.Assets.RemoveRange(await db.Assets.Where(a => a.ItemId == item.Id.Value).ToListAsync(ct));
         await db.SaveChangesAsync(ct);
     }

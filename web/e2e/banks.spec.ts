@@ -153,7 +153,7 @@ test('alice categorises two lines by hand, sees the suggestion for the third and
   });
   expect(imported.ok()).toBe(true);
 
-  await page.goto(`/spending?tab=operations&q=${encodeURIComponent(shop)}`);
+  await page.goto(`/spending?tab=operations&month=2026-10&q=${encodeURIComponent(shop)}`);
   const table = page.getByRole('table', { name: 'Opérations' });
   await table.getByRole('checkbox', { name: `Sélectionner « CB ${shop} 12/10 »` }).check();
   await table.getByRole('checkbox', { name: `Sélectionner « CB ${shop} 19/10 »` }).check();

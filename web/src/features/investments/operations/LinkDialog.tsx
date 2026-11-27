@@ -25,7 +25,8 @@ export default function LinkDialog({ line, onClose, onDone }: { line: BankTransa
   const { link } = useLineActions();
   const candidates = $api.useQuery('get', CANDIDATES, { params: { path: { id: line.id } } });
   const [picked, setPicked] = useState('');
-  const [category, setCategory] = useState<string>('other');
+  // #650: a line the bank files as fuel is, on a vehicle, its fuel or charging.
+  const [category, setCategory] = useState<string>(line.category?.key === 'transport.fuel' ? 'fuel' : 'other');
   const charges = candidates.data ?? [];
   // A charge has no id of its own: its target is its identity, so a reordered refetch keeps the pick.
   const keyOf = (c: ExpectedCharge) => [c.module, c.itemId, c.key].join('|');

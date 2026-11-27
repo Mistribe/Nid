@@ -13,6 +13,7 @@ public sealed class AssetRecordStore(AssetsDbContext db) : IAssetRecordStore
         Apply(row, details);
         Mark(row, import);
         db.Assets.Add(row);
+        await ReadAsync(id, details, ct);
         await db.SaveChangesAsync(ct);
     }
 
@@ -40,6 +41,7 @@ public sealed class AssetRecordStore(AssetsDbContext db) : IAssetRecordStore
         var row = await db.Assets.SingleAsync(a => a.ItemId == id.Value, ct);
         Apply(row, details);
         Mark(row, import);
+        await ReadAsync(id, details, ct);
         await db.SaveChangesAsync(ct);
     }
 
@@ -48,6 +50,21 @@ public sealed class AssetRecordStore(AssetsDbContext db) : IAssetRecordStore
 
     public async Task<AssetRecord?> FindAsync(ItemId id, CancellationToken ct)
         => await db.Assets.AsNoTracking().SingleOrDefaultAsync(a => a.ItemId == id.Value, ct) is { } row ? ToRecord(row) : null;
+
+    public async Task<IReadOnlyList<MileageReading>> ReadingsAsync(ItemId id, CancellationToken ct)
+        => (await db.MileageReadings.AsNoTracking().Where(r => r.ItemId == id.Value).OrderBy(r => r.ReadOn).ToListAsync(ct))
+            .Select(r => new MileageReading(r.ReadOn, r.Km)).ToList();
+
+    /// <summary>#650: a mileage written becomes that day's reading (a second one the same day replaces it); clearing it keeps the history.</summary>
+    private async Task ReadAsync(ItemId id, AssetDetails d, CancellationToken ct)
+    {
+        if (d is not { MileageKm: { } km, MileageOn: { } on })
+            return;
+        if (await db.MileageReadings.SingleOrDefaultAsync(r => r.ItemId == id.Value && r.ReadOn == on, ct) is { } reading)
+            reading.Km = km;
+        else
+            db.MileageReadings.Add(new MileageReadingRow { ItemId = id.Value, ReadOn = on, Km = km });
+    }
 
     public async Task<IReadOnlyList<AssetRecord>> FindManyAsync(IReadOnlyCollection<ItemId> ids, CancellationToken ct)
     {
@@ -64,6 +81,7 @@ public sealed class AssetRecordStore(AssetsDbContext db) : IAssetRecordStore
         db.Entry(row).Property(r => r.Version).OriginalValue = version;
         // Always written, so every edit bumps xmin and a later stale edit meets the conflict.
         db.Entry(row).Property(r => r.Kind).IsModified = true;
+        await ReadAsync(id, details, ct);
         try
         {
             await db.SaveChangesAsync(ct);

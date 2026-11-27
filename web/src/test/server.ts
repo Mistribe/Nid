@@ -3,6 +3,7 @@ import { setupServer } from 'msw/node';
 import { emptyDashboard, emptyMonthChanges, emptyProjection, netWorth } from '@/features/dashboard/testData';
 import { overview, sourceOverview } from '@/features/income/testData';
 import { holdings as investmentsHoldings, overview as investmentsOverview, performance as investmentsPerformance } from '@/features/investments/testData';
+import { ownershipCost } from '@/features/assets/testData';
 import { overview as loansOverview } from '@/features/loans/testData';
 import { propertiesCosts, propertiesOverview, propertiesRental, propertiesValuation } from '@/features/properties/testData';
 import { estateRoutine, routine } from '@/features/routine/testData';
@@ -23,6 +24,8 @@ export const handlers = [
   // ... and its « Évolution » what changed since the year before (#410): nothing to compare.
   http.get('*/api/v1/tax/changes', () => HttpResponse.json({ year: 2026, taxBefore: null, taxBeforeFromNotice: false, taxNow: null, remainder: null, lines: [] })),
   http.get('*/api/v1/core/me/tokens', () => HttpResponse.json([])),
+  // A vehicle's page and « Frais » tab read its cost of ownership (#650).
+  http.get('*/api/v1/assets/:id/ownership-cost', () => HttpResponse.json(ownershipCost())),
   // Every admin screen reads whether plain HTTP is allowed (issue 215): it is not.
   http.get('*/api/v1/admin/system', () => HttpResponse.json({
     version: '1.0.0', startedAt: '2026-09-24T06:00:00+00:00', health: { database: 'healthy', identityProvider: 'healthy' }, databaseSizeBytes: 1000,
