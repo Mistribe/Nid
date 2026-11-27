@@ -143,7 +143,7 @@ public class VehicleCostLinkTests(PostgresFixture fixture) : IClassFixture<Postg
         Assert.Equal("repair", Assert.Single((await CostsAsync(app, car)).GetProperty("rows").EnumerateArray()).GetProperty("category").GetString());
         var bad = await app.RawAsync(app.AdultA, HttpMethod.Post, Proposals, new
         {
-            kind = "banking.link_transaction", targetItemId = car, payload = new { transactionId = line, module = "assets", itemId = car, category = "fuel" },
+            kind = "banking.link_transaction", targetItemId = car, payload = new { transactionId = line, module = "assets", itemId = car, category = "parking" },
         });
         Assert.Equal(HttpStatusCode.UnprocessableEntity, bad.StatusCode);
     }
@@ -171,7 +171,7 @@ public class VehicleCostLinkTests(PostgresFixture fixture) : IClassFixture<Postg
         var car = await VehicleAsync(app);
         var line = await AddAsync(app, account, "a", D(10, 20), -85.40m);
 
-        await BankingApi.AssertRefusedAsync(await LinkAsync(app, line, car, "fuel"), HttpStatusCode.UnprocessableEntity, FieldErrors.ShapeCode);
+        await BankingApi.AssertRefusedAsync(await LinkAsync(app, line, car, "parking"), HttpStatusCode.UnprocessableEntity, FieldErrors.ShapeCode);
 
         Assert.Null(await LinkOfAsync(app, line));
         Assert.Empty((await CostsAsync(app, car)).GetProperty("rows").EnumerateArray());
