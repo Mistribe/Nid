@@ -31,17 +31,19 @@ const NONE: ReadonlySet<string> = new Set();
 /** The server answers a search of two characters or more; one typed character asks nothing yet. */
 const MIN_SEARCH = 2;
 
-/** « Opérations » (#84), a tab of Dépenses (#423): every bank line the reader may read, filtered and paged by the server; « À relier » is `?state=unlinked`. */
-export function OperationsPage() {
+/** « Opérations » (#84), a tab of Dépenses (#423): every bank line the reader may read, filtered and paged by the server; « À relier » is `?state=unlinked`.
+ * `month`: Dépenses' month (#85), the dates asked when the filters name none. */
+export function OperationsPage({ month }: { month?: { from: string; to: string } }) {
   const { t } = useTranslation();
   const { $api } = useApi();
   const navigate = useNavigate();
   const search: OperationsSearch & RootSearch = useSearch({ strict: false });
   const page = search.page ?? 1;
+  const days = month ?? { from: search.from, to: search.to };
   const go = (change: Partial<OperationsSearch>) =>
     void navigate({ to: '.', replace: true, resetScroll: false, search: ((prev: OperationsSearch) => ({ ...prev, ...change })) as never });
   const query = {
-    account: search.account, owner: search.owner, category: search.category, from: search.from, to: search.to, uncategorised: search.uncategorised,
+    account: search.account, owner: search.owner, category: search.category, from: days.from, to: days.to, uncategorised: search.uncategorised,
     state: search.state, direction: search.direction, min: search.min === undefined ? undefined : String(search.min),
     max: search.max === undefined ? undefined : String(search.max), q: search.q && search.q.trim().length >= MIN_SEARCH ? search.q.trim() : undefined, page: search.page,
     // #437: the lines a figure of Dépenses counts are those of its Foyer / Moi accounts; any other state lists every account read.
@@ -61,7 +63,7 @@ export function OperationsPage() {
   const rows = answer.data?.items ?? [];
   const chosen = rows.filter((l) => selected.has(l.id));
   // The page's tab and Foyer / Moi filter no line.
-  const onlyUnlinked = search.state === 'unlinked' && Object.entries(search).every(([k, v]) => v === undefined || ['state', 'page', 'tab', 'scope'].includes(k));
+  const onlyUnlinked = search.state === 'unlinked' && Object.entries(search).every(([k, v]) => v === undefined || ['state', 'page', 'tab', 'scope', 'month'].includes(k));
   const totals = answer.data?.totals;
   const money = (v: string) => formatCurrency(v, totals?.currency ?? 'EUR');
   return (
