@@ -220,6 +220,9 @@
       "mode_self_hosted": "Workers du foyer",
       "mode_off": "Désactivé",
       "mode_cloud": "Workers du foyer, puis le cloud",
+      "mode_cloud_only": "Cloud uniquement",
+      "cloud_only_model": "Celui du fournisseur",
+      "cloud_only_hint": "Aucun worker n’est utilisé : chaque fournisseur cloud activé répond avec son propre modèle.",
       "model": "Modèle",
       "no_model": "Aucun modèle choisi",
       "none_declared": "Aucun worker ne propose de modèle pour cet usage.",
@@ -247,7 +250,7 @@
     },
     "cloud": {
       "title": "Fournisseurs cloud",
-      "tip": "Un fournisseur cloud fait tourner un modèle chez lui (Anthropic, par exemple). Nid ne lui envoie rien tant qu’un administrateur ne l’a pas activé, et seulement pour les usages réglés sur « puis le cloud ».",
+      "tip": "Un fournisseur cloud fait tourner un modèle chez lui (Anthropic, par exemple). Nid ne lui envoie rien tant qu’un administrateur ne l’a pas activé, et seulement pour les usages réglés sur « puis le cloud » ou « Cloud uniquement ».",
       "region": "Région du foyer",
       "region_hint": "Les conditions d’un fournisseur dépendent de l’endroit où vous vivez.",
       "region_unset": "Région à confirmer",
