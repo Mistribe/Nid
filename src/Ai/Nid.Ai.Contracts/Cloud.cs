@@ -20,7 +20,7 @@ public sealed record CloudProfileView(
     string Host,
     string Model,
     bool TrainsOnData,
-    bool HumanReview,
+    bool? HumanReview,
     int? RetentionDays,
     string TermsUrl,
     LocalDate ReviewedOn,

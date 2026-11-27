@@ -37,7 +37,7 @@ public sealed class LlmEmbedder(
                 return Refuse(JobCodes.InvalidInput);
 
             var offsite = await OffsiteConsent.AllowedAsync(people, request.Concerned ?? [], ct);
-            if (use.Mode == UseModes.SelfHostedThenCloud && CloudEmbedModels.IsCloud(profiles, use.Model))
+            if (use.Mode == UseModes.SelfHostedThenCloud && CloudModels.Of(profiles, ModelUses.Embed, use.Model) is not null)
                 return await CloudAsync(use.Model, offsite);
 
             // Without everyone's allow, a remote worker is skipped; noted, so the refusal says why rather than « no model ».

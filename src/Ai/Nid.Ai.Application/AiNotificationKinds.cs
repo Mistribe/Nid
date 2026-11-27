@@ -49,13 +49,14 @@ public sealed class AiNotificationKinds : IPublishedNotificationKinds
         var other => other ?? "",
     };
 
-    /// <summary>#556: the document types of <c>allowed_kinds</c>, in words.</summary>
+    /// <summary>#556: the document types of <c>allowed_kinds</c>, and the bank labels (#812), in words.</summary>
     private static string CloudKinds(string kinds) => string.Join(", ", kinds.Split(',').Select(k => k switch
     {
         "statement" => "relevés",
         "amortization_table" => "tableaux d'amortissement",
         "invoice" => "factures",
         "contract" => "contrats",
+        "bank_labels" => "libellés bancaires",
         _ => k,
     }));
 
@@ -73,8 +74,8 @@ public sealed class AiNotificationKinds : IPublishedNotificationKinds
             "cloud_profile_on" => $"Le fournisseur cloud « {p.GetValueOrDefault("profile")} » est activé : il peut recevoir les demandes des usages ouverts au cloud.",
             "cloud_profile_off" => $"Le fournisseur cloud « {p.GetValueOrDefault("profile")} » est désactivé.",
             "allowed_kinds" => p.GetValueOrDefault("kinds") is { Length: > 0 } kinds
-                ? $"Ces types de documents peuvent désormais partir vers un fournisseur cloud activé, si chaque adulte concerné l'autorise : {CloudKinds(kinds)}."
-                : "Plus aucun document ne part vers un fournisseur cloud.",
+                ? $"Ces données peuvent désormais partir vers un fournisseur cloud activé, si chaque adulte concerné l'autorise : {CloudKinds(kinds)}."
+                : "Plus aucun document ni libellé bancaire ne part vers un fournisseur cloud.",
             "assistant_cloud_on" => "Un adulte a activé l'assistant pour lui alors qu'il peut passer par un fournisseur cloud : ses propres chiffres peuvent y partir, jamais les éléments privés de l'autre adulte.",
             _ => "",
         };

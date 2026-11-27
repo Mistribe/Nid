@@ -114,6 +114,19 @@ describe('« Suggestions » in Opérations (#449)', () => {
     expect(tip).not.toHaveTextContent(/sûr à/);
   });
 
+  it('says a cloud provider guessed, and what it was sent (#812)', async () => {
+    server.use(
+      http.get('*/api/v1/banking/operations', () => HttpResponse.json(operations)),
+      http.get('*/api/v1/banking/category-suggestions', () => HttpResponse.json({ items: [{ ...suggestion, basis: 'ai', placement: 'cloud', evidenceCount: 0, agreement: 88 }], total: 1 })),
+    );
+    const { user, block } = await open();
+    await user.hover(within(block).getByRole('button', { name: 'À propos : deviné par IA (fournisseur cloud)' }));
+    const tip = await screen.findByRole('tooltip');
+    expect(tip).toHaveTextContent(/Un fournisseur cloud, activé par un administrateur/);
+    expect(tip).toHaveTextContent(/jamais un montant, une date, un compte ni un nom/);
+    expect(tip).toHaveTextContent('Le modèle s’en dit sûr à 88 %');
+  });
+
   it('ignores a group for the household, the focus on the block while groups remain', async () => {
     const writes = serve([{ ...suggestion, pattern: 'OTHER SHOP', lines: [line('t3', 'OTHER SHOP')] }]);
     const { user, block } = await open();

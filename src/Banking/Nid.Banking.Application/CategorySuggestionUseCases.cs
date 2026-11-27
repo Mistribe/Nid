@@ -25,7 +25,7 @@ public sealed record CategorySuggestionPage(IReadOnlyList<CategorySuggestionView
 /// <paramref name="Basis"/> (#450): <c>history</c>, the pattern's own lines; <c>meaning</c>, those of patterns near it by meaning;
 /// <c>category_name</c>, no lines at all: the pattern is near the category's name, <paramref name="Agreement"/> being that similarity in percent;
 /// <c>ai</c>, a model's guess, <paramref name="Agreement"/> being its probability in percent (0 for a model with no scores), on a worker of that
-/// <paramref name="Placement"/> (<c>local</c>, <c>remote</c>).
+/// <paramref name="Placement"/> (<c>local</c>, <c>remote</c>, or <c>cloud</c> for a cloud provider, #812).
 /// </summary>
 public sealed record CategorySuggestionView(
     string Pattern, string Direction, Guid CategoryId, string CategoryName, int LineCount, int EvidenceCount, int Agreement,
