@@ -58,17 +58,22 @@ public interface IDecideCalibrationStore
 public sealed class DecideSetup(IEmbeddings embeddings, IDecisions decisions, IModelDigests digests)
 {
     /// <summary><paramref name="Implementation"/> and <paramref name="Version"/> null: no worker declares the <c>decide</c> model now.</summary>
-    public sealed record Current(string? Implementation, string? Version, string? Model, string? Digest)
+    /// <remarks><paramref name="Off"/>: the <c>decide</c> use is off, so nothing is calibrated and no model is said to be missing.</remarks>
+    public sealed record Current(string? Implementation, string? Version, string? Model, string? Digest, bool Off = false)
     {
-        public DecideKey? Key => Implementation is { } implementation && Version is { } version && Model is { } model && Digest is { } digest
+        public DecideKey? Key => !Off && Implementation is { } implementation && Version is { } version && Model is { } model && Digest is { } digest
             ? new DecideKey(implementation, version, model, digest)
             : null;
 
-        /// <summary>Why nothing can be calibrated: no model set, or none the workers agree on.</summary>
-        public string? Unavailable => Model is null ? JobCodes.NoModel : Key is null ? JobCodes.ModelUnavailable : null;
+        /// <summary>Why nothing can be calibrated: the use off, no model set, or none the workers agree on.</summary>
+        public string? Unavailable => Off ? JobCodes.UseOff : Model is null ? JobCodes.NoModel : Key is null ? JobCodes.ModelUnavailable : null;
     }
 
-    public async Task<Current> CurrentAsync(CancellationToken ct) => await WorkerAsync(ct) ?? await NeighboursAsync(ct);
+    /// <summary>The set-up « Calibrer » measures: nothing while the <c>decide</c> use is off, else the worker's model or nearest neighbours.</summary>
+    public async Task<Current> CurrentAsync(CancellationToken ct)
+        => !await embeddings.UseOnAsync(ModelUses.Decide, ct)
+            ? new Current(null, null, null, null, Off: true)
+            : await WorkerAsync(ct) ?? await NeighboursAsync(ct);
 
     public async Task<Current> NeighboursAsync(CancellationToken ct)
     {

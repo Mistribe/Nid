@@ -35,6 +35,9 @@ services:
       Nid__Smtp__Port: "1025"
       Nid__Smtp__From: nid@localtest.me
       Nid__Smtp__Security: None
+      # The AI workers journey runs after the others (web/playwright.config.ts): alice's envelope list has grown past the 24 000
+      # characters a tool answer may take by default, and a longer one is refused whole.
+      Assistant__MaxResultLength: "400000"
 
   # #528: a scripted engine for the Compose worker (local/fake-engine.mjs), so the « Assistant » journey runs end to end
   # without a model. Never on a real deployment: there, the worker's engine is the household's Ollama or llama.cpp.
@@ -51,6 +54,8 @@ services:
     environment:
       Engine__Url: http://engine:11434
       Engine__Models: nid-test-model
+      # With Assistant__MaxResultLength above: room in the scripted model's context for alice's long envelope list.
+      Engine__ContextTokens: "262144"
       Engine__DecideModels: nid-test-decide # #450: the suggestions' guesses, never a chat model here
 
 networks:

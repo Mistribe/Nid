@@ -117,6 +117,9 @@ async function guessesACategory(page: Page, headers: Record<string, string>) {
 
   await page.goto('/admin/ai');
   const row = page.getByRole('heading', { name: 'Suggestions de catégories' }).locator('..');
+  await expect(row).toContainText('Cet usage est désactivé dans les réglages.'); // off by default: nothing to calibrate yet
+  await pick(row, 'Réglage', 'Workers du foyer');
+  await expect(toasts(page)).toContainText('Réglage enregistré.');
   await expect(row).toContainText('Pas encore calibré'); // by meaning, on a stack whose search model was never calibrated
   await pick(row, 'Modèle', 'nid-test-decide (1 worker)');
   await expect(toasts(page)).toContainText('Réglage enregistré.');
@@ -157,5 +160,6 @@ async function guessesACategory(page: Page, headers: Record<string, string>) {
   await expect(toasts(page)).toContainText('1 opération classée en Médecin & pharmacie.');
 
   expect((await page.request.put('/api/v1/ai/settings/uses/decide/model', { headers, data: { model: null } })).ok()).toBe(true);
+  expect((await page.request.put('/api/v1/ai/settings/uses/decide', { headers, data: { mode: 'off' } })).ok()).toBe(true);
   await bankSync(before.bankingEnabled);
 }

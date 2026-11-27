@@ -403,6 +403,12 @@ public class CategorySuggestionTests(PostgresFixture fixture) : IClassFixture<Po
         Assert.Equal(HttpStatusCode.UnprocessableEntity, (await app.RawAsync(app.AdultA, HttpMethod.Post, Calibrations)).StatusCode);
         view = JsonDocument.Parse(await app.GetRawAsync(app.AdultA, Calibrations)).RootElement;
         Assert.Equal((JobCodes.ModelUnavailable, JsonValueKind.Null), (view.GetProperty("unavailable").GetString(), view.GetProperty("profile").ValueKind));
+
+        // The decide use off: that is the reason given, not a missing model, and nothing is queued.
+        labels.On = false;
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await app.RawAsync(app.AdultA, HttpMethod.Post, Calibrations)).StatusCode);
+        view = JsonDocument.Parse(await app.GetRawAsync(app.AdultA, Calibrations)).RootElement;
+        Assert.Equal(JobCodes.UseOff, view.GetProperty("unavailable").GetString());
     }
 
     private static async Task<JsonElement> QueueAsync(NidApp app)
