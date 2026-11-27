@@ -26,7 +26,11 @@ export function lineState(t: TFunction, l: BankTransaction): string {
 }
 
 /** A line's `⋯` menu (and « Joindre un justificatif » on any): « Relier… » and « Ignorer » on an unlinked line, « Délier » on a linked or ignored one, « Catégoriser… » on any but an ignored one; a refusal shows under it. */
-export function LineActions({ line, onDone }: { line: BankTransaction; onDone: (message: string) => void }) {
+export function LineActions({ line, onDone, onCategorise }: {
+  line: BankTransaction; onDone: (message: string) => void;
+  // The list owns the dialog when classifying can take the line out of it (a « Sans catégorie » filter): the row goes, the rule offer stays.
+  onCategorise?: (line: BankTransaction) => void;
+}) {
   const { t } = useTranslation();
   const { unlink, ignore, unsplit } = useLineActions();
   const [linking, setLinking] = useState(false);
@@ -43,7 +47,7 @@ export function LineActions({ line, onDone }: { line: BankTransaction; onDone: (
     : [{ label: t('banks.operations.unlink'), onSelect: run(unlink, t('banks.operations.done_unlink')) }];
   const isSplit = !!line.parts?.length;
   // A split line has no category of its own (the server answers 409 `banking.line_split`).
-  if (line.linkState !== 'ignored' && !isSplit) items.push({ label: t('banks.operations.categorise'), onSelect: () => setCategorising(true) });
+  if (line.linkState !== 'ignored' && !isSplit) items.push({ label: t('banks.operations.categorise'), onSelect: () => (onCategorise ? onCategorise(line) : setCategorising(true)) });
   items.push({ label: t('banks.operations.note'), onSelect: () => setNoting(true) });
   if (isSplit) {
     items.push({ label: t('banks.operations.edit_split'), onSelect: () => setSplitting(true) }, { label: t('banks.operations.unsplit'), onSelect: () => setUnsplitting(true) });

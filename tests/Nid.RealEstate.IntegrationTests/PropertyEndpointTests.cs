@@ -63,6 +63,36 @@ public class PropertyEndpointTests(PostgresFixture fixture) : IClassFixture<Post
     }
 
     [Fact]
+    public async Task The_list_gathers_the_properties_of_the_same_owners_with_their_totals() // #799
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var valued = async (Dictionary<string, object?> body, string amount, PersonId owner) =>
+        {
+            var id = await NewPropertyAsync(app, body, owner);
+            await CreatedAsync(await app.RawAsync(owner, HttpMethod.Post, $"{Properties}/{id}/valuations", new { asOf = "2025-06-01", amount }));
+            return id;
+        };
+        var home = await valued(Home(app), "290000", app.AdultA);
+        var flat = await valued(Home(app, "Studio"), "100000.50", app.AdultA);
+        // No rate is stored: a dollar value leaves its group's totals unknown.
+        var abroad = Home(app, "Loft", owners: app.AdultB);
+        abroad["currency"] = "USD";
+        var ofB = await valued(abroad, "300000", app.AdultB);
+
+        var list = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Properties}?scope=household"));
+
+        var groups = list.GetProperty("groups").EnumerateArray().ToDictionary(g => g.GetProperty("owners")[0].GetProperty("personId").GetGuid());
+        Assert.Equal(2, groups.Count);
+        var ofA = groups[app.AdultA.Value];
+        Assert.Equal(new[] { home, flat }.Order(), ofA.GetProperty("items").EnumerateArray().Select(i => i.GetGuid()).Order());
+        Assert.Equal(("390000.50", "EUR"), (S(ofA.GetProperty("value"), "amount"), S(ofA.GetProperty("value"), "currency")));
+        Assert.Equal("390000.50", S(ofA.GetProperty("netValue"), "amount"));
+        Assert.Equal([ofB], groups[app.AdultB.Value].GetProperty("items").EnumerateArray().Select(i => i.GetGuid()));
+        Assert.Equal(JsonValueKind.Null, groups[app.AdultB.Value].GetProperty("value").ValueKind);
+        Assert.Equal(JsonValueKind.Null, groups[app.AdultB.Value].GetProperty("netValue").ValueKind);
+    }
+
+    [Fact]
     public async Task Each_creation_refusal_answers_at_the_bodys_own_path() // Review Focus #2 for the French comma
     {
         await using var app = await NidApp.StartAsync(fixture);

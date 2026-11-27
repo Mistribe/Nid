@@ -40335,8 +40335,14 @@ export interface components {
             /** @default false */
             monthCostEstimated: boolean;
         };
+        ChildcareGroupView: {
+            owners: components["schemas"]["ItemOwnerView"][];
+            items: string[];
+            monthlyBasePay?: null | components["schemas"]["ChildcareMoneyView"];
+        };
         ChildcareList: {
             items: components["schemas"]["ChildcareSummary"][];
+            groups: components["schemas"]["ChildcareGroupView"][];
         };
         ChildcareMoneyView: {
             amount: string;
@@ -41992,8 +41998,15 @@ export interface components {
             estimated: boolean;
             flags: string[];
         };
+        GoalGroupView: {
+            owners: components["schemas"]["ItemOwnerView"][];
+            items: string[];
+            reached?: null | components["schemas"]["GoalMoneyView"];
+            target?: null | components["schemas"]["GoalMoneyView"];
+        };
         GoalList: {
             items: components["schemas"]["GoalSummary"][];
+            groups: components["schemas"]["GoalGroupView"][];
         };
         GoalMoneyView: {
             amount: string;
@@ -43378,6 +43391,12 @@ export interface components {
             message: string;
             reference?: null | string;
         };
+        LoanGroupView: {
+            owners: components["schemas"]["ItemOwnerView"][];
+            items: string[];
+            remainingBalance?: null | components["schemas"]["LoanMoneyView"];
+            nextPaymentTotal?: null | components["schemas"]["LoanMoneyView"];
+        };
         LoanInsuranceBody: {
             mode?: null | string;
             monthlyAmount?: null | string;
@@ -43411,6 +43430,7 @@ export interface components {
         };
         LoanList: {
             items: components["schemas"]["LoanSummary"][];
+            groups: components["schemas"]["LoanGroupView"][];
         };
         LoanMoneyView: {
             amount: string;
@@ -44791,8 +44811,15 @@ export interface components {
             /** Format: uuid */
             documentId?: null | string;
         };
+        PropertyGroupView: {
+            owners: components["schemas"]["ItemOwnerView"][];
+            items: string[];
+            value?: null | components["schemas"]["PropertyMoneyView"];
+            netValue?: null | components["schemas"]["PropertyMoneyView"];
+        };
         PropertyList: {
             items: components["schemas"]["PropertySummary"][];
+            groups: components["schemas"]["PropertyGroupView"][];
         };
         PropertyLoanView: {
             /** Format: uuid */
@@ -44801,6 +44828,10 @@ export interface components {
             currency: string;
             balance: string;
             balanceConverted?: null | string;
+        };
+        PropertyMoneyView: {
+            amount: string;
+            currency: string;
         };
         PropertyOverviewRow: {
             /** Format: uuid */
@@ -45496,6 +45527,7 @@ export interface components {
             name: string;
             currency: string;
             cadence: string;
+            kind: string;
             lastValue?: null | components["schemas"]["AmountView"];
             /** Format: date */
             lastAsOf?: null | string;

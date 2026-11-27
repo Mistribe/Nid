@@ -7,7 +7,7 @@ import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import type { RoutineView } from './api';
 import { list, summary } from '../childcare/testData';
-import { LIVRET, MANUEL, PEA, line, recap, recapLine, routine } from './testData';
+import { CHECKING, LIVRET, MANUEL, PEA, line, recap, recapLine, routine } from './testData';
 
 const lines = () => [
   line(),
@@ -100,7 +100,7 @@ describe('the routine', () => {
     });
   });
 
-  it('shows the bank balance instead of the value field of an envelope whose account applies its balances, and sends no value for it', async () => {
+  it('shows the bank balance instead of the value field of an envelope whose account applies its balances, folded since its bank records it, and sends no value for it', async () => {
     const posted: unknown[] = [];
     serve(routine(lines()), posted);
     server.use(
@@ -113,14 +113,26 @@ describe('the routine', () => {
     const { user } = await renderApp('/routine');
 
     const due = await screen.findByRole('region', { name: 'À relever' });
-    expect(await within(due).findByText('Solde bancaire du 30/09 : 1 100,00 €')).toBeInTheDocument();
-    expect(within(due).queryByLabelText('Valeur de PEA')).toBeNull();
     expect(within(due).getByLabelText('Valeur de Livret A')).toHaveValue('');
+    expect(within(due).queryByText('PEA')).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Autres enveloppes' }));
+    expect(await screen.findByText('Solde bancaire du 30/09 : 1 100,00 €')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Valeur de PEA')).toBeNull();
     await user.type(screen.getByLabelText('Versements du mois sur PEA'), '20');
     await user.click(screen.getByRole('button', { name: 'Enregistrer les placements' }));
 
     await expect.poll(() => posted.length).toBe(1);
     expect(posted[0]).toEqual({ on: '2025-09-30', lines: [{ envelopeId: PEA, value: null, contribution: { amount: '20', currency: 'EUR' } }] });
+  });
+
+  it('asks no contributions for a checking account', async () => {
+    serve(routine([...lines(), line({ id: CHECKING, name: 'Compte courant', kind: 'checking', lastValue: null, lastAsOf: null })]));
+    await renderApp('/routine');
+
+    const due = await screen.findByRole('region', { name: 'À relever' });
+    expect(await within(due).findByLabelText('Valeur de Compte courant')).toBeInTheDocument();
+    expect(within(due).queryByLabelText('Versements du mois sur Compte courant')).toBeNull();
+    expect(within(due).getByLabelText('Versements du mois sur Livret A')).toBeInTheDocument();
   });
 
   it('keeps the value field of an envelope whose bank account no connection reads any more', async () => {

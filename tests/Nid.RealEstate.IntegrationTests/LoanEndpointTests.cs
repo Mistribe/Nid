@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Nid.TestSupport;
 using static Nid.TestSupport.LoanApi;
@@ -44,6 +45,30 @@ public class LoanEndpointTests(PostgresFixture fixture) : IClassFixture<Postgres
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
         var item = await core.Items.SingleAsync(i => i.Id == id, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(("realestate", "loan", "EUR"), (item.Module, item.Kind, item.Currency!.Trim()));
+    }
+
+    [Fact]
+    public async Task The_list_gathers_the_loans_of_the_same_owners_with_their_totals() // #800
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var home = await NewAsync(app, Golden(app));
+        var works = await NewAsync(app, Golden(app, "Prêt travaux"));
+        // No rate is stored: a dollar loan leaves its group's totals unknown.
+        var abroad = Golden(app, "Prêt US", borrowers: app.AdultB);
+        abroad["currency"] = "USD";
+        var ofB = await NewAsync(app, abroad, app.AdultB);
+
+        var list = await JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{Loans}?scope=household"));
+
+        var groups = list.GetProperty("groups").EnumerateArray().ToDictionary(g => g.GetProperty("owners")[0].GetProperty("personId").GetGuid());
+        Assert.Equal(2, groups.Count);
+        var ofA = groups[app.AdultA.Value];
+        Assert.Equal(new[] { home, works }.Order(), ofA.GetProperty("items").EnumerateArray().Select(i => i.GetGuid()).Order());
+        Assert.Equal(("324506.24", "EUR"), (S(ofA.GetProperty("remainingBalance"), "amount"), S(ofA.GetProperty("remainingBalance"), "currency")));
+        Assert.Equal("2319.84", S(ofA.GetProperty("nextPaymentTotal"), "amount"));
+        Assert.Equal([ofB], groups[app.AdultB.Value].GetProperty("items").EnumerateArray().Select(i => i.GetGuid()));
+        Assert.Equal(JsonValueKind.Null, groups[app.AdultB.Value].GetProperty("remainingBalance").ValueKind);
+        Assert.Equal(JsonValueKind.Null, groups[app.AdultB.Value].GetProperty("nextPaymentTotal").ValueKind);
     }
 
     [Fact]

@@ -62,10 +62,10 @@ export type SubscriptionsSearch = {
 
 /** The envelopes list's own filter: closed envelopes shown on demand (2B2b design); anything but `1` is dropped. */
 /**
- * The envelopes' list filter (closed ones on demand), the tab (investments dashboard §3.1), the curve's span, named as the
+ * The envelopes' list filter (closed ones on demand), its flat view (`flat`: the owners' groups unfolded for good), the tab (investments dashboard §3.1), the curve's span, named as the
  * dashboard's (`12m` is the default and stays out of the URL), and the performance's period (§4.3: both dates or neither).
  */
-export type InvestmentsSearch = { closed?: 1; tab?: string; curve?: '3y' | 'all'; from?: string; to?: string };
+export type InvestmentsSearch = { closed?: 1; flat?: 1; tab?: string; curve?: '3y' | 'all'; from?: string; to?: string };
 
 /**
  * The income page's own filters: ended sources shown on demand (2C2a design §4), the overview period (`year` is the
@@ -87,9 +87,10 @@ export type IncomeDetailSearch = { expected?: 'next12' | 'year' | 'next_year'; o
 
 /**
  * The properties page's tab (properties dashboard §3.1) and its curve's span, `history` (`curve` is the other pages' with another
- * default): `3y` is the default and stays out of the URL; the rental tab's property shown alone (§4.3).
+ * default): `3y` is the default and stays out of the URL; the rental tab's property shown alone (§4.3); the list's flat view (`flat`:
+ * the owners' groups unfolded for good, #799).
  */
-export type PropertiesSearch = { tab?: string; history?: '12m' | 'all'; property?: string };
+export type PropertiesSearch = { tab?: string; history?: '12m' | 'all'; property?: string; flat?: 1 };
 
 /** The detail screens' tab (`useDetailTab` validates it against its own ids); the first tab stays out of the URL. */
 export type DetailSearch = { tab?: string };
@@ -127,7 +128,13 @@ const fxSearch = (search: Record<string, unknown>): DetailSearch & { quote?: str
 };
 
 /** The loans list's own filter: ended loans shown on demand (3B1 design §5), anything but `1` dropped; the tab (loans dashboard §3.1); the timeline's window (§4.2). */
-export type LoansSearch = { ended?: 1; tab?: string; span?: '5y' | '10y' };
+/** The childcare list's flat view (`flat`: the owners' groups unfolded for good, #802) and its tab. */
+export type ChildcareListSearch = { flat?: 1; tab?: string };
+
+/** The goals list's flat view (`flat`: the owners' groups unfolded for good, #801) and its tab. */
+export type GoalsSearch = { flat?: 1; tab?: string };
+
+export type LoansSearch = { ended?: 1; flat?: 1; tab?: string; span?: '5y' | '10y' };
 
 /** Issue #412: a new goal opened as an emergency fund of `months` (1 to 24, anything else dropped). */
 export type NewGoalSearch = { kind?: 'emergency_fund'; months?: number };
@@ -244,6 +251,7 @@ const investmentsRoute = createRoute({
   beforeLoad: requireModule('investments'),
   validateSearch: (search: Record<string, unknown>): InvestmentsSearch => ({
     ...(search.closed === 1 || search.closed === '1' ? { closed: 1 as const } : {}),
+    ...(search.flat === 1 || search.flat === '1' ? { flat: 1 as const } : {}),
     ...(search.curve === '3y' || search.curve === 'all' ? { curve: search.curve } : {}),
     ...(isIsoDate(search.from) && isIsoDate(search.to) ? { from: search.from, to: search.to } : {}),
     ...detailSearch(search),
@@ -283,7 +291,10 @@ const goalsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/goals',
   beforeLoad: requireModule('goals'),
-  validateSearch: detailSearch,
+  validateSearch: (search: Record<string, unknown>): GoalsSearch => ({
+    ...(search.flat === 1 || search.flat === '1' ? { flat: 1 as const } : {}),
+    ...detailSearch(search),
+  }),
   component: lazyRouteComponent(() => import('@/features/goals/GoalsPage'), 'GoalsPage'),
 });
 
@@ -307,7 +318,7 @@ const goalDetailRoute = createRoute({
 });
 
 /** The other assets list's filters (a kind, an owner, part of the name, archived ones too) and its page (from 2), all applied by the server. */
-export type AssetsSearch = DetailSearch & { kind?: string; owner?: string; archived?: 1; q?: string; page?: number };
+export type AssetsSearch = DetailSearch & { kind?: string; owner?: string; archived?: 1; flat?: 1; q?: string; page?: number };
 
 // `/other-assets`, not `/assets`: the server keeps `/assets` for the built files (ServerSegments), so a reload there would 404.
 const assetsRoute = createRoute({
@@ -319,6 +330,7 @@ const assetsRoute = createRoute({
     ...(typeof search.kind === 'string' && search.kind !== '' ? { kind: search.kind } : {}),
     ...(typeof search.owner === 'string' && /^[0-9a-f-]{36}$/i.test(search.owner) ? { owner: search.owner } : {}),
     ...(search.archived === 1 || search.archived === '1' ? { archived: 1 as const } : {}),
+    ...(search.flat === 1 || search.flat === '1' ? { flat: 1 as const } : {}),
     ...(typeof search.q === 'string' && search.q !== '' ? { q: search.q } : {}),
   }),
   component: lazyRouteComponent(() => import('@/features/assets/AssetsPage'), 'AssetsPage'),
@@ -343,7 +355,10 @@ const childcareRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/childcare',
   beforeLoad: requireModule('childcare'),
-  validateSearch: detailSearch,
+  validateSearch: (search: Record<string, unknown>): ChildcareListSearch => ({
+    ...(search.flat === 1 || search.flat === '1' ? { flat: 1 as const } : {}),
+    ...detailSearch(search),
+  }),
   component: lazyRouteComponent(() => import('@/features/childcare/ChildcarePage'), 'ChildcarePage'),
 });
 
@@ -650,6 +665,7 @@ const propertiesRoute = createRoute({
   validateSearch: (search: Record<string, unknown>): PropertiesSearch => ({
     ...(search.history === '12m' || search.history === 'all' ? { history: search.history } : {}),
     ...(typeof search.property === 'string' && search.property ? { property: search.property } : {}),
+    ...(search.flat === 1 || search.flat === '1' ? { flat: 1 as const } : {}),
     ...detailSearch(search),
   }),
   component: lazyRouteComponent(() => import('@/features/properties/PropertiesPage'), 'PropertiesPage'),
@@ -676,6 +692,8 @@ const loansRoute = createRoute({
   beforeLoad: requireModule('realestate'),
   validateSearch: (search: Record<string, unknown>): LoansSearch => ({
     ...(search.ended === 1 || search.ended === '1' ? { ended: 1 as const } : {}),
+    // The list's flat view: the owners' groups unfolded for good (#800).
+    ...(search.flat === 1 || search.flat === '1' ? { flat: 1 as const } : {}),
     // The timeline's window; « Tout » stays out of the URL.
     ...(search.span === '5y' || search.span === '10y' ? { span: search.span } : {}),
     ...detailSearch(search),

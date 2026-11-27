@@ -14,7 +14,9 @@ public sealed record GetChildcareQuery(ItemId ItemId) : IQuery<ChildcareDetail>,
 }
 
 [RequestHandler<ListChildcareQuery, ChildcareList>]
-public sealed class ListChildcareHandler(IVisibleItems visible, IItemRegistry items, IChildcareStore store, ChildcareReader reader, IActorAccessor actor)
+public sealed class ListChildcareHandler(
+    IVisibleItems visible, IItemRegistry items, IChildcareStore store, ChildcareReader reader, IActorAccessor actor, IHouseholdSettings household, IFxRates fx,
+    IHouseholdCalendar calendar)
     : IRequestHandler<ListChildcareQuery, ChildcareList>
 {
     public async ValueTask<Result<ChildcareList>> HandleAsync(ListChildcareQuery query, CancellationToken ct = default)
@@ -24,7 +26,13 @@ public sealed class ListChildcareHandler(IVisibleItems visible, IItemRegistry it
         var found = await store.FindManyAsync(ids.ToList(), ct);
         var registered = await items.FindManyAsync(found.Select(a => a.ItemId).ToList(), ct);
         var details = await reader.ReadAsync(person, found.Where(a => registered.ContainsKey(a.ItemId)).Select(a => (a, registered[a.ItemId])).ToList(), ct);
-        return Result.Success(new ChildcareList(ChildcareReader.Ordered(details.Select(d => d.Summary))));
+        var rows = ChildcareReader.Ordered(details.Select(d => d.Summary));
+        var sums = await OwnerGroups.LoadAsync(household, fx, rows.Select(r => r.MonthlyBasePay.Currency), await calendar.TodayAsync(ct), ct);
+        var groups = OwnerGroups.Of(rows, r => r.Owners)
+            .Select(g => new ChildcareGroupView(g.First().Owners, g.Select(r => r.Id).ToList(),
+                sums.Sum(g.Select(r => (r.Closed ? null : r.MonthlyBasePay.Amount, r.MonthlyBasePay.Currency))) is { } pay ? new ChildcareMoneyView(pay, sums.Reference.Code) : null))
+            .ToList();
+        return Result.Success(new ChildcareList(rows, groups));
     }
 }
 

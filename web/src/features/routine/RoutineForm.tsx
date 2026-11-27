@@ -23,7 +23,6 @@ import { dayMonth } from '@/api/banking';
 import '@/locales/banks';
 
 export type RoutineValues = { lines: { id: string; value: string; contribution: string; skip: boolean }[] };
-/** The envelopes whose bank account writes their values, each with the day of its last balance. */
 /** The envelopes whose bank writes the value: its last balance (#718: shown, with its date) by envelope. */
 export type Banked = Record<string, { on: string; balance?: string | null; currency: string }>;
 
@@ -72,8 +71,10 @@ export function RoutineForm({ view, month, initial, banked, onSaved }: {
   }, [values, view.on, form, fresh]);
 
   const indexed = useMemo(() => view.lines.map((line, index) => ({ line, index })), [view.lines]);
-  const due = indexed.filter((x) => x.line.due);
-  const others = indexed.filter((x) => !x.line.due);
+  // A bank-fed envelope is never to record: its bank writes the value, even when no balance falls in the month yet.
+  const isDue = (line: RoutineLine) => line.due && !(line.id in banked);
+  const due = indexed.filter((x) => isDue(x.line));
+  const others = indexed.filter((x) => !isDue(x.line));
   // An error on a folded row opens the fold: otherwise the save would seem to do nothing.
   const place = (index: number, field: 'value' | 'contribution', message: string) => {
     form.setError(`lines.${index}.${field}`, { message });
@@ -153,9 +154,12 @@ export function RoutineForm({ view, month, initial, banked, onSaved }: {
               {(c) => <Input inputMode="decimal" {...c} aria-label={t('routine.value', { name: line.name })} {...form.register(`lines.${index}.value`)} className={input} />}
             </Field>
           )}
-          <Field label={t('routine.contribution_short')} error={e?.contribution?.message}>
-            {(c) => <Input inputMode="decimal" {...c} aria-label={t('routine.contribution', { name: line.name })} {...form.register(`lines.${index}.contribution`)} className={input} />}
-          </Field>
+          {/* A checking account's money is salary and spending, never contributions (issue #374): an empty cell keeps the grid. */}
+          {line.kind === 'checking' ? <span aria-hidden="true" /> : (
+            <Field label={t('routine.contribution_short')} error={e?.contribution?.message}>
+              {(c) => <Input inputMode="decimal" {...c} aria-label={t('routine.contribution', { name: line.name })} {...form.register(`lines.${index}.contribution`)} className={input} />}
+            </Field>
+          )}
           <Controller control={form.control} name={`lines.${index}.skip`} render={({ field }) => (
             <Field inline label={t('routine.skip_short')}>
               {(c) => <Checkbox {...c} aria-label={t('routine.skip', { name: line.name })} checked={field.value} onCheckedChange={(v) => field.onChange(v === true)} />}

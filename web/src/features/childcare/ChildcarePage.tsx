@@ -1,12 +1,14 @@
-import { Link, useSearch } from '@tanstack/react-router';
+import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { present, toProblem } from '@/api/errors';
+import type { ChildcareListSearch } from '@/app/router';
 import type { RootSearch } from '@/lib/search';
 import { EmptyState } from '@/components/EmptyState';
 import { LocalDate } from '@/components/LocalDate';
 import { Money } from '@/components/Money';
 import { OwnerChips } from '@/components/OwnerChips';
 import { DetailTabs, useDetailTab } from '@/components/page/DetailTabs';
+import { foldByOwners, type Folded } from '@/components/page/foldByOwners';
 import { GroupedList, GroupedRow } from '@/components/page/GroupedList';
 import { Hero } from '@/components/page/Hero';
 import { PageHeader } from '@/components/page/PageHeader';
@@ -14,9 +16,10 @@ import { SectionCard } from '@/components/page/SectionCard';
 import { StatLine } from '@/components/page/StatLine';
 import { SortableTable } from '@/components/page/SortableTable';
 import { amountKey } from '@/components/page/sortKey';
+import { SwitchField } from '@/components/page/SwitchField';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { buttonVariants } from '@/components/ui/button';
-import { type ChildcareSummary, useChildcare, useChildcareList } from './api';
+import { type ChildcareList, type ChildcareSummary, useChildcare, useChildcareList } from './api';
 import { type NannySummary, useNannies } from './nannyApi';
 import { monthTitle } from './statementText';
 import '@/locales/childcare';
@@ -41,7 +44,7 @@ export function ChildcarePage() {
   // Without an open arrangement there is nothing to overview: the list opens first.
   const tabs = [
     ...(current.length ? [{ id: 'overview' as const, label: t('childcare_list.tab_overview'), content: <Overview rows={current} /> }] : []),
-    { id: 'list' as const, label: t('childcare_list.tab_list'), content: <List rows={items} /> },
+    { id: 'list' as const, label: t('childcare_list.tab_list'), content: <List rows={items} groups={answer.data?.groups ?? []} /> },
   ];
   const [tab, setTab] = useDetailTab(tabs.map((x) => x.id));
   return (
@@ -105,31 +108,47 @@ function Current({ row }: { row: ChildcareSummary }) {
   );
 }
 
-function List({ rows }: { rows: ChildcareSummary[] }) {
+type Row = Folded<ChildcareSummary, ChildcareList['groups'][number]>;
+
+/** Every arrangement, those of the same owners folded into one row with their open ones' pay (#802) unless the switch is off. */
+function List({ rows, groups }: { rows: ChildcareSummary[]; groups: ChildcareList['groups'] }) {
   const { t } = useTranslation();
-  const name = (c: ChildcareSummary) => <Link to="/childcare/$id" params={{ id: c.id }} className="font-medium hover:underline">{c.name}</Link>;
-  const pay = (c: ChildcareSummary) => <Money value={c.monthlyBasePay} tabular />;
+  const search: RootSearch & ChildcareListSearch = useSearch({ strict: false });
+  const navigate = useNavigate();
+  const flat = search.flat === 1;
+  const setFlat = (on: boolean) =>
+    void navigate({ to: '/childcare', search: (prev: RootSearch & ChildcareListSearch) => ({ ...prev, flat: on ? (1 as const) : undefined }), replace: true, resetScroll: false });
+  const name = (c: Row) => c.parts
+    ? <span className="font-medium">{t('childcare_list.group', { count: c.parts.length })}</span>
+    : <Link to="/childcare/$id" params={{ id: c.id }} className="font-medium hover:underline">{c.name}</Link>;
+  const pay = (c: Row) => c.group ? (c.group.monthlyBasePay ? <Money value={c.group.monthlyBasePay} tabular /> : '—') : <Money value={c.monthlyBasePay} tabular />;
   return (
-    <SortableTable<ChildcareSummary> caption={t('childcare_list.list')} rows={rows} rowKey={(c) => c.id}
-      columns={[
-        { id: 'name', header: t('lists.col.name'), sort: (c) => c.name, cell: name },
-        { id: 'child', header: t('childcare_list.col_child'), sort: (c) => c.childName, cell: (c) => c.childName },
-        { id: 'carer', header: t('childcare_list.col_carer'), sort: (c) => c.carerName, cell: (c) => c.carerName },
-        { id: 'pay', header: t('childcare_list.col_pay'), align: 'end', sort: (c) => amountKey(c.monthlyBasePay.amount), cell: pay },
-        { id: 'start', header: t('childcare_list.col_start'), sort: (c) => c.start, cell: (c) => <LocalDate value={c.start} style="short" /> },
-        { id: 'to_prepare', header: t('childcare_list.col_to_prepare'), align: 'end', sort: (c) => c.toPrepare.length,
-          cell: (c) => (c.toPrepare.length > 0 ? t('childcare_list.to_prepare', { count: c.toPrepare.length }) : '—') },
-        { id: 'owner', header: t('childcare_list.col_owners'), cell: (c) => <OwnerChips owners={c.owners} /> },
-      ]}
-      mobile={(c) => (
-        <div className="space-y-1">
-          <div className="flex items-center justify-between gap-2">{name(c)}<OwnerChips owners={c.owners} /></div>
-          <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
-            <span>{c.childName} · {c.carerName}</span>{pay(c)}
+    <div className="space-y-4">
+      <SwitchField label={t('lists.group_by_owner')} checked={!flat} onCheckedChange={(on) => setFlat(!on)} />
+      <SortableTable<Row> key={flat ? 'flat' : 'grouped'} caption={t('childcare_list.list')} rows={flat ? rows : foldByOwners(rows, groups)}
+        rowKey={(c) => (c.parts ? `group:${c.id}` : c.id)}
+        subRows={(c) => c.parts} expandLabel={() => t('childcare_list.expand_group')}
+        rowClassName={(c) => (c.parts ? 'bg-muted/50' : undefined)}
+        columns={[
+          { id: 'name', header: t('lists.col.name'), sort: (c) => c.name, cell: name },
+          { id: 'child', header: t('childcare_list.col_child'), sort: (c) => c.childName, cell: (c) => (c.parts ? null : c.childName) },
+          { id: 'carer', header: t('childcare_list.col_carer'), sort: (c) => c.carerName, cell: (c) => (c.parts ? null : c.carerName) },
+          { id: 'pay', header: t('childcare_list.col_pay'), align: 'end', sort: (c) => amountKey(c.group ? c.group.monthlyBasePay?.amount : c.monthlyBasePay.amount), cell: pay },
+          { id: 'start', header: t('childcare_list.col_start'), sort: (c) => c.start, cell: (c) => (c.parts ? null : <LocalDate value={c.start} style="short" />) },
+          { id: 'to_prepare', header: t('childcare_list.col_to_prepare'), align: 'end', sort: (c) => c.toPrepare.length,
+            cell: (c) => (c.parts ? null : c.toPrepare.length > 0 ? t('childcare_list.to_prepare', { count: c.toPrepare.length }) : '—') },
+          { id: 'owner', header: t('childcare_list.col_owners'), cell: (c) => <OwnerChips owners={c.owners} /> },
+        ]}
+        mobile={(c) => (
+          <div className="space-y-1">
+            <div className="flex items-center justify-between gap-2">{name(c)}<OwnerChips owners={c.owners} /></div>
+            <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
+              <span>{c.parts ? null : `${c.childName} · ${c.carerName}`}</span>{pay(c)}
+            </div>
+            {!c.parts && c.toPrepare.length > 0 ? <p className="text-sm">{t('childcare_list.to_prepare_mobile', { count: c.toPrepare.length })}</p> : null}
           </div>
-          {c.toPrepare.length > 0 ? <p className="text-sm">{t('childcare_list.to_prepare_mobile', { count: c.toPrepare.length })}</p> : null}
-        </div>
-      )} />
+        )} />
+    </div>
   );
 }
 

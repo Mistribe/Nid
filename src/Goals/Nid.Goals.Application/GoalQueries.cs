@@ -43,7 +43,9 @@ public sealed class EmergencyTargetHandler(GoalReader reader, IActorAccessor act
 }
 
 [RequestHandler<ListGoalsQuery, GoalList>]
-public sealed class ListGoalsHandler(IVisibleItems visible, IItemRegistry items, IGoalStore goals, GoalReader reader, IActorAccessor actor)
+public sealed class ListGoalsHandler(
+    IVisibleItems visible, IItemRegistry items, IGoalStore goals, GoalReader reader, IActorAccessor actor, IHouseholdSettings household, IFxRates fx,
+    IHouseholdCalendar calendar)
     : IRequestHandler<ListGoalsQuery, GoalList>
 {
     public async ValueTask<Result<GoalList>> HandleAsync(ListGoalsQuery query, CancellationToken ct = default)
@@ -57,7 +59,17 @@ public sealed class ListGoalsHandler(IVisibleItems visible, IItemRegistry items,
             found.Where(g => registered.ContainsKey(g.ItemId)).Select(g => (g, registered[g.ItemId])).ToList(), ct);
         if (!read.TryGetValue(out var details))
             return Result.Failure<GoalList>(read.TryGetFailure(out var failure) ? failure! : throw new InvalidOperationException());
-        return Result.Success(new GoalList(GoalReader.Ordered(details!.Select(d => d.Goal))));
+        var rows = GoalReader.Ordered(details!.Select(d => d.Goal));
+        var sums = await OwnerGroups.LoadAsync(household, fx, rows.SelectMany(r => new[] { r.Reached?.Currency, r.Target?.Currency }).OfType<string>(),
+            await calendar.TodayAsync(ct), ct);
+        var money = (string? amount) => amount is null ? null : new GoalMoneyView(amount, sums.Reference.Code);
+        // Open and closed goals apart: the page lists them under their own tabs.
+        var groups = rows.GroupBy(r => r.Closed).SelectMany(c => OwnerGroups.Of(c, r => r.Owners))
+            .Select(g => new GoalGroupView(g.First().Owners, g.Select(r => r.Id).ToList(),
+                money(sums.Sum(g.Select(r => (r.Reached?.Amount, r.Reached?.Currency ?? "")))),
+                money(sums.Sum(g.Select(r => (r.Target?.Amount, r.Target?.Currency ?? ""))))))
+            .ToList();
+        return Result.Success(new GoalList(rows, groups));
     }
 }
 
