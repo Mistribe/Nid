@@ -708,7 +708,9 @@ La seconde dépend de pgvector : #450 est bloquée par #168. Le candidat retenu 
 livrée par défaut.
 
 **Essai de référence (2026-11-27)** : `bge-m3`, `nomic-embed-text`, `qwen2.5:1.5b`, `qwen2.5:3b` et `gemma3:1b` sur Ollama, CPU
-seul ; aucun ne passe la règle des 5 %, « Par le sens » sur `bge-m3` reste le défaut conseillé. Chiffres et constats :
+seul ; aucun ne passe la règle des 5 %. **Essai #821 (même jour, même machine)** : demandé en deux temps avec la correction
+contextuelle ci-dessous, `qwen2.5:3b` la passe (seuil 0,67 : 1 fausse sur 30 montrées, 7 % des libellés du jeu) ; les voisins
+proches et `qwen2.5:1.5b`, non. Conseillé : `qwen2.5:3b` sur un worker. Chiffres, essais gardés ou non et réserves :
 `../ingestion/llm-providers.md` §14.1.
 
 **Livré en partie (#450, voisins proches)** :
@@ -723,8 +725,8 @@ seul ; aucun ne passe la règle des 5 %, « Par le sens » sur `bge-m3` reste le
 - À la lecture du bloc « Suggestions » et de l'onglet « À classer », un motif ouvert sans suggestion de l'étape A prend, si le modèle a
   un **profil d'évaluation** (§7.3) : la catégorie des lignes classées à la main de ses 5 plus proches voisins à au moins le
   `threshold` du profil, sur les seuls comptes que le lecteur lit, aux seuils de l'étape A (2 lignes, 80 % d'accord) ; sinon
-  (**démarrage à froid**) la catégorie en usage de son côté (dépenses pour un débit, revenus pour un crédit) dont le nom est le plus
-  proche, à au moins le `cold_threshold` du profil et 0,02 devant la deuxième. La suggestion porte `basis` : `history` (étape A),
+  (**démarrage à froid**) la catégorie en usage de son côté (dépenses pour un débit, revenus pour un crédit ; pas un parent qui a un
+  enfant en usage, #821) dont le nom est le plus proche, à au moins le `cold_threshold` du profil et 0,02 devant la deuxième. La suggestion porte `basis` : `history` (étape A),
   `meaning` ou `category_name` (alors `evidenceCount` = 0 et `agreement` = la similarité en pour cent) ; `byMeaning` disparaît.
 - **Changement par rapport à #699** : sans profil pour le modèle `embed` et son empreinte, il n'y a plus de suggestion `meaning`
   (ni `category_name`) ; le seuil fixe de 0,8 disparaît. Un admin calibre le modèle (§7.3) pour les retrouver.
@@ -737,10 +739,16 @@ seul ; aucun ne passe la règle des 5 %, « Par le sens » sur `bge-m3` reste le
   profil en vigueur (§7.3). Il prend les motifs ouverts de **tous** les comptes (lignes sans catégorie, ni ignorées, ni virements
   internes, qu'aucune règle ne prend) que l'étape A ne décide pas pour le foyer et qui n'ont pas encore de réponse de ce modèle à
   cette empreinte, cette implémentation et cette version. Pour chacun, un texte masqué (§6.5) : le sens (débit ou crédit), le
-  motif, le libellé de la ligne la plus récente et sa contrepartie ; les options sont les catégories non archivées de son côté
-  (dépenses pour un débit, revenus pour un crédit, en « Parent › Nom », masquées), puis « Aucune de ces catégories ». Plus de
-  51 catégories d'un côté : ce côté n'est pas demandé. Classe `bank_labels` ; les adultes concernés sont les lecteurs des comptes
-  qui portent ses lignes (le titulaire d'un compte privé, chaque titulaire d'un compte joint). Lots de 16 textes au plus, par sens
+  motif, le libellé de la ligne la plus récente et sa contrepartie. **En deux temps (#821, `CategoryQuestion`)** : d'abord les
+  catégories de premier niveau non archivées de son côté (dépenses pour un débit, revenus pour un crédit), chacune suivie des noms
+  de ses enfants (« Logement (Ameublement, Charges & énergie, …) »), puis « Aucune de ces catégories » ; ensuite les enfants du
+  sommet le mieux noté, en « Parent › Nom » ; un parent qui a des enfants n'est jamais une réponse. Chaque liste a 26 options au
+  plus, donc des lettres majuscules seules ; un côté qui en demanderait plus n'est pas demandé. Chaque requête porte d'abord 3
+  textes vides (`N/A`, `[MASQUÉ]`, `X`) : leurs scores mesurent le penchant du modèle pour certaines options quel que soit le
+  libellé (« Banque & frais » pour toute opération bancaire), et chaque score en est corrigé (score moins le log de la probabilité
+  moyenne de l'option sur ces textes ; une option absente y prend la plus basse probabilité notée). Probabilité = celle du sommet ×
+  celle de l'enfant, chacune à la température du profil. Noms masqués. Classe `bank_labels` ; les adultes concernés sont les lecteurs des comptes
+  qui portent ses lignes (le titulaire d'un compte privé, chaque titulaire d'un compte joint). Lots de 13 textes au plus (16 avec les textes vides), par sens
   et par adultes concernés identiques, 4 requêtes par passage ; un lot refusé faute d'`allow` n'arrête pas les autres, tout autre refus (pas de worker, usage éteint, modèle
   indisponible) arrête le passage. Toutes les 5 min plutôt que 30 s : un lot retenu est redemandé à chaque passage, et chaque refus
   est une ligne de `llm_call`.
@@ -791,11 +799,13 @@ seul ; aucun ne passe la règle des 5 %, « Par le sens » sur `bge-m3` reste le
 - Empreinte : `IModelDigests` (Ai.Contracts) donne celle que les workers actifs déclarent pour un modèle et une capacité, `null` si
   aucun ne le déclare ou si deux divergent ; le modèle cloud de l'usage `embed` a pour empreinte `cloud:<profil>`. Un modèle tiré à
   nouveau a une autre empreinte : il lui faut un nouveau calibrage.
-- Jeu d'évaluation : `src/Banking/Nid.Banking.Application/Evaluation/category-eval.json` (version 1, ressource embarquée), plus de
+- Jeu d'évaluation : `src/Banking/Nid.Banking.Application/Evaluation/category-eval.json` (version 2 depuis #821, ressource embarquée), plus de
   400 libellés bancaires français inventés (carte, prélèvement, virement, retrait ; débits et crédits), chacun avec sa catégorie de
   départ attendue (côté dépenses pour un débit, revenus pour un crédit) ou `null` quand aucune ne convient (environ 15 %), et environ
   200 lignes d'historique inventées. Aucun motif d'un cas n'est un motif de l'historique (l'étape A le déciderait) : un test le
-  vérifie. Les catégories attendues sont les feuilles ; une catégorie parente reste une option.
+  vérifie. Les catégories attendues sont les feuilles ; depuis #821, un parent qui a des enfants n'est plus une option (une ligne va
+  dans sa catégorie la plus précise). Un profil mesuré sur une autre version du jeu n'est **ni appliqué ni montré** : le modèle est à
+  calibrer de nouveau.
 - Calibrage : `POST /api/v1/banking/category-suggestions/calibrations` (un admin) met en file le calibrage du modèle `embed` en
   cours (`nearest-neighbours`, version `1`) ; un calibrage déjà en file ou en cours pour la même clé est le même.
   `GET` (tout adulte) donne le modèle, l'empreinte, l'état du dernier calibrage (`queued`, `running`, `done`, `failed` avec le code de
@@ -806,10 +816,12 @@ seul ; aucun ne passe la règle des 5 %, « Par le sens » sur `bge-m3` reste le
   modèle. Il consigne, à ce seuil, montrées, correctes, fausses, « je ne sais pas », l'intervalle de Wilson à 95 % du taux d'erreur
   et la couverture. Un modèle changé en cours de route donne `failed` (`ai.model_unavailable`).
 - **Worker `decide` (#450)** : quand l'usage `decide` a un modèle qu'un worker déclare, c'est lui que « Calibrer » mesure, sous la
-  clé (implémentation et version déclarées, modèle, empreinte `decide`) ; sinon, les voisins proches sur le modèle `embed`. Chaque
-  cas du jeu part comme le job l'enverrait (même texte, options de son côté puis « Aucune de ces catégories », classe `bank_labels`). Avec
-  scores : probabilité = softmax des scores bruts, une **température** apprise sur le jeu (0,25 à 4 par 0,05, au plus petit
-  log-vraisemblance négatif de l'option attendue, « aucune » pour un cas sans catégorie), puis le plus bas seuil de 0,30 à 0,99
+  clé (implémentation déclarée ; version déclarée suivie de la stratégie de Banking, `1/2` pour `llm-choice` `1` en deux temps, #821 ;
+  modèle, empreinte `decide`) ; sinon, les voisins proches sur le modèle `embed`. Chaque cas du jeu part comme le job l'enverrait
+  (même texte, mêmes deux temps sur les catégories de départ, mêmes textes vides, classe `bank_labels`). Avec scores : probabilité =
+  softmax des scores corrigés, une **température** apprise sur le jeu (0,25 à 4 par 0,05, au plus petit log-vraisemblance négatif
+  du sommet attendu, « aucune » pour un cas sans catégorie, puis de la catégorie attendue quand la seconde étape l'offrait), puis le
+  plus bas seuil de 0,30 à 0,99
   sur la probabilité calibrée de la meilleure option, même règle (5 % de fausses au plus sur 20 montrées au moins) ; une table de
   fiabilité (5 tranches : confiance moyenne, justesse, nombre) est consignée. Sans scores (`none`) : le taux d'erreur des
   réponses qui nomment une catégorie ; au plus 5 % sur au moins 20, et le modèle est proposé avec `threshold` nul et

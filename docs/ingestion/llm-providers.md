@@ -303,6 +303,81 @@ chiffres ; deux de `qwen2.5:1.5b` diffèrent d'une réponse.
 - **À régler au déploiement** : dans Docker sur Apple Silicon, Ollama prend 12 fils (cœurs performance et efficacité) ; un
   plongement de 4 jetons y prend environ 3 s, contre 30 ms avec `num_thread` 6. L'essai a mesuré des copies des modèles ci-dessus
   avec `PARAMETER num_thread 6` (mêmes poids) ; le nom d'une copie change l'empreinte, donc demande son propre calibrage.
-- **Défaut conseillé pour un foyer : « Par le sens » sur `bge-m3`**, pas un petit LLM : au moins aussi juste ici, dix fois moins
+- **Défaut conseillé pour un foyer, à cette date : « Par le sens » sur `bge-m3`** (remplacé par l'essai #821 ci-dessous), pas un petit LLM : au moins aussi juste ici, dix fois moins
   coûteux par libellé et sans prompt à maintenir ; il ne suggérera rien tant qu'un calibrage ne lui trouve pas de seuil, ce qui
   est le comportement voulu.
+
+**Essai #821 : d'où viennent les erreurs, ce qui les réduit (2026-11-27).** Même machine, même Ollama, mêmes copies `num_thread` 6,
+même **code réel** (`EngineClient` et `DecideRequest` du worker, `DecideCalibrator`, `DecideCalibration`) ; aucun entraînement,
+aucune donnée de foyer. Une modification est **gardée** quand le taux de fausses de son meilleur point (20 montrées au moins) tombe
+sous la borne basse de l'intervalle de Wilson à 95 % de la base, et seulement alors ; la cible de 5 % ne bouge pas.
+
+*Répartition des erreurs, jeu version 1, avant tout changement.* « Meilleur point » comme ci-dessus ; « choix » = l'option la mieux
+notée de chaque cas, sans seuil.
+
+| Modèle, mode | Meilleur point | Par sens | D'où viennent les fausses |
+|---|---|---|---|
+| `bge-m3`, avec historique | 0,77 : 7/27 = 26 % [13–45 %] | débit 7/22, crédit 0/5 | Des noms qui se ressemblent par la forme : `CARREFOUR STATION` et `INTERMARCHE CARBURANT` (carburant) près de supermarchés de l'historique (2), `ENERCOOP` → Courses, `LA VIE` → Divers, `CONSERVATOIRE` → Divers, `LE MONDE` → Divers, `LIBRAIRIE DU` → École. Justesse du plus proche voisin par tranche de similarité : 26/75 à 0,60–0,65, 18/26 à 0,75–0,80, 11/16 au-delà : jamais plus de 70 % environ. |
+| `bge-m3`, sans historique | 0,59 : 14/33 = 42 % [27–59 %] | débit 12/24, crédit 2/9 | **4 sur 14 sont le parent de la catégorie attendue** (`HABITAT` → Logement, `TRAINLINE` → Transport, `KANGOUROU KIDS` → Enfants, `SAMSUNG SHOP` → Shopping) ; 2 sur des cas sans catégorie (`ASSURANCE VIE` → Assurances, `REMISE CHEQUE` → Remboursements). |
+| `nomic-embed-text`, avec / sans historique | 0,79 : 4/21 = 19 % [8–40 %] ; 0,66 : 5/26 = 19 % [9–38 %] | | Mêmes causes. |
+| `qwen2.5:3b`, `llm-choice` 1 | 0,70 : 9/29 = 31 % [17–49 %] | débit 6/12, crédit 3/17 | **6 sur 9 sont le parent de l'attendue** (`AUCHAN`, `SUPER U`, `EPICERIE VERTE` → Alimentation ; `PAIE …` → Revenus), 2 hôtels → Restaurants. Au choix, lettre juste 40/343 au débit : sur 301 débits faux, **121 vont à `H`** (« Logement › Internet & téléphone ») **et 62 à `h`** (« Banque & frais »). |
+| `qwen2.5:1.5b`, `llm-choice` 1 (options de la v1, sur le jeu v2) | 0,30 : 9/30 = 30 % [17–48 %] | débit 0/0, crédit 9/30 | Aucun débit montré : lettre juste 15/343, presque tout part à « Banque & frais » ; au crédit, des virements de particuliers ou de chèques vers Remboursements ou Loyers perçus. |
+
+Ce n'est pas que la casse. Interrogé directement, sur la liste des seuls sommets (13 options, aucune lettre minuscule),
+`qwen2.5:3b` répond « Banque & frais » pour `MATMUT`, `INTERSPORT`, `SHELL`, `FREE TELECOM`, `UNIQLO` (« Enfants » pour `LIDL`),
+et encore « Banque & frais » quand on lui demande le nom de la catégorie plutôt que sa lettre : le modèle lit « opération bancaire » et penche vers « Banque ». Un prompt
+qui demande de reconnaître le commerçant d'abord (sondé sur 8 libellés, non mesuré sur le jeu) déplace le penchant vers « Shopping »
+sans le corriger.
+
+*Audit du jeu : version 2.*
+- Les 65 cas `null` relus : virements entre particuliers ou vers ses propres comptes, retraits, relevés de carte, prestataires de
+  paiement sans enseigne (SumUp, Stripe, PayPal, Lydia…), chèques. Aucune catégorie de dépense ou de revenu ne leur convient (les
+  mouvements internes ne sont pas des options) ; ils restent. `ASSURANCE VIE` au débit aussi : un versement sur un contrat est de
+  l'épargne. **Un seul était faux** : « ANNULATION OPERATION » au crédit est un remboursement, il attend désormais `income.refunds`.
+- **Les parents** : offerts, ils prenaient les lignes de leurs enfants, et chaque fois la suggestion était à corriger. Plutôt que de
+  compter un parent comme juste, **un parent qui a des enfants n'est plus une option** : une ligne va dans sa catégorie la plus
+  précise (options du jeu, démarrage à froid à la lecture, seconde étape du worker).
+- L'historique couvre chaque catégorie attendue (4 à 13 lignes, des commerces du même genre que les cas) : les erreurs ne viennent
+  pas d'un trou de l'historique, mais de noms d'enseigne dont le sens n'est pas dans le nom.
+- Jeu en **version 2** ; un profil mesuré sur une autre version n'est **ni appliqué ni montré** (`CurrentProfileAsync`) : le modèle
+  est à calibrer de nouveau.
+
+*Essais, chacun mesuré sur le même jeu et la même machine.* Les voisins et le premier essai LLM sur la version 1, les derniers par le
+calibrage réel sur la version 2 (qui ne diffère que d'un cas). Les prototypes de la correction donnaient à une option absente des
+réponses vides une probabilité de 10⁻⁶ ; le code gardé lui donne la plus basse probabilité notée, plus prudent, et c'est lui que le
+calibrage réel mesure.
+
+| Essai | Modèle | Meilleur point (ou seuil retenu par la règle) | Gardé ? |
+|---|---|---|---|
+| Voisins : 1, 3, 5 ou 10 voisins ; votes pondérés par la similarité ; marge de 0,03 ou 0,06 entre le plus proche voisin de la catégorie en tête et celui d'une autre | `bge-m3` | de 19 % (5 voisins, marge 0,06 : 9/48 [10–32 %] à 0,49) à 28 % ; la base : 26 % [13–45 %] | Non : tous dans l'intervalle de la base |
+| Idem | `nomic-embed-text` | de 19 % [8–40 %] à 27 % | Non |
+| e5 multilingue (`query:` / `passage:`) | — | Absent de la bibliothèque officielle d'Ollama (`multilingual-e5-large`, `-base`, `-small` : introuvables) | Non essayé |
+| **Feuilles seules** au démarrage à froid | `bge-m3` | 42 % [27–59 %] → **5/25 = 20 % [9–39 %]** à 0,59 | **Oui** |
+| Idem | `nomic-embed-text` | 19 % [9–38 %] → **2/24 = 8 % [2–26 %]** à 0,66 | **Oui** |
+| Feuilles seules, marge 0,04 ou 0,06 au lieu de 0,02 | `bge-m3` / `nomic` | 3/22 = 14 % [5–33 %] / inchangé | Non |
+| Deux étapes (les sommets et « aucune », puis les enfants du sommet choisi), sans autre changement | `qwen2.5:3b` | 7/21 = 33 % [17–55 %] à 0,91 ; sommet juste 59/343 au débit | Non, seul |
+| Correction contextuelle, une étape (37 options) : chaque score moins le log de la probabilité moyenne de l'option sur 3 textes vides (`N/A`, `[MASQUÉ]`, `X`) | `qwen2.5:3b` | 5/29 = 17 % [8–35 %] à 0,70 ; la règle passait de justesse (1/22 à 0,77) | Remplacée par la suivante |
+| Deux étapes + correction | `qwen2.5:3b` | 2/31 = 6 % [2–21 %] à 0,66 ; règle : aucun seuil | Remplacée par la suivante |
+| **Deux étapes + correction + noms des enfants dans le sommet** (« Logement (Ameublement, Charges & énergie, …) ») | `qwen2.5:3b` | Prototype, jeu v1 : 1/23 = 4 % [1–21 %] à 0,80. Calibrage réel, jeu v2 : **seuil 0,67 : 1/30 = 3 % [1–17 %], couverture 7 %** ; sommet juste 96/343 au débit, 44/69 au crédit | **Oui** |
+| Idem | `qwen2.5:1.5b` | 10/20 = 50 % [30–70 %] à 0,30 ; règle : aucun seuil | Le modèle reste refusé |
+
+**Résultat.** `qwen2.5:3b` sur un worker **passe la règle** : à une probabilité calibrée de 0,67 (température 4, la borne du
+balayage), 30 suggestions sur 412 libellés, 29 justes, 1 fausse (`FLINK COURSES`, attendu « Livraison », suggéré « Courses ») ;
+20 au crédit, 10 au débit. 649 appels au moteur pour les 412 cas (une ou deux étapes par libellé, et les 3 textes vides de chaque
+requête) en 219 s, soit environ 0,5 s par libellé ; 2,4 Go chargé. Les voisins proches (`bge-m3`, `nomic-embed-text`) et
+`qwen2.5:1.5b` ne la passent toujours pas.
+
+**Réserves.**
+- La règle porte sur le point : 1 sur 30, mais la borne haute de l'intervalle est 17 %. Une fausse de plus à ce seuil (2/30) et
+  le calibrage le refuserait.
+- Les noms des enfants dans le sommet et la correction ont été choisis en regardant ce même jeu, qui sert aussi au calibrage :
+  sans jeu tenu à part, le chiffre est sans doute optimiste.
+- Le calibrage mesure les catégories de départ ; un foyer qui les a beaucoup renommées ou complétées n'est pas mesuré sur les
+  siennes (limite de #450, inchangée).
+- La façon de demander est la stratégie `2` de Banking, versée dans la version du profil (`llm-choice` `1/2`) : un profil en une
+  étape ne s'applique pas, ni les réponses gardées sous l'ancienne clé. Le contrat `decide/v1` du worker et son prompt sont
+  inchangés.
+
+- **Recommandation (remplace la précédente)** : pour un foyer qui a un worker capable de charger `qwen2.5:3b` (2,4 Go), régler
+  l'usage `decide` sur ce modèle et le calibrer. « Par le sens » sur `bge-m3` reste sans suggestion tant que son calibrage ne trouve
+  pas de seuil.
