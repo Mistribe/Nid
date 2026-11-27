@@ -5,7 +5,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { renderApp } from '@/test/renderApp';
 import { server } from '@/test/server';
 import type { GoalList } from '@/api/goals';
-import { list, summary } from './testData';
+import { eur, list, summary } from './testData';
 import { expectOnePrimary } from '@/test/headerActions';
 
 function serve(body: GoalList, seen: string[] = []) {
@@ -41,6 +41,33 @@ describe('GoalsPage', () => {
     expect(within(items[0]!).getByRole('link', { name: 'Voyage' })).toHaveAttribute('href', '/goals/b');
     expect(screen.getByRole('link', { name: 'Nouvel objectif' })).toHaveAttribute('href', '/goals/new');
     await expectNoAxeViolations(container);
+  });
+
+  it('folds the goals of the same owners into one row with the server totals; the switch lists them flat, kept in the URL', async () => {
+    const alice = [{ personId: '0192f0aa-0000-7000-8000-0000000000a1', shareBp: 10000 }];
+    const bike = summary({ id: 'c', name: 'Vélo' });
+    serve(list([summary({ id: 'a', name: 'Voyage', owners: alice }), summary({ id: 'b', name: 'Voiture', owners: alice }), bike], [
+      { owners: alice, items: ['a', 'b'], reached: eur('4000.00'), target: eur('10000.00') },
+      { owners: bike.owners, items: ['c'], reached: bike.reached, target: bike.target },
+    ]));
+    const { user, router } = await renderApp('/goals');
+
+    expect(await rows()).toHaveLength(2);
+    const [group] = await rows();
+    expect(group).toHaveTextContent('2 objectifs');
+    expect(group).toHaveTextContent('4 000,00 € / 10 000,00 €');
+    await user.click(within(group!).getByRole('button', { name: 'Déplier les objectifs' }));
+    const names = async () => (await rows()).map((r) => within(r).getAllByRole('cell')[0]!.textContent);
+    expect(await names()).toEqual(['2 objectifs', 'Voyage', 'Voiture', 'Vélo']);
+
+    const grouping = screen.getByRole('switch', { name: 'Regrouper par propriétaire' });
+    expect(grouping).toBeChecked();
+    await user.click(grouping);
+    await waitFor(() => expect(router.state.location.search).toMatchObject({ flat: 1 }));
+    expect(await names()).toEqual(['Voyage', 'Voiture', 'Vélo']);
+    await user.click(screen.getByRole('switch', { name: 'Regrouper par propriétaire' }));
+    await waitFor(() => expect(router.state.location.search).not.toHaveProperty('flat'));
+    expect(await rows()).toHaveLength(2);
   });
 
   it('shows dashes and the reason, not zero, when nothing is computed', async () => {

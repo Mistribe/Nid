@@ -10,7 +10,9 @@ export const summary = (over: Partial<GoalSummary> = {}): GoalSummary => ({
   monthlyPace: eur('150.0000'), projectedOn: '2027-09-01', status: 'behind', partial: false, flags: [], ...over,
 });
 
-export const list = (items: GoalSummary[]): GoalList => ({ items });
+// Each goal in a group of its own unless the test names the groups: nothing gathered.
+export const list = (items: GoalSummary[], groups?: GoalList['groups']): GoalList =>
+  ({ items, groups: groups ?? items.map((i) => ({ owners: i.owners, items: [i.id], reached: i.reached, target: i.target })) });
 
 export const ENVELOPE = '0192f0aa-0000-7000-8000-00000000b001';
 

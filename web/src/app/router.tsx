@@ -128,6 +128,9 @@ const fxSearch = (search: Record<string, unknown>): DetailSearch & { quote?: str
 };
 
 /** The loans list's own filter: ended loans shown on demand (3B1 design §5), anything but `1` dropped; the tab (loans dashboard §3.1); the timeline's window (§4.2). */
+/** The goals list's flat view (`flat`: the owners' groups unfolded for good, #801) and its tab. */
+export type GoalsSearch = { flat?: 1; tab?: string };
+
 export type LoansSearch = { ended?: 1; flat?: 1; tab?: string; span?: '5y' | '10y' };
 
 /** Issue #412: a new goal opened as an emergency fund of `months` (1 to 24, anything else dropped). */
@@ -285,7 +288,10 @@ const goalsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/goals',
   beforeLoad: requireModule('goals'),
-  validateSearch: detailSearch,
+  validateSearch: (search: Record<string, unknown>): GoalsSearch => ({
+    ...(search.flat === 1 || search.flat === '1' ? { flat: 1 as const } : {}),
+    ...detailSearch(search),
+  }),
   component: lazyRouteComponent(() => import('@/features/goals/GoalsPage'), 'GoalsPage'),
 });
 

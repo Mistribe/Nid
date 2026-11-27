@@ -77,6 +77,28 @@ public class GoalReadTests(PostgresFixture fixture) : IClassFixture<PostgresFixt
     }
 
     [Fact]
+    public async Task The_list_gathers_the_goals_of_the_same_owners_with_their_totals() // #801
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var livret = await EnvelopeAsync(app, app.AdultA, Visibility.Shared, "3000");
+        var trip = await GoalAsync(app, app.AdultA, funding: (livret, 10_000));
+        var car = await GoalAsync(app, app.AdultA, "Voiture", targetAmount: "5000.50");
+        var ofB = await GoalAsync(app, app.AdultB, "Vélo", targetAmount: "2000");
+
+        var list = await GetAsync(app, app.AdultA, $"{Goals}?scope=household");
+
+        var groups = list.GetProperty("groups").EnumerateArray().ToDictionary(g => g.GetProperty("owners")[0].GetProperty("personId").GetGuid());
+        Assert.Equal(2, groups.Count);
+        var ofA = groups[app.AdultA.Value];
+        Assert.Equal(new[] { trip.Value, car.Value }.Order(), ofA.GetProperty("items").EnumerateArray().Select(i => i.GetGuid()).Order());
+        Assert.Equal(15000.50m, Amount(ofA, "target"));
+        Assert.Equal(3000m, Amount(ofA, "reached"));
+        Assert.Equal("EUR", ofA.GetProperty("target").GetProperty("currency").GetString());
+        Assert.Equal([ofB.Value], groups[app.AdultB.Value].GetProperty("items").EnumerateArray().Select(i => i.GetGuid()));
+        Assert.Equal(2000m, Amount(groups[app.AdultB.Value], "target"));
+    }
+
+    [Fact]
     public async Task Savings_goal_with_one_envelope_on_track()
     {
         await using var app = await NidApp.StartAsync(fixture);
