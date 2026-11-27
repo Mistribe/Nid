@@ -54,6 +54,34 @@ public sealed class GatewayTests(PostgresFixture fixture) : IClassFixture<Postgr
     }
 
     [Fact]
+    public async Task Straight_to_the_cloud_a_chat_turn_never_reaches_a_worker()
+    {
+        // #819: a paired worker that declares the model, set as the use's: with the mode cloud and no profile, the turn goes nowhere.
+        var engine = Engine();
+        await using var world = await StartAsync(engine);
+        await world.PairAsync();
+        await SetModelAsync(world, "llama3.2");
+        Assert.Equal(HttpStatusCode.OK,
+            (await world.Nid.RawAsync(world.Nid.AdultA, HttpMethod.Put, "/api/v1/ai/settings/uses/chat", new { mode = "cloud" })).StatusCode);
+
+        var failed = await Assert.ThrowsAsync<ModelRefused>(() => ChatAsync(world, new LlmChatRequest(ModelUses.Chat, Hello, [], 128, "figures")));
+
+        Assert.Equal(JobCodes.NoCloudProfile, failed.Code);
+        Assert.Empty(engine.ChatRequests);
+        Assert.Equal(JobCodes.NoCloudProfile, await ChatReasonAsync(world));
+    }
+
+    [Fact]
+    public async Task Only_the_chat_may_go_straight_to_the_cloud()
+    {
+        await using var world = await StartAsync(Engine());
+
+        foreach (var use in new[] { "embed", "extract", "decide" })
+            Assert.Equal(HttpStatusCode.UnprocessableEntity,
+                (await world.Nid.RawAsync(world.Nid.AdultA, HttpMethod.Put, $"/api/v1/ai/settings/uses/{use}", new { mode = "cloud" })).StatusCode);
+    }
+
+    [Fact]
     public async Task A_use_turned_off_sends_nothing()
     {
         var engine = Engine();

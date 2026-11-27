@@ -19,7 +19,8 @@ const CAPABILITY: Record<string, string> = { chat: 'chat', extract: 'chat', embe
 /**
  * « Modèles » (#486, decision H, #585): for each use, how far it may go and the model it runs on, among the models the
  * paired workers declare. Self-hosted is the default; going on to a cloud provider is offered once one serving the use is
- * enabled. #556: `embed` may also run on an enabled cloud profile's model, the one model of the whole index.
+ * enabled. #556: `embed` may also run on an enabled cloud profile's model, the one model of the whole index. #819: the chat may
+ * go straight to the cloud, on each profile's own model: no worker, no model to choose.
  */
 export function ModelsSection() {
   const { t } = useTranslation();
@@ -59,11 +60,18 @@ export function ModelsSection() {
                 // Offered once a cloud profile serving the use is enabled (#487, #556), or while set.
                 ...(enabledFor(use.use).length > 0 || use.mode === 'self_hosted_then_cloud'
                   ? [{ value: 'self_hosted_then_cloud', label: t('ai.models.mode_cloud') }] : []),
+                ...(use.use === 'chat' && (enabledFor('chat').length > 0 || use.mode === 'cloud')
+                  ? [{ value: 'cloud', label: t('ai.models.mode_cloud_only') }] : []),
               ]} />
             )}
           </Field>
+          {use.mode === 'cloud' ? (
+            <Field label={t('ai.models.model')} hint={t('ai.models.cloud_only_hint')}>
+              {(c) => <Input {...c} readOnly value={t('ai.models.cloud_only_model')} />}
+            </Field>
+          ) : null}
           {/* #450: without a model of its own, decide compares labels by meaning with the embed use's model: shown, not chosen. */}
-          {use.use === 'decide' && offered.length === 0 ? (
+          {use.mode === 'cloud' ? null : use.use === 'decide' && offered.length === 0 ? (
             <Field label={t('ai.models.model')} hint={embedModel ? t('ai.models.decide_by_meaning') : t('ai.models.decide_needs_embed')}>
               {(c) => <Input {...c} readOnly value={embedModel ? t('ai.models.decide_embed_model', { name: embedModel }) : t('ai.models.no_model')} />}
             </Field>

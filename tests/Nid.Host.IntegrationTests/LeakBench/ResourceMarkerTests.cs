@@ -39,6 +39,7 @@ public class ResourceMarkerTests
     private static readonly Dictionary<(string Handler, string Check), string> Kept = new()
     {
         [(nameof(UpdateBankAccountHandler), nameof(BankingAccess.AccountAsync))] = "the account a card is attached to, after the owner check",
+        [(nameof(CompleteConnectionHandler), nameof(BankingAccess.AccountAsync))] = "the connection's only checking account a new card goes with",
         [("UnlinkTransactionHandler", nameof(BankingAccess.AccountAsync))] = "the link's counterpart account (D19), not the line's",
         [(nameof(ImportStatementHandler), nameof(BankingAccess.AccountAsync))] = "the account the file names, found by its IBAN",
         [(nameof(SyncAllHandler), nameof(BankingAccess.EnabledAsync))] = "the nightly job runs its retention with banking off too",

@@ -120,6 +120,21 @@ public static class CloudEmbedModels
         => profiles.All.Any(p => p.Model == model && p.Capabilities.Contains(ModelUses.Embed));
 }
 
+public static class CloudProfiles
+{
+    /// <summary>The enabled profiles serving <paramref name="capability"/>, under the terms they were enabled on (terms reviewed
+    /// since must be accepted again), eligible in the household's region, not suspended.</summary>
+    public static async Task<IReadOnlyList<LlmProfile>> EligibleAsync(
+        ILlmProfiles profiles, ICloudSettings settings, CloudBreaker breaker, string capability, CancellationToken ct)
+    {
+        var region = await settings.RegionAsync(ct);
+        var enabled = (await settings.EnabledAsync(ct)).ToDictionary(e => e.ProfileId, e => e.AcceptedReviewedOn, StringComparer.Ordinal);
+        return [.. profiles.All.Where(p => enabled.TryGetValue(p.Id, out var accepted) && accepted == p.DataTerms.ReviewedOn
+                                            && region is not null && p.EligibleIn(region) && p.Capabilities.Contains(capability)
+                                            && !breaker.IsSuspended(p.Id))];
+    }
+}
+
 /// <summary>§5.3: three failures in a row suspend a profile for 15 minutes; a success clears its count.</summary>
 public sealed class CloudBreaker(IClock clock)
 {
@@ -142,7 +157,8 @@ public sealed class CloudBreaker(IClock clock)
 }
 
 /// <summary>
-/// The enabled cloud profiles, after the workers (§5.3), for a use set to <c>self_hosted_then_cloud</c>: eligible in the
+/// The enabled cloud profiles, after the workers (§5.3), for a use set to <c>self_hosted_then_cloud</c>, or alone for one set to
+/// <c>cloud</c> (#819): eligible in the
 /// household's region, with a key, not suspended. A transient failure before any output moves to the next profile; a
 /// refusal does not. Local-only data never goes there; documents only to embed them (#556: <see cref="LlmEmbedder"/> checks
 /// <c>allowed_kinds</c>); bank labels wait for <c>allowed_kinds</c> (§6.1).
@@ -158,7 +174,7 @@ public sealed class CloudProvider(
 
     public int Order => 1;
 
-    public bool Allows(string mode) => mode == UseModes.SelfHostedThenCloud;
+    public bool Allows(string mode) => UseModes.ReachesCloud(mode);
 
     public async IAsyncEnumerable<Result<ChatRequestOutput>> ChatAsync(
         ChatRequestInput input, string dataClass, LlmCallTrace trace, [EnumeratorCancellation] CancellationToken ct)
@@ -307,16 +323,8 @@ public sealed class CloudProvider(
         return ModelFailures.Of(blocked ? JobCodes.BudgetBlocked : JobCodes.NoCloudProfile);
     }
 
-    /// <summary>The enabled profiles serving <paramref name="capability"/>, under the terms they were enabled on (terms reviewed
-    /// since must be accepted again), eligible in the household's region, not suspended.</summary>
-    private async Task<IReadOnlyList<LlmProfile>> EligibleAsync(string capability, CancellationToken ct)
-    {
-        var region = await settings.RegionAsync(ct);
-        var enabled = (await settings.EnabledAsync(ct)).ToDictionary(e => e.ProfileId, e => e.AcceptedReviewedOn, StringComparer.Ordinal);
-        return [.. profiles.All.Where(p => enabled.TryGetValue(p.Id, out var accepted) && accepted == p.DataTerms.ReviewedOn
-                                            && region is not null && p.EligibleIn(region) && p.Capabilities.Contains(capability)
-                                            && !breaker.IsSuspended(p.Id))];
-    }
+    private Task<IReadOnlyList<LlmProfile>> EligibleAsync(string capability, CancellationToken ct)
+        => CloudProfiles.EligibleAsync(profiles, settings, breaker, capability, ct);
 
     /// <summary>A paid profile's hold on the month's budget; null for a free one.</summary>
     private Task<Hold?> ReserveAsync(LlmProfile profile, ChatRequestInput turn, CancellationToken ct)

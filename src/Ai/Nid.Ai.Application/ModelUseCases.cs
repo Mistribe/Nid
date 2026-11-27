@@ -38,7 +38,7 @@ public sealed class SetUseModeHandler(IAiSettings settings, INotifier notifier, 
     {
         if (!ModelUses.All.Contains(command.Use))
             return Result.Failure<PolicyChange<AiSettingsView>>(new Failure(JobCodes.UnknownUse, "No such use.", null));
-        if (!UseModes.All.Contains(command.Mode))
+        if (!UseModes.All.Contains(command.Mode) || !UseModes.Offers(command.Use, command.Mode))
             return Result.Failure<PolicyChange<AiSettingsView>>(new Failure(JobCodes.UnknownMode, "No such mode.", null));
 
         var before = (await settings.UseAsync(command.Use, ct)).Mode;
@@ -48,8 +48,8 @@ public sealed class SetUseModeHandler(IAiSettings settings, INotifier notifier, 
             return Result.Failure<PolicyChange<AiSettingsView>>(
                 new ConflictFailure("Another adult changed it at the same moment: read it again.") { Code = JobCodes.SettingsChanged });
 
-        var cloudBefore = before == UseModes.SelfHostedThenCloud;
-        var cloudNow = command.Mode == UseModes.SelfHostedThenCloud;
+        var cloudBefore = UseModes.ReachesCloud(before);
+        var cloudNow = UseModes.ReachesCloud(command.Mode);
         if (cloudBefore != cloudNow)
             await DataPolicyNotices.TellAsync(notifier, cloudNow ? "cloud_on" : "cloud_off", null, clock.GetCurrentInstant(), ct,
                 new Dictionary<string, string> { ["use"] = command.Use });

@@ -70,7 +70,7 @@ public partial class AuditCompletenessTests(PostgresFixture fixture) : IClassFix
         ["src/Banking/Nid.Banking.Infrastructure/Persistence/PatternIndexStore.cs"] = 3, // #450: pattern_embedding and category_embedding, derived from the labels and the category names (pgvector's type, in SQL), as chunk_embedding: their inserts, a renamed category's old vector
         ["src/Banking/Nid.Banking.Infrastructure/Persistence/RuleStore.cs"] = 2,     // last_used_at (not audited); recurring_group: excluded (the job's memory)
         ["src/Banking/Nid.Banking.Infrastructure/Persistence/SyncRunLog.cs"] = 3,    // sync_run: excluded
-        ["src/Banking/Nid.Banking.Infrastructure/Persistence/TransactionStore.cs"] = 3, // transaction: excluded; the account's advisory lock; reconciled_at (the job's mark, données brutes de la banque, ni décision ni réglage)
+        ["src/Banking/Nid.Banking.Infrastructure/Persistence/TransactionStore.cs"] = 4, // transaction: excluded; the account's advisory lock; reconciled_at, set by the job's mark and cleared when a card is attached (the job's mark, données brutes de la banque, ni décision ni réglage)
         ["src/Core/Nid.Core.Infrastructure/Persistence/FxRateStore.cs"] = 1,       // fx_rate: excluded (U8)
         ["src/Core/Nid.Core.Infrastructure/Persistence/FxRunLog.cs"] = 3,          // fx_sync_run: excluded
         ["src/Core/Nid.Core.Infrastructure/Persistence/HouseholdSettings.cs"] = 2, // advisory locks: provisioning, projection assumptions (#155)

@@ -271,5 +271,15 @@
     "monthly_hint": "12 derniers mois",
     "per_km_label": "Coût au km",
     "partial": "partiel"
+  },
+  "assets_mileage": {
+    "title": "Relevés de kilométrage",
+    "col_date": "Date",
+    "col_km": "Kilométrage",
+    "col_actions": "Actions",
+    "empty": "Aucun relevé : mettez à jour le kilométrage depuis le menu de la fiche.",
+    "row_menu": "Actions pour le relevé du {{date}}",
+    "delete_confirm": "Supprimer ce relevé ? Le coût au km sera recalculé sans lui.",
+    "deleted": "Relevé supprimé."
   }
 }

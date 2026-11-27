@@ -81,7 +81,9 @@ function useBlocked(): { text: string; to?: '/settings/ai' | '/admin/ai' } | nul
   const me = $api.useQuery('get', ASSISTANT_ME);
   const settings = $api.useQuery('get', AI_SETTINGS);
   if (me.data && !me.data.enabled) return { text: t('ai.panel.off'), to: '/settings/ai' };
-  if (settings.data && !settings.data.uses.find((u) => u.use === 'chat')?.model)
+  const chat = settings.data?.uses.find((u) => u.use === 'chat');
+  // #819: straight to the cloud, the chat runs on each profile's own model.
+  if (settings.data && chat?.mode !== 'cloud' && !chat?.model)
     return capabilities.admin ? { text: t('ai.panel.no_model_admin'), to: '/admin/ai' } : { text: t('ai.panel.no_model') };
   return null;
 }

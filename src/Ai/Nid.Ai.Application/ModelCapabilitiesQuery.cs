@@ -14,7 +14,8 @@ namespace Nid.Ai.Application;
 public sealed record GetModelCapabilitiesQuery : IQuery<ModelCapabilities>;
 
 [RequestHandler<GetModelCapabilitiesQuery, ModelCapabilities>]
-public sealed class GetModelCapabilitiesHandler(IWorkerStore store, IAiSettings settings, IClock clock)
+public sealed class GetModelCapabilitiesHandler(
+    IWorkerStore store, IAiSettings settings, IClock clock, ILlmProfiles profiles, ICloudSettings cloud, CloudBreaker breaker)
     : IRequestHandler<GetModelCapabilitiesQuery, ModelCapabilities>
 {
     public const string Echo = "echo";
@@ -43,7 +44,7 @@ public sealed class GetModelCapabilitiesHandler(IWorkerStore store, IAiSettings 
             views.Add(View(ModelUses.Chat, [], remoteAllowed));
         var chat = await settings.UseAsync(ModelUses.Chat, ct);
         var index = views.FindIndex(v => v.Capability == ModelUses.Chat);
-        views[index] = views[index] with
+        views[index] = chat.Mode == UseModes.Cloud ? await CloudChatAsync(ct) : views[index] with
         {
             Reason = chat.Mode == UseModes.Off ? JobCodes.UseOff
                 : views[index].Reason is null && chat.Model is null ? JobCodes.NoModel
@@ -51,6 +52,14 @@ public sealed class GetModelCapabilitiesHandler(IWorkerStore store, IAiSettings 
                 : views[index].Reason,
         };
         return Result.Success(new ModelCapabilities(remoteAllowed, views));
+    }
+
+    /// <summary>#819: straight to the cloud, no worker counts; the chat is open while an eligible profile has its provider's key.</summary>
+    private async Task<CapabilityView> CloudChatAsync(CancellationToken ct)
+    {
+        var keys = await cloud.KeyHintsAsync(ct);
+        var eligible = await CloudProfiles.EligibleAsync(profiles, cloud, breaker, ModelUses.Chat, ct);
+        return new CapabilityView(ModelUses.Chat, 0, 0, 0, eligible.Any(p => keys.ContainsKey(p.Provider)) ? null : JobCodes.NoCloudProfile);
     }
 
     private static CapabilityView View(string name, IReadOnlyList<(WorkerRecord Worker, WorkerDeclaration Declaration, bool Online)> serving, bool remoteAllowed)

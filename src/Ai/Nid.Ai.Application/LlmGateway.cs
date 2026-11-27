@@ -145,7 +145,7 @@ public sealed class LlmGateway(
         try
         {
             var use = await settings.UseAsync(request.Use, ct);
-            outcome.Model = use.Model;
+            outcome.Model = use.Mode == UseModes.Cloud ? null : use.Model; // #819: a worker's model, kept for later, not this call's
             if (!Check(request, use).TryGet(out var input, out var refused))
             {
                 outcome.Fail(refused!.Code);
@@ -210,6 +210,9 @@ public sealed class LlmGateway(
         }
     }
 
+    /// <summary>The model a turn names when only cloud profiles may take it: each replaces it with its own.</summary>
+    private const string ProfileModel = "cloud-profile";
+
     /// <summary>What the gateway checks before anything leaves (§9): the use is on and may chat, a model is set, the turn holds.</summary>
     private static Result<ChatRequestInput> Check(LlmChatRequest request, UseSetting use)
     {
@@ -219,7 +222,8 @@ public sealed class LlmGateway(
             return ModelFailures.Of(JobCodes.TaskNotAllowed); // tools only for the chat (§9)
         if (use.Mode == UseModes.Off)
             return ModelFailures.Of(JobCodes.UseOff);
-        if (use.Model is not { } model)
+        // #819: straight to the cloud, the turn runs on each profile's own model; the use's, if any, is a worker's.
+        if ((use.Mode == UseModes.Cloud ? ProfileModel : use.Model) is not { } model)
             return ModelFailures.Of(JobCodes.NoModel);
         var input = new ChatRequestInput(model, request.Messages, request.Tools, request.MaxTokens, request.Temperature);
         return input.IsValid() ? input : ModelFailures.Of(JobCodes.InvalidInput);
@@ -261,7 +265,7 @@ public sealed class WorkerProvider(IModelRequests requests) : ILlmProvider
 {
     public int Order => 0;
 
-    public bool Allows(string mode) => mode is UseModes.SelfHosted or UseModes.SelfHostedThenCloud;
+    public bool Allows(string mode) => UseModes.ReachesWorkers(mode);
 
     public async IAsyncEnumerable<Result<ChatRequestOutput>> ChatAsync(
         ChatRequestInput input, string dataClass, LlmCallTrace trace, [EnumeratorCancellation] CancellationToken ct)

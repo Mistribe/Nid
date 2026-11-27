@@ -320,6 +320,34 @@ describe('Administration › IA', () => {
     expect(screen.queryByRole('option', { name: 'Workers du foyer, puis le cloud' })).not.toBeInTheDocument();
   });
 
+  it('sends the chat straight to the cloud, on the provider\'s own model, once a chat profile is enabled (#819)', async () => {
+    const embed = { ...PROFILE, id: 'openai-embed', provider: 'openai', model: 'text-embedding-3-small', enabled: true, keyHint: 'WXYZ', capabilities: ['embed'] };
+    serve([], false, USES, [{ ...PROFILE, enabled: true, keyHint: 'WXYZ' }, embed]);
+    const sent: unknown[] = [];
+    server.use(http.put('*/api/v1/ai/settings/uses/chat', async ({ request }) => {
+      sent.push(await request.json());
+      const uses = USES.map((u) => (u.use === 'chat' ? { ...u, mode: 'cloud' } : u));
+      serve([], false, uses, [{ ...PROFILE, enabled: true, keyHint: 'WXYZ' }, embed]);
+      return HttpResponse.json({ remoteWorkersAllowed: false, uses, allowedKinds: [] });
+    }));
+    const { user } = await renderApp('/admin/ai', { capabilities: adminCapabilities });
+
+    // Only the chat may: the search keeps one model for its whole index.
+    const search = (await screen.findByRole('heading', { name: 'Recherche par le sens' })).parentElement!;
+    await user.click(within(search).getByRole('combobox', { name: 'Réglage' }));
+    expect(await screen.findByRole('option', { name: 'Workers du foyer, puis le cloud' })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'Cloud uniquement' })).not.toBeInTheDocument();
+    await user.keyboard('{Escape}');
+
+    const assistant = screen.getByRole('heading', { name: 'Assistant' }).parentElement!;
+    await user.click(within(assistant).getByRole('combobox', { name: 'Réglage' }));
+    await user.click(await screen.findByRole('option', { name: 'Cloud uniquement' }));
+
+    await waitFor(() => expect(sent).toEqual([{ mode: 'cloud' }]));
+    await waitFor(() => expect(within(assistant).getByRole('textbox', { name: 'Modèle' })).toHaveValue('Celui du fournisseur'));
+    expect(within(assistant).queryByRole('combobox', { name: 'Modèle' })).not.toBeInTheDocument();
+  });
+
   it('offers an enabled embed profile as the model of the search, the only one of its index (#556)', async () => {
     const embed = { ...PROFILE, id: 'openai-embed', provider: 'openai', model: 'text-embedding-3-small', enabled: true, keyHint: 'WXYZ', capabilities: ['embed'] };
     serve([worker()], false, USES, [PROFILE, embed]);

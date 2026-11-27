@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Nid.Assets.Application;
 using Nid.Assets.Domain;
 using Nid.Core.Contracts;
+using NodaTime;
 
 namespace Nid.Assets.Infrastructure.Persistence;
 
@@ -54,6 +55,23 @@ public sealed class AssetRecordStore(AssetsDbContext db) : IAssetRecordStore
     public async Task<IReadOnlyList<MileageReading>> ReadingsAsync(ItemId id, CancellationToken ct)
         => (await db.MileageReadings.AsNoTracking().Where(r => r.ItemId == id.Value).OrderBy(r => r.ReadOn).ToListAsync(ct))
             .Select(r => new MileageReading(r.ReadOn, r.Km)).ToList();
+
+    public async Task<bool> RemoveReadingAsync(ItemId id, LocalDate on, CancellationToken ct)
+    {
+        if (await db.MileageReadings.SingleOrDefaultAsync(r => r.ItemId == id.Value && r.ReadOn == on, ct) is not { } reading)
+            return false;
+        db.MileageReadings.Remove(reading);
+        var row = await db.Assets.SingleAsync(a => a.ItemId == id.Value, ct);
+        if (row.MileageOn == on)
+        {
+            var newest = await db.MileageReadings.AsNoTracking().Where(r => r.ItemId == id.Value && r.ReadOn != on)
+                .OrderByDescending(r => r.ReadOn).FirstOrDefaultAsync(ct);
+            row.MileageKm = newest?.Km;
+            row.MileageOn = newest?.ReadOn;
+        }
+        await db.SaveChangesAsync(ct);
+        return true;
+    }
 
     /// <summary>#650: a mileage written becomes that day's reading (a second one the same day replaces it); clearing it keeps the history.</summary>
     private async Task ReadAsync(ItemId id, AssetDetails d, CancellationToken ct)

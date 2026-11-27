@@ -136,8 +136,8 @@ Chaque décision a sa sous-section : décision, raison, options écartées, et l
 
 ### 1.H Décision H : un réglage par usage, auto-hébergé d'abord
 
-- **Décision** : un réglage par usage (`chat`, `decide`, `embed`, `extract`) : `off`, `self_hosted` (« auto-hébergé ») ou
-  `self_hosted_then_cloud`. La chaîne est : workers locaux, workers distants, profils cloud ; les offres gratuites sont
+- **Décision** : un réglage par usage (`chat`, `decide`, `embed`, `extract`) : `off`, `self_hosted` (« auto-hébergé »),
+  `self_hosted_then_cloud` ou, pour le chat seul, `cloud` (#819). La chaîne est : workers locaux, workers distants, profils cloud ; les offres gratuites sont
   des profils cloud à prix nul. Le réglage du chat est un **plafond** ; chaque adulte active encore l'assistant pour lui.
   **Pas de repli en cours de conversation** : une conversation est fixée à la **classe de politique** du worker ou du
   profil qui a servi son premier tour (`local+safe`, `local`, `remote+safe`, `remote` ou `cloud:<profil>`). D23 est
@@ -532,6 +532,10 @@ avec les outils MCP qu'elle appelle. Les usages restent chez leurs modules : Doc
 - `off` : aucun appel. `self_hosted` : workers seulement, les locaux d'abord, puis les distants si leurs règles le
   permettent (§6). `self_hosted_then_cloud` : la même chose, puis les profils cloud activés et éligibles. Les valeurs
   `local` et `local then cloud` de #450 deviennent `self_hosted` et `self_hosted_then_cloud`.
+- `cloud` (#819, chat seulement) : directement les profils cloud activés et éligibles, jamais un worker. Aucun modèle
+  n'est choisi pour l'usage : chaque profil répond avec le sien. Un worker ne sert qu'à déplacer la charge (OCR, modèle
+  local) ; un appel cloud part de Nid, il n'a rien à y faire. Les autres usages ne le proposent pas : `embed` garde un
+  seul modèle pour tout l'index, `extract` lit des documents qui ne partent pas au cloud, `decide` attend #812.
 - Les offres gratuites sont des profils cloud comme les autres, à prix nul ; il n'y a plus de « gratuit d'abord ».
 - Parmi les workers éligibles : locaux d'abord, puis le moins chargé ; un job d'un worker en échec passe à un autre.
 - **Conversation** : elle est fixée à la **classe de politique** de la destination qui a servi son premier tour :
@@ -561,7 +565,7 @@ qui laissent le fournisseur s'entraîner sur les données dans une région n'est
 région du foyer, entre la clé du fournisseur (`llm_provider_credential`, chiffrée par Data Protection, indice des quatre
 derniers caractères, jamais renvoyée), puis active le profil en acceptant ses conditions datées (`cloud_profile`) ; les
 deux adultes sont prévenus (`ai.data_policy_changed`). Un usage réglé sur `self_hosted_then_cloud` passe aux profils
-activés et éligibles après les workers. Seules les classes `none` et `figures` peuvent partir vers le cloud ; `documents`
+activés et éligibles après les workers ; le chat réglé sur `cloud` (#819) y va directement. Seules les classes `none` et `figures` peuvent partir vers le cloud ; `documents`
 et `bank_labels` attendent `allowed_kinds`, `local_only` jamais (§6.1) ; le consentement de chaque adulte (§6.3) vient avec
 #167 et #174. Échec passager (429, 5xx, réseau) : profil suivant ; trois échecs de suite : profil en pause 15 min ; refus
 de la demande : pas d'autre essai. Premier adaptateur : Anthropic (Messages API, `anthropic-version: 2026-10-21`, qui
@@ -586,7 +590,7 @@ déclarés. Sortie structurée validée par schéma côté serveur pour `extract
 
 ### 6.1 Classes de données et destinations
 
-| Classe | Worker local | Worker distant | Worker `safe` | Cloud (`self_hosted_then_cloud`) |
+| Classe | Worker local | Worker distant | Worker `safe` | Cloud (`self_hosted_then_cloud`, `cloud`) |
 |---|---|---|---|---|
 | Contenu des documents `statement`, `amortization_table`, `invoice`, `contract` | Oui | Opt-in du foyer et §6.3 | Selon §6.3 | Si **chacun** de ses types est dans `allowed_kinds` et selon §6.3 (plongements, #556) ; extraction : consentement par dépôt |
 | Contenu d'un document « local seulement » (bulletins de paie par défaut, §6.6) | Seulement s'il est `safe` | Non | **Oui**, selon §6.3 | **Jamais** |

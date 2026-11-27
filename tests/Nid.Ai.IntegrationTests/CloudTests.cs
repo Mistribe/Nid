@@ -88,6 +88,28 @@ public sealed class CloudTests(PostgresFixture fixture) : IClassFixture<Postgres
     }
 
     [Fact]
+    public async Task Straight_to_the_cloud_the_chat_needs_neither_a_worker_nor_a_model()
+    {
+        // #819: no worker paired, no model chosen: the profile answers on its own model, and the assistant says it can.
+        var anthropic = new FakeAnthropic();
+        anthropic.Turn(["Bonjour."]);
+        await using var app = await StartAsync(anthropic);
+        Assert.Equal(HttpStatusCode.OK,
+            (await app.RawAsync(app.AdultA, HttpMethod.Put, "/api/v1/ai/settings/uses/chat", new { mode = "cloud" })).StatusCode);
+        Assert.Equal(JobCodes.NoCloudProfile, await ChatReasonAsync(app));
+        await EnableAsync(app);
+
+        var outputs = await ChatAsync(app, "figures");
+
+        Assert.Equal("Bonjour.", string.Concat(outputs.Select(o => o.Text)));
+        Assert.Equal("claude-opus-5-5", Assert.Single(anthropic.Requests).Body["model"]!.GetValue<string>());
+        Assert.Null(await ChatReasonAsync(app));
+        var me = await (await app.RawAsync(app.AdultB, HttpMethod.Get, "/api/v1/ai/assistant/me")).Content
+            .ReadFromJsonAsync<AssistantMeView>(PairedWorld.NidJson, TestContext.Current.CancellationToken);
+        Assert.True(me!.CloudPossible);
+    }
+
+    [Fact]
     public async Task Terms_reviewed_since_a_profile_was_enabled_must_be_accepted_again()
     {
         var anthropic = new FakeAnthropic();
@@ -315,6 +337,11 @@ public sealed class CloudTests(PostgresFixture fixture) : IClassFixture<Postgres
         // No worker in these tests: the chat's model is set directly (the cloud uses its profile's own).
         await scope.ServiceProvider.GetRequiredService<IAiSettings>().SetUseModelAsync(ModelUses.Chat, "llama3.2", TestContext.Current.CancellationToken);
     }
+
+    private static async Task<string?> ChatReasonAsync(NidApp app)
+        => (await (await app.RawAsync(app.AdultB, HttpMethod.Get, "/api/v1/ai/capabilities")).Content
+                .ReadFromJsonAsync<ModelCapabilities>(PairedWorld.NidJson, TestContext.Current.CancellationToken))!
+            .Capabilities.Single(c => c.Capability == "chat").Reason;
 
     private static AsyncServiceScope Scope(NidApp app)
     {

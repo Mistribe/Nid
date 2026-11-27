@@ -87,6 +87,7 @@ Remplacés par un réglage par usage (#171, `../ai/README.md` §5.3) :
 | `off` | Aucun appel |
 | `self_hosted` (« auto-hébergé », défaut sauf `decide`) | Workers appariés : locaux, puis distants si leurs règles le permettent |
 | `self_hosted_then_cloud` | Workers, puis profils cloud activés et éligibles, gratuits ou payants **si le budget le permet** ; une conversation garde sa destination, sans repli. Pour `embed` (#556), le modèle de l'usage est celui d'un worker **ou** celui d'un profil cloud : tout l'index a un seul modèle, sans repli de l'un vers l'autre |
+| `cloud` (#819, chat seulement) | Profils cloud activés et éligibles, jamais un worker ; aucun modèle à choisir, chaque profil répond avec le sien |
 
 Les anciens modes `local_only`, `free_then_local` et `free_then_local_then_paid` (offres gratuites avant le local) sont abandonnés.
 

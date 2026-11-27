@@ -56,7 +56,7 @@ internal static class AssistantMeViews
     public static async Task<AssistantMeView> ReadAsync(IAssistantPeople people, IAiSettings settings, PersonId person, CancellationToken ct)
     {
         var (enabled, offsite) = await people.GetAsync(person, ct);
-        return new AssistantMeView(enabled, offsite, (await settings.UseAsync(ModelUses.Chat, ct)).Mode == UseModes.SelfHostedThenCloud);
+        return new AssistantMeView(enabled, offsite, UseModes.ReachesCloud((await settings.UseAsync(ModelUses.Chat, ct)).Mode));
     }
 }
 
