@@ -13,6 +13,7 @@ import { Section } from '@/components/page/Section';
 import { ProblemMessage } from '@/components/ProblemMessage';
 import { Button } from '@/components/ui/button';
 import { useLineActions } from '../investments/operations/api';
+import { basisTexts } from './suggestionBasis';
 import '@/locales/banks';
 
 const RuleOfferDialog = lazy(() => import('../investments/operations/CategoryDialog').then((m) => ({ default: m.RuleOfferDialog })));
@@ -93,8 +94,7 @@ function Suggestion({ suggestion: s, busy, onRule, onCategorise, onIgnore }: {
 }) {
   const { t } = useTranslation();
   const more = s.lineCount - s.lines.length;
-  // #450: evidence of patterns near this one by meaning, the pattern having none of its own.
-  const evidence = s.byMeaning ? 'banks.suggestions.by_meaning' : 'banks.suggestions.evidence';
+  const why = basisTexts(s.basis);
   return (
     <li className="space-y-2 py-3">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
@@ -103,9 +103,9 @@ function Suggestion({ suggestion: s, busy, onRule, onCategorise, onIgnore }: {
           {s.direction === 'credit' ? <span className="text-sm text-muted-foreground"> · {t('banks.suggestions.credits')}</span> : null}
         </p>
         <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-          {t('banks.suggestions.lines', { count: s.lineCount })} · {t(evidence, { count: s.evidenceCount })}
-          <InfoTip label={t(evidence, { count: s.evidenceCount })}>
-            {t(s.byMeaning ? 'banks.suggestions.by_meaning_about' : 'banks.suggestions.evidence_about', { agreement: s.agreement, category: s.categoryName })}
+          {t('banks.suggestions.lines', { count: s.lineCount })} · {t(why.label, { count: s.evidenceCount })}
+          <InfoTip label={t(why.label, { count: s.evidenceCount })}>
+            {t(why.about, { agreement: s.agreement, category: s.categoryName })}
           </InfoTip>
         </p>
       </div>

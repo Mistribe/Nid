@@ -679,12 +679,19 @@ livrée par défaut.
   Classe `bank_labels`, `Concerned` = chaque adulte (un worker distant demande l'`allow` de tous), `Kinds` = `bank_labels` (un
   fournisseur cloud seulement si ce type est dans `allowed_kinds`). Un motif qui contient un mot d'un nom du foyer n'est jamais
   envoyé ; ni les lignes ignorées ni les virements internes. Les vecteurs vont dans `banking.pattern_embedding`.
-- À la lecture du bloc « Suggestions », un motif ouvert sans suggestion de l'étape A prend la catégorie des lignes classées à la main
-  de ses 5 plus proches voisins à au moins 0,8 de similarité cosinus, sur les seuls comptes que le lecteur lit, aux seuils de l'étape A
-  (2 lignes, 80 % d'accord). La suggestion porte `byMeaning`.
-- **Écart à §7.3, à régler** : ces seuils sont posés à la main, sans profil d'évaluation ; l'usage `decide` reste `off` par défaut.
-  Le jeu d'évaluation, la capacité `decide` d'un worker (candidats 2 et 3) et le repli sur les seuls noms de catégories (démarrage
-  à froid) restent à faire.
+- Le même passage plonge le texte d'option de chaque catégorie non archivée, hors virements (« Parent › Nom », ou « Nom » pour une
+  catégorie de premier niveau), aux mêmes conditions (`bank_labels`, un nom qui contient un mot d'un nom du foyer n'est pas envoyé),
+  dans `banking.category_embedding` ; une catégorie renommée change de texte, son vecteur est refait.
+- À la lecture du bloc « Suggestions » et de l'onglet « À classer », un motif ouvert sans suggestion de l'étape A prend, si le modèle a
+  un **profil d'évaluation** (§7.3) : la catégorie des lignes classées à la main de ses 5 plus proches voisins à au moins le
+  `threshold` du profil, sur les seuls comptes que le lecteur lit, aux seuils de l'étape A (2 lignes, 80 % d'accord) ; sinon
+  (**démarrage à froid**) la catégorie en usage de son côté (dépenses pour un débit, revenus pour un crédit) dont le nom est le plus
+  proche, à au moins le `cold_threshold` du profil et 0,02 devant la deuxième. La suggestion porte `basis` : `history` (étape A),
+  `meaning` ou `category_name` (alors `evidenceCount` = 0 et `agreement` = la similarité en pour cent) ; `byMeaning` disparaît.
+- **Changement par rapport à #699** : sans profil pour le modèle `embed` et son empreinte, il n'y a plus de suggestion `meaning`
+  (ni `category_name`) ; le seuil fixe de 0,8 disparaît. Un admin calibre le modèle (§7.3) pour les retrouver.
+- La capacité `decide` d'un worker (candidat 3) suit ; le candidat 2 (encodeur zéro-shot en ONNX) est renvoyé à une issue à part :
+  l'API du moteur ne le sert pas.
 
 ### 7.3 Calibrage et seuils
 
@@ -696,6 +703,31 @@ livrée par défaut.
 - Un modèle **sans profil d'évaluation n'est pas proposé** pour `decide`. Un modèle sans scores prend un seuil tiré du
   taux d'erreur global ; le réglage le signale.
 - Les résultats sont consignés dans `../ingestion/llm-providers.md` §14.1.
+
+**Livré (#450, voisins proches)** :
+- **Écart à ce qui précède** : un profil est une **ligne de la base** (`banking.decide_profile`), calculée par le calibrage du foyer
+  lui-même, pas un fichier de `deploy/llm-profiles/decide/`. L'empreinte d'un modèle (`DeclaredModel.Digest`) est le SHA-256 de ce
+  que le moteur dit de lui, date de création comprise : elle change d'une installation à l'autre, un profil livré dans le dépôt ne
+  vaudrait pour aucun foyer. La clé est (implémentation, version, modèle, empreinte) ; la **taille de la liste d'options est
+  consignée** (`options`, le plus d'options qu'un cas a eu), elle n'entre pas dans la clé.
+- Empreinte : `IModelDigests` (Ai.Contracts) donne celle que les workers actifs déclarent pour un modèle et une capacité, `null` si
+  aucun ne le déclare ou si deux divergent ; le modèle cloud de l'usage `embed` a pour empreinte `cloud:<profil>`. Un modèle tiré à
+  nouveau a une autre empreinte : il lui faut un nouveau calibrage.
+- Jeu d'évaluation : `src/Banking/Nid.Banking.Application/Evaluation/category-eval.json` (version 1, ressource embarquée), plus de
+  400 libellés bancaires français inventés (carte, prélèvement, virement, retrait ; débits et crédits), chacun avec sa catégorie de
+  départ attendue (côté dépenses pour un débit, revenus pour un crédit) ou `null` quand aucune ne convient (environ 15 %), et environ
+  200 lignes d'historique inventées. Aucun motif d'un cas n'est un motif de l'historique (l'étape A le déciderait) : un test le
+  vérifie. Les catégories attendues sont les feuilles ; une catégorie parente reste une option.
+- Calibrage : `POST /api/v1/banking/category-suggestions/calibrations` (un admin) met en file le calibrage du modèle `embed` en
+  cours (`nearest-neighbours`, version `1`) ; un calibrage déjà en file ou en cours pour la même clé est le même.
+  `GET` (tout adulte) donne le modèle, l'empreinte, l'état du dernier calibrage (`queued`, `running`, `done`, `failed` avec le code de
+  la passerelle) et le profil en vigueur. `DecideCalibrator`, dans la boucle de `ModelWorkLoop` (30 s), en passe un à la fois : il
+  plonge chaque texte du jeu (classe `none` : données inventées), puis balaie le seuil de 0,50 à 0,95 par 0,01, avec l'historique
+  (`ByMeaning`, 5 voisins) et sur les seuls noms (`ByName`, marge 0,02). Il garde, pour chacun, le **plus bas seuil dont le taux
+  d'erreur parmi les suggestions montrées est d'au plus 5 % sur au moins 20 montrées** ; aucun, et ce mode n'est pas proposé pour ce
+  modèle. Il consigne, à ce seuil, montrées, correctes, fausses, « je ne sais pas », l'intervalle de Wilson à 95 % du taux d'erreur
+  et la couverture. Un modèle changé en cours de route donne `failed` (`ai.model_unavailable`).
+- Le calibrage d'un worker `decide` (température, scores) et l'écran d'admin suivent.
 
 ## 8. L'assistant
 

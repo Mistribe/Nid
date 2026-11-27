@@ -43,19 +43,38 @@ public class CategorySuggestionsTests
         => ByMeaning("NEW SHOP", true, neighbours,
             [new Evidence("SUPER SHOP", true, Groceries, 2), new Evidence("FOOD SHOP", true, Groceries, 3), new Evidence("BISTRO", true, Restaurants, 2),
              new Evidence("SUPER SHOP", false, Restaurants, 5)],
-            id => id != Archived);
+            id => id != Archived, MinSimilarity);
+
+    // The model's profile threshold, here as a household's calibration could set it.
+    private const double MinSimilarity = 0.8;
 
     [Fact]
     public void Patterns_near_by_meaning_decide_on_the_same_thresholds()
     {
         var pick = Near(new Neighbour("NEW SHOP", "SUPER SHOP", 0.9), new Neighbour("NEW SHOP", "FOOD SHOP", 0.85))!;
-        Assert.Equal((Groceries, 5, 5, true), (pick.Category, pick.Lines, pick.Total, pick.ByMeaning));
+        Assert.Equal((Groceries, 5, 5, SuggestionBases.Meaning), (pick.Category, pick.Lines, pick.Total, pick.Basis));
         // Too far: not counted. A disagreeing neighbour brings the agreement under 80 %.
         Assert.Null(Near(new Neighbour("NEW SHOP", "SUPER SHOP", MinSimilarity - 0.01)));
         Assert.Null(Near(new Neighbour("NEW SHOP", "SUPER SHOP", 0.9), new Neighbour("NEW SHOP", "BISTRO", 0.9)));
         // Another pattern's neighbours, or the other direction's lines, never count.
         Assert.Null(Near(new Neighbour("OTHER", "FOOD SHOP", 0.99)));
         Assert.Equal(Groceries, Near(new Neighbour("NEW SHOP", "FOOD SHOP", 0.9))!.Category);
+    }
+
+    private static Pick? Named(params CategoryNeighbour[] near) => ByName("NEW SHOP", true, near, 0.7);
+
+    [Fact]
+    public void With_no_history_the_nearest_category_name_well_ahead_of_the_second_decides()
+    {
+        var pick = Named(new CategoryNeighbour("NEW SHOP", true, Groceries, 0.754), new CategoryNeighbour("NEW SHOP", true, Restaurants, 0.73))!;
+        Assert.Equal((Groceries, 0, SuggestionBases.CategoryName, 75), (pick.Category, pick.Lines, pick.Basis, pick.Agreement));
+        // Under the threshold, or too close to the second: nothing.
+        Assert.Null(Named(new CategoryNeighbour("NEW SHOP", true, Groceries, 0.69)));
+        Assert.Null(Named(new CategoryNeighbour("NEW SHOP", true, Groceries, 0.75), new CategoryNeighbour("NEW SHOP", true, Restaurants, 0.74)));
+        // Another pattern's or the other side's categories do not count, neither to pick nor to compare.
+        Assert.Null(Named(new CategoryNeighbour("OTHER", true, Groceries, 0.9), new CategoryNeighbour("NEW SHOP", false, Groceries, 0.9)));
+        Assert.Equal(Groceries, Named(new CategoryNeighbour("NEW SHOP", true, Groceries, 0.75), new CategoryNeighbour("NEW SHOP", false, Restaurants, 0.749))!.Category);
+        Assert.Equal(("Alimentation › Courses", "Divers"), (OptionText("Alimentation", "Courses"), OptionText(null, "Divers")));
     }
 
     [Fact]

@@ -386,6 +386,15 @@ public static class BankingEndpoints
             })
             .ReturnsNoContent();
 
+        // #450: the model's calibration on the evaluation set; without its profile, nothing is suggested by meaning. Queued, run in the background.
+        api.MapGet("/category-suggestions/calibrations", async (IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new GetCategorySuggestionCalibrationQuery(), ct)).ToHttp(view => view))
+            .Returns<CategorySuggestionCalibrationView>();
+
+        api.MapPost("/category-suggestions/calibrations", async (IInvoker invoker, CancellationToken ct)
+                => (await invoker.InvokeAsync(new CalibrateCategorySuggestionsCommand(), ct)).ToHttp(run => run, StatusCodes.Status202Accepted))
+            .Returns<CalibrationRunView>(StatusCodes.Status202Accepted);
+
         // Read now, in the request: the bank sees the person's own browser (Psu-Ip-Address, Psu-User-Agent), as UseForwardedHeaders resolved it.
         api.MapPost("/sync", async (SyncBody body, HttpContext http, IInvoker invoker, CancellationToken ct)
             => (await invoker.InvokeAsync(new SyncMineCommand(body.ConnectionId, new PsuHeaders(

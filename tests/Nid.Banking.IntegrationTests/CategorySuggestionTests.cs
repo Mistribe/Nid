@@ -39,7 +39,11 @@ public class CategorySuggestionTests(PostgresFixture fixture) : IClassFixture<Po
     private static async Task<Setup> StartAsync(PostgresFixture fixture, Labels? labels = null)
     {
         var app = await BankingApi.StartAsync(fixture,
-            overrides: labels is null ? null : services => services.Replace(ServiceDescriptor.Scoped<IEmbeddings>(_ => labels)));
+            overrides: labels is null ? null : services =>
+            {
+                services.Replace(ServiceDescriptor.Scoped<IEmbeddings>(_ => labels));
+                services.Replace(ServiceDescriptor.Scoped<IModelDigests>(_ => labels));
+            });
         await BankingApi.ConnectAsync(app, app.AdultA, "code-a",
             BankingApi.Account("uid-1", "hash-1", null, "Courant A"), BankingApi.Account("uid-2", "hash-2", null, "Perso A"));
         await BankingApi.ConnectAsync(app, app.AdultB, "code-b", BankingApi.Account("uid-3", "hash-3", null, "Courant B"));
@@ -259,19 +263,36 @@ public class CategorySuggestionTests(PostgresFixture fixture) : IClassFixture<Po
 
         await IndexAsync(app);
 
-        // A household member's name never leaves; the patterns go as data of the class bank_labels, which a cloud provider takes only when allowed.
+        // A household member's name never leaves; the patterns, and the categories' names (transfers never are options), go as data of the
+        // class bank_labels, which a cloud provider takes only when allowed.
         var sent = labels.Requests.SelectMany(r => r.Texts).ToList();
-        Assert.Equal(["CITY MARKET", "GARAGE AUTO", "SUPER MARKET"], sent.Order());
+        Assert.Equal(["CITY MARKET", "GARAGE AUTO", "SUPER MARKET"], sent.Where(t => t == t.ToUpperInvariant()).Order());
+        Assert.Contains("Alimentation › Courses", sent);
+        Assert.DoesNotContain(sent, t => t.StartsWith("Mouvements internes", StringComparison.Ordinal));
         Assert.All(labels.Requests, r =>
         {
             Assert.Equal(DataClasses.BankLabels, r.DataClass);
             Assert.Equal([DataClasses.BankLabels], r.Kinds!);
         });
+        // The model is not calibrated: nothing by meaning.
+        Assert.Null(Group(await PageAsync(app, app.AdultA), "CITY MARKET"));
+
+        await ProfileAsync(app, threshold: 0.8, cold: null);
         var page = await PageAsync(app, app.AdultA);
         var city = Group(page, "CITY MARKET")!.Value;
-        Assert.Equal((Groceries, 2, true), (city.GetProperty("categoryId").GetGuid(), city.GetProperty("evidenceCount").GetInt32(), city.GetProperty("byMeaning").GetBoolean()));
+        Assert.Equal((Groceries, 2, "meaning"), (city.GetProperty("categoryId").GetGuid(), city.GetProperty("evidenceCount").GetInt32(), city.GetProperty("basis").GetString()));
         Assert.Equal(open, Assert.Single(city.GetProperty("lines").EnumerateArray()).GetProperty("id").GetGuid());
         Assert.Null(Group(page, "GARAGE AUTO"));
+
+        // Calibrated for the cold start too: a pattern no one's lines decide takes the category whose name it is near.
+        await ProfileAsync(app, threshold: 0.8, cold: 0.9);
+        var garage = Group(await PageAsync(app, app.AdultA), "GARAGE AUTO")!.Value;
+        Assert.Equal((Seed("transport.vehicle"), 0, 100, "category_name"), (garage.GetProperty("categoryId").GetGuid(), garage.GetProperty("evidenceCount").GetInt32(),
+            garage.GetProperty("agreement").GetInt32(), garage.GetProperty("basis").GetString()));
+        // A re-pulled model is another build: its profile is not this one.
+        labels.Digest = "sha256:other";
+        Assert.Null(Group(await PageAsync(app, app.AdultA), "CITY MARKET"));
+        labels.Digest = "sha256:fake";
         // A pass with nothing new sends nothing.
         labels.Requests.Clear();
         await IndexAsync(app);
@@ -292,6 +313,7 @@ public class CategorySuggestionTests(PostgresFixture fixture) : IClassFixture<Po
         foreach (var label in new[] { "CB SUPER MARKET 1", "CB SUPER MARKET 2" })
             await HandAsync(app, app.AdultA, await AddAsync(app, s.OwnA, label), Groceries);
         await AddAsync(app, s.OwnB, "CB CITY MARKET 3");
+        await ProfileAsync(app, threshold: 0.8, cold: null);
 
         await IndexAsync(app);
         Assert.Empty(labels.Requests);
@@ -315,14 +337,15 @@ public class CategorySuggestionTests(PostgresFixture fixture) : IClassFixture<Po
         var none = await AddAsync(app, s.OwnA, "CB GARAGE AUTO 4");
         await AddAsync(app, s.OwnB, "CB SHOP ONE 5");
         await IndexAsync(app);
+        await ProfileAsync(app, threshold: 0.8, cold: null);
 
         var page = JsonDocument.Parse(await app.GetRawAsync(app.AdultA, $"{BankingApi.Root}/lines-to-classify")).RootElement;
         Assert.Equal(3, page.GetProperty("total").GetInt32());
         var items = page.GetProperty("items").EnumerateArray().ToDictionary(i => i.GetProperty("line").GetProperty("id").GetGuid(), i => i.GetProperty("suggestion"));
         Assert.Equal([byHistory, byMeaning, none], items.Keys.Order());
-        Assert.Equal((Groceries, false, "SHOP ONE"), (items[byHistory].GetProperty("categoryId").GetGuid(), items[byHistory].GetProperty("byMeaning").GetBoolean(),
+        Assert.Equal((Groceries, "history", "SHOP ONE"), (items[byHistory].GetProperty("categoryId").GetGuid(), items[byHistory].GetProperty("basis").GetString(),
             items[byHistory].GetProperty("pattern").GetString()));
-        Assert.True(items[byMeaning].GetProperty("byMeaning").GetBoolean());
+        Assert.Equal("meaning", items[byMeaning].GetProperty("basis").GetString());
         Assert.Equal(JsonValueKind.Null, items[none].ValueKind);
         // A's own accounts are the filter's options, not B's.
         Assert.Equal(["Courant A", "Perso A"], page.GetProperty("accounts").EnumerateArray().Select(a => a.GetProperty("name").GetString()).Order());
@@ -333,6 +356,66 @@ public class CategorySuggestionTests(PostgresFixture fixture) : IClassFixture<Po
         Assert.Equal(0, JsonDocument.Parse(await app.GetRawAsync(app.AdultA, $"{BankingApi.Root}/lines-to-classify?account={s.OwnB}")).RootElement.GetProperty("total").GetInt32());
         var b = JsonDocument.Parse(await app.GetRawAsync(app.AdultB, $"{BankingApi.Root}/lines-to-classify")).RootElement;
         Assert.Equal(1, b.GetProperty("total").GetInt32());
+    }
+
+    private const string Calibrations = $"{Suggestions}/calibrations";
+
+    [Fact]
+    public async Task An_admin_calibrates_the_model_on_the_evaluation_set_and_any_adult_reads_its_profile()
+    {
+        var labels = new Labels();
+        await using var s = await StartAsync(fixture, labels);
+        var app = s.App;
+
+        Assert.Equal(HttpStatusCode.Forbidden, (await app.RawAsync(app.AdultB, HttpMethod.Post, Calibrations)).StatusCode);
+        var queued = await QueueAsync(app);
+        Assert.Equal("queued", queued.GetProperty("status").GetString());
+        // Asked again while queued: the same one.
+        Assert.Equal(queued.GetProperty("id").GetGuid(), (await QueueAsync(app)).GetProperty("id").GetGuid());
+
+        await CalibrateAsync(app);
+
+        var view = JsonDocument.Parse(await app.GetRawAsync(app.AdultB, Calibrations)).RootElement;
+        Assert.Equal(("nearest-neighbours", "fake-embed", "sha256:fake", "done"), (view.GetProperty("implementation").GetString(),
+            view.GetProperty("model").GetString(), view.GetProperty("digest").GetString(), view.GetProperty("latest").GetProperty("status").GetString()));
+        var profile = view.GetProperty("profile");
+        Assert.Equal((CategoryEvalSet.Current.Cases.Count, 5), (profile.GetProperty("cases").GetInt32(), profile.GetProperty("neighbours").GetInt32()));
+        // Invented labels: no household data goes, and every text of the set went once.
+        Assert.All(labels.Requests, r => Assert.Equal(DataClasses.None, r.DataClass));
+        Assert.Contains("LIDL", labels.Requests.SelectMany(r => r.Texts));
+        // Nothing left queued: a pass sends nothing.
+        labels.Requests.Clear();
+        await CalibrateAsync(app);
+        Assert.Empty(labels.Requests);
+
+        // The model changes while it runs: failed, with the gateway's code, and the profile stays the one measured before.
+        await QueueAsync(app);
+        labels.Answering = "another-embed";
+        await CalibrateAsync(app);
+        view = JsonDocument.Parse(await app.GetRawAsync(app.AdultA, Calibrations)).RootElement;
+        Assert.Equal(("failed", JobCodes.ModelUnavailable), (view.GetProperty("latest").GetProperty("status").GetString(),
+            view.GetProperty("latest").GetProperty("code").GetString()));
+        Assert.Equal(JsonValueKind.Object, view.GetProperty("profile").ValueKind);
+
+        // No digest the workers agree on: nothing to calibrate, and nothing in force.
+        labels.Digest = null;
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await app.RawAsync(app.AdultA, HttpMethod.Post, Calibrations)).StatusCode);
+        view = JsonDocument.Parse(await app.GetRawAsync(app.AdultA, Calibrations)).RootElement;
+        Assert.Equal((JobCodes.ModelUnavailable, JsonValueKind.Null), (view.GetProperty("unavailable").GetString(), view.GetProperty("profile").ValueKind));
+    }
+
+    private static async Task<JsonElement> QueueAsync(NidApp app)
+    {
+        var response = await app.RawAsync(app.AdultA, HttpMethod.Post, Calibrations);
+        Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+        return JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement;
+    }
+
+    private static async Task CalibrateAsync(NidApp app)
+    {
+        await using var scope = app.Services.CreateAsyncScope();
+        scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
+        await scope.ServiceProvider.GetRequiredService<DecideCalibrator>().RunOnceAsync(TestContext.Current.CancellationToken);
     }
 
     private static async Task IndexAsync(NidApp app)
@@ -350,10 +433,28 @@ public class CategorySuggestionTests(PostgresFixture fixture) : IClassFixture<Po
         return info.DisplayName.Split(' ')[0];
     }
 
-    /// <summary>The <c>embed</c> use with two topics, markets (« MARKET ») and shops (« SHOP »), and everything else; <see cref="On"/> is the <c>decide</c> use.</summary>
-    private sealed class Labels : IEmbeddings
+    /// <summary>#450: the profile a calibration of the fake model would have left, at these thresholds.</summary>
+    private static async Task ProfileAsync(NidApp app, double? threshold, double? cold)
+    {
+        await using var scope = app.Services.CreateAsyncScope();
+        scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
+        await scope.ServiceProvider.GetRequiredService<IDecideCalibrationStore>().SaveProfileAsync(new DecideProfile(
+            new DecideKey(DecideCalibration.NearestNeighbours, DecideCalibration.NearestNeighboursVersion, "fake-embed", "sha256:fake"), 1, 40, threshold, cold,
+            null, false, new DecideCalibration.Results(400, CategorySuggestions.Neighbours, null, null), SystemClock.Instance.GetCurrentInstant()),
+            TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>
+    /// The <c>embed</c> use with three topics, markets (« MARKET »), shops (« SHOP ») and cars (« GARAGE », « véhicule »), and everything else;
+    /// <see cref="On"/> is the <c>decide</c> use, <see cref="Digest"/> the one the workers declare, <see cref="Answering"/> the model that answers.
+    /// </summary>
+    private sealed class Labels : IEmbeddings, IModelDigests
     {
         public bool On { get; set; } = true;
+
+        public string? Digest { get; set; } = "sha256:fake";
+
+        public string Answering { get; set; } = "fake-embed";
 
         public List<LlmEmbedRequest> Requests { get; } = [];
 
@@ -361,19 +462,23 @@ public class CategorySuggestionTests(PostgresFixture fixture) : IClassFixture<Po
 
         public Task<bool> UseOnAsync(string use, CancellationToken ct) => Task.FromResult(use == ModelUses.Decide && On);
 
+        public Task<string?> DigestAsync(string capability, string model, CancellationToken ct)
+            => Task.FromResult(capability == ModelUses.Embed && model == "fake-embed" ? Digest : null);
+
         public Task<Result<LlmEmbeddings>> EmbedAsync(LlmEmbedRequest request, CancellationToken ct)
         {
             lock (Requests)
                 Requests.Add(request);
-            return Task.FromResult(Result.Success(new LlmEmbeddings("fake-embed", 3,
-                [.. request.Texts.Select(Vector)])));
+            return Task.FromResult(Result.Success(new LlmEmbeddings(Answering, 4, [.. request.Texts.Select(Vector)])));
         }
 
         private static IReadOnlyList<float> Vector(string text)
         {
             if (text.Contains("MARKET", StringComparison.Ordinal))
-                return [1f, 0f, 0.1f];
-            return text.Contains("SHOP", StringComparison.Ordinal) ? [0f, 0f, 1f] : [0f, 1f, 0.1f];
+                return [1f, 0f, 0f, 0f];
+            if (text.Contains("SHOP", StringComparison.Ordinal))
+                return [0f, 0f, 1f, 0f];
+            return text.Contains("GARAGE", StringComparison.Ordinal) || text.Contains("véhicule", StringComparison.Ordinal) ? [0f, 0f, 0f, 1f] : [0f, 1f, 0f, 0f];
         }
     }
 }

@@ -151,4 +151,7 @@ public static class BankingCodes
 
     /// <summary>#426: several lines categorised at once name 1 to 200 of them.</summary>
     public const string CategoriseLines = "banking.categorise_lines";
+
+    /// <summary>#450: a calibration that threw (logged): it is not run again until an admin asks.</summary>
+    public const string CalibrationFailed = "banking.calibration_failed";
 }

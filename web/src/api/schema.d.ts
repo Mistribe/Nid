@@ -20285,6 +20285,168 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/banking/category-suggestions/calibrations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CategorySuggestionCalibrationView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Accepted */
+                202: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CalibrationRunView"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/banking/sync": {
         parameters: {
             query?: never;
@@ -40049,6 +40211,52 @@ export interface components {
             events: components["schemas"]["DashboardEventView"][];
             amounts?: null | components["schemas"]["CalendarAmountsView"];
         };
+        CalibrationFiguresView: {
+            /** Format: double */
+            threshold: number;
+            /** Format: int32 */
+            shown: number;
+            /** Format: int32 */
+            correct: number;
+            /** Format: int32 */
+            wrong: number;
+            /** Format: int32 */
+            dontKnow: number;
+            /** Format: double */
+            wrongLow: number;
+            /** Format: double */
+            wrongHigh: number;
+            /** Format: double */
+            coverage: number;
+        };
+        CalibrationProfileView: {
+            /** Format: int32 */
+            evalVersion: number;
+            /** Format: int32 */
+            options: number;
+            /** Format: double */
+            threshold?: null | number;
+            /** Format: double */
+            coldThreshold?: null | number;
+            /** Format: int32 */
+            cases: number;
+            /** Format: int32 */
+            neighbours?: null | number;
+            withHistory?: null | components["schemas"]["CalibrationFiguresView"];
+            cold?: null | components["schemas"]["CalibrationFiguresView"];
+            /** Format: date-time */
+            measuredAt: string;
+        };
+        CalibrationRunView: {
+            /** Format: uuid */
+            id: string;
+            status: string;
+            code?: null | string;
+            /** Format: date-time */
+            queuedAt: string;
+            /** Format: date-time */
+            finishedAt?: null | string;
+        };
         CancellationView: {
             status: string;
             /** Format: date */
@@ -40242,6 +40450,15 @@ export interface components {
             lastUsedAt?: null | string;
             categoryArchived: boolean;
         };
+        CategorySuggestionCalibrationView: {
+            implementation: string;
+            version: string;
+            model?: null | string;
+            digest?: null | string;
+            unavailable?: null | string;
+            latest?: null | components["schemas"]["CalibrationRunView"];
+            profile?: null | components["schemas"]["CalibrationProfileView"];
+        };
         CategorySuggestionPage: {
             items: components["schemas"]["CategorySuggestionView"][];
             /** Format: int32 */
@@ -40260,7 +40477,7 @@ export interface components {
             /** Format: int32 */
             agreement: number;
             lines: components["schemas"]["BankTransactionView"][];
-            byMeaning: boolean;
+            basis: string;
         };
         CategoryView: {
             /** Format: uuid */
@@ -43150,7 +43367,7 @@ export interface components {
             evidenceCount: number;
             /** Format: int32 */
             agreement: number;
-            byMeaning: boolean;
+            basis: string;
             pattern: string;
         };
         LineToClassifyView: {

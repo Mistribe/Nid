@@ -82,6 +82,8 @@ public sealed class CloudEmbedTests(PostgresFixture fixture) : IClassFixture<Pos
             new LlmEmbedRequest(["relevé"], DataClasses.Documents, both, Kinds: ["statement"]), TestContext.Current.CancellationToken);
         Assert.True(embedded.TryGetValue(out var result));
         Assert.Equal((Model, 3), (result!.Model, result.Dimension));
+        // #450: a provider versions its model by its name; its build is the profile's.
+        Assert.Equal("cloud:openai-embed", await scope.ServiceProvider.GetRequiredService<IModelDigests>().DigestAsync("embed", Model, TestContext.Current.CancellationToken));
     }
 
     [Fact]

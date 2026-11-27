@@ -161,3 +161,12 @@ public interface IEmbeddings
     /// worker failed.</summary>
     Task<Result<LlmEmbeddings>> EmbedAsync(LlmEmbedRequest request, CancellationToken ct);
 }
+
+/// <summary>#450: which build of a model answers, for what was measured on it to hold (<c>docs/ai/README.md</c> §7.3).</summary>
+public interface IModelDigests
+{
+    /// <summary>The digest the active workers declare for <paramref name="model"/> under <paramref name="capability"/> (<c>embed</c>,
+    /// <c>decide</c>): the one they agree on, null when none declares it or two disagree. The <c>embed</c> use's cloud model is
+    /// <c>cloud:&lt;profile id&gt;</c>: its name is versioned by its provider.</summary>
+    Task<string?> DigestAsync(string capability, string model, CancellationToken ct);
+}

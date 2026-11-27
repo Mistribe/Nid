@@ -95,3 +95,20 @@ public sealed class DeclaredModelsHandler(IWorkerStore workers) : IRequestHandle
             .OrderBy(g => g.Key.Capability, StringComparer.Ordinal).ThenBy(g => g.Key.Name, StringComparer.Ordinal)
             .Select(g => new DeclaredModelView(g.Key.Name, g.Key.Capability, g.Select(m => m.Id).Distinct().Count()))];
 }
+
+/// <summary>#450: a model's digest as the active workers declare it; the <c>embed</c> use's cloud model is its profile's.</summary>
+public sealed class ModelDigests(IWorkerStore workers, IAiSettings settings, ILlmProfiles profiles) : IModelDigests
+{
+    public async Task<string?> DigestAsync(string capability, string model, CancellationToken ct)
+    {
+        // As LlmEmbedder routes it: with self_hosted_then_cloud, a cloud profile's embeddings model is that provider's alone.
+        if (capability == ModelUses.Capability(ModelUses.Embed) && (await settings.UseAsync(ModelUses.Embed, ct)).Mode == UseModes.SelfHostedThenCloud
+            && profiles.All.FirstOrDefault(p => p.Model == model && p.Capabilities.Contains(ModelUses.Embed)) is { } cloud)
+            return "cloud:" + cloud.Id;
+        var digests = (await workers.ListAsync(ct)).Where(w => w.Status == WorkerStatus.Active)
+            .SelectMany(w => WorkerRouter.DeclarationOf(w)?.Models ?? [])
+            .Where(m => m.Name == model && JsonNamingPolicy.KebabCaseLower.ConvertName(m.Capability.ToString()) == capability)
+            .Select(m => m.Digest).Distinct(StringComparer.Ordinal).ToList();
+        return digests is [var digest] ? digest : null;
+    }
+}

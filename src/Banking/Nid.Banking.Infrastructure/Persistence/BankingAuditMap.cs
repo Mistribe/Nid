@@ -25,6 +25,9 @@ public sealed class BankingAuditMap : IAuditMap
         [typeof(CategoryRuleRow)] = AuditRule.NoItem,
         [typeof(CategoryBudgetRow)] = AuditRule.NoItem,
         [typeof(SuggestionDismissalRow)] = AuditRule.NoItem,
+        // #450: an admin's « Calibrer », and the profile it sets, which turns suggestions by meaning on or off for a model.
+        [typeof(DecideCalibrationRow)] = AuditRule.NoItem,
+        [typeof(DecideProfileRow)] = AuditRule.NoItem,
     };
 
     public IReadOnlySet<Type> Excluded { get; } = new HashSet<Type> { typeof(AuditEntryRow), typeof(BalanceRow), typeof(TransactionRow), typeof(TransactionPartRow), typeof(RecurringGroupRow), typeof(SyncRunRow), typeof(AccountReadRow) };

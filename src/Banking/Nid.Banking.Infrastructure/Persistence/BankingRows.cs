@@ -231,6 +231,46 @@ public sealed class SuggestionDismissalRow
     public Instant CreatedAt { get; set; }
 }
 
+/// <summary>#450: a calibration an admin asked for, of one implementation on one model at one digest.</summary>
+public sealed class DecideCalibrationRow
+{
+    public Guid Id { get; set; }
+    public string Implementation { get; set; } = "";
+    public string Version { get; set; } = "";
+    public string Model { get; set; } = "";
+    public string Digest { get; set; } = "";
+
+    /// <summary><c>queued</c>, <c>running</c>, <c>done</c> or <c>failed</c>.</summary>
+    public string Status { get; set; } = "";
+
+    public string? Code { get; set; }
+    public Instant QueuedAt { get; set; }
+    public Instant? FinishedAt { get; set; }
+}
+
+/// <summary>#450: the evaluation profile of one implementation on one model at one digest, its latest calibration's.</summary>
+public sealed class DecideProfileRow
+{
+    public string Implementation { get; set; } = "";
+    public string Version { get; set; } = "";
+    public string Model { get; set; } = "";
+    public string Digest { get; set; } = "";
+    public int EvalVersion { get; set; }
+
+    /// <summary>The most options a case had; recorded, not part of the key.</summary>
+    public int Options { get; set; }
+
+    public double? Threshold { get; set; }
+    public double? ColdThreshold { get; set; }
+    public double? Temperature { get; set; }
+    public bool Scoreless { get; set; }
+
+    /// <summary>What was measured (<c>DecideCalibration.Results</c>), as JSON.</summary>
+    public string Results { get; set; } = "{}";
+
+    public Instant MeasuredAt { get; set; }
+}
+
 /// <summary>#85: the household's budget of an expense category, one per category and per branch (a parent or its children).</summary>
 public sealed class CategoryBudgetRow
 {

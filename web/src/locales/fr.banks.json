@@ -601,6 +601,8 @@
       "by_meaning_one": "proche par le sens d’une opération classée à la main",
       "by_meaning_other": "proche par le sens de {{count}} opérations classées à la main",
       "by_meaning_about": "Personne n’a encore classé ce libellé. Un modèle d’IA le rapproche, par le sens, de libellés qu’un adulte a classés lui-même : {{agreement}} % de ces opérations sont en {{category}}. Seul le début du libellé, sans chiffres ni nom du foyer, a été lu par le modèle. Le rapprochement peut se tromper : vérifiez avant de classer.",
+      "by_name": "proche du nom de la catégorie",
+      "by_name_about": "Personne n’a encore classé d’opération semblable. Un modèle d’IA trouve ce libellé proche du nom de la catégorie {{category}} ({{agreement}} %). Seul le début du libellé, sans chiffres ni nom du foyer, a été lu par le modèle. Le rapprochement peut se tromper : vérifiez avant de classer.",
       "create_rule": "Créer la règle",
       "categorise_one": "Classer cette opération",
       "categorise_other": "Classer ces {{count}} opérations",

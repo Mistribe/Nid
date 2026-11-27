@@ -5,7 +5,7 @@ namespace Nid.Host.Jobs;
 
 /// <summary>
 /// Moves model jobs every 5 seconds, reads every worker's declaration every minute (<c>docs/ai/README.md</c> §4) and deletes
-/// finished jobs every hour (#483), and indexes documents (#559) and bank label patterns (#450) every 30 seconds. A loop of its own rather than Quartz jobs: the job runs journal and Quartz's store would write a row every 5 seconds for what
+/// finished jobs every hour (#483), and indexes documents (#559) and bank label patterns (#450), and runs a queued calibration (#450), every 30 seconds. A loop of its own rather than Quartz jobs: the job runs journal and Quartz's store would write a row every 5 seconds for what
 /// usually finds nothing to do. Each pass runs as the system actor; a pass that fails is logged and the next one runs.
 /// </summary>
 public sealed partial class ModelWorkLoop(IServiceScopeFactory scopes, ILogger<ModelWorkLoop> logger) : BackgroundService
@@ -35,6 +35,7 @@ public sealed partial class ModelWorkLoop(IServiceScopeFactory scopes, ILogger<M
             {
                 await PassAsync<Nid.Documents.Application.DocumentIndexer>((i, ct) => i.RunOnceAsync(ct), stoppingToken);
                 await PassAsync<Nid.Banking.Application.PatternIndexer>((i, ct) => i.RunOnceAsync(ct), stoppingToken); // #450
+                await PassAsync<Nid.Banking.Application.DecideCalibrator>((c, ct) => c.RunOnceAsync(ct), stoppingToken); // #450: one a pass
             }
 
             if (Due(tick, PurgeEvery))
