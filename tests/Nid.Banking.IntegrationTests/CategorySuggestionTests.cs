@@ -304,6 +304,37 @@ public class CategorySuggestionTests(PostgresFixture fixture) : IClassFixture<Po
         Assert.Null(Group(await PageAsync(app, app.AdultA), "CITY MARKET"));
     }
 
+    /// <summary>#821: a profile measured on another version of the evaluation set is neither applied nor shown: the model needs calibrating
+    /// again.</summary>
+    [Fact]
+    public async Task A_profile_measured_on_another_version_of_the_evaluation_set_is_not_applied()
+    {
+        var labels = new Labels { DecideModel = "fake-decide" };
+        await using var s = await StartAsync(fixture, labels);
+        var app = s.App;
+        foreach (var label in new[] { "CB SUPER MARKET 1", "CB SUPER MARKET 2" })
+            await HandAsync(app, app.AdultA, await AddAsync(app, s.Shared, label), Groceries);
+        await AddAsync(app, s.Shared, "CB CITY MARKET 3");
+        await AddAsync(app, s.Shared, "CB COURSES EXPRESS 4");
+        await IndexAsync(app);
+        var before = CategoryEvalSet.Current.Version - 1;
+        await ProfileAsync(app, threshold: 0.8, cold: null, evalVersion: before);
+        await WorkerProfileAsync(app, threshold: 0.5, evalVersion: before);
+
+        await GuessAsync(app);
+        Assert.Empty(labels.Decisions);
+        Assert.Equal(0, (await PageAsync(app, app.AdultA)).GetProperty("total").GetInt32());
+        Assert.Equal(JsonValueKind.Null, JsonDocument.Parse(await app.GetRawAsync(app.AdultA, Calibrations)).RootElement.GetProperty("profile").ValueKind);
+
+        // Calibrated again on the set as it is: applied.
+        await ProfileAsync(app, threshold: 0.8, cold: null);
+        await WorkerProfileAsync(app, threshold: 0.5);
+        await GuessAsync(app);
+        var page = await PageAsync(app, app.AdultA);
+        Assert.Equal((Groceries, "meaning"), Suggested(page, "CITY MARKET"));
+        Assert.Equal((Groceries, "ai"), Suggested(page, "COURSES EXPRESS"));
+    }
+
     [Fact]
     public async Task Meaning_counts_only_the_reader_lines_and_nothing_runs_while_the_use_is_off()
     {
@@ -440,13 +471,15 @@ public class CategorySuggestionTests(PostgresFixture fixture) : IClassFixture<Po
         return info.DisplayName.Split(' ')[0];
     }
 
-    /// <summary>#450: the profile a calibration of the fake model would have left, at these thresholds.</summary>
-    private static async Task ProfileAsync(NidApp app, double? threshold, double? cold)
+    /// <summary>#450: the profile a calibration of the fake model would have left, at these thresholds, on the evaluation set as it is unless
+    /// <paramref name="evalVersion"/> says otherwise.</summary>
+    private static async Task ProfileAsync(NidApp app, double? threshold, double? cold, int? evalVersion = null)
     {
         await using var scope = app.Services.CreateAsyncScope();
         scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
         await scope.ServiceProvider.GetRequiredService<IDecideCalibrationStore>().SaveProfileAsync(new DecideProfile(
-            new DecideKey(DecideCalibration.NearestNeighbours, DecideCalibration.NearestNeighboursVersion, "fake-embed", "sha256:fake"), 1, 40, threshold, cold,
+            new DecideKey(DecideCalibration.NearestNeighbours, DecideCalibration.NearestNeighboursVersion, "fake-embed", "sha256:fake"),
+            evalVersion ?? CategoryEvalSet.Current.Version, 40, threshold, cold,
             null, false, new DecideCalibration.Results(400, CategorySuggestions.Neighbours, null, null), SystemClock.Instance.GetCurrentInstant()),
             TestContext.Current.CancellationToken);
     }
@@ -504,32 +537,38 @@ public class CategorySuggestionTests(PostgresFixture fixture) : IClassFixture<Po
         await GuessAsync(app);
 
         // Step A decides SHOP ONE; a household name, in the pattern or as the counterparty, never goes; numbers and IBANs are masked.
-        var texts = labels.Decisions.SelectMany(d => d.Texts).ToList();
+        var texts = Asked(labels);
         Assert.Equal(4, texts.Count);
         Assert.DoesNotContain(texts, t => t.Contains("SHOP ONE", StringComparison.Ordinal) || t.Contains("LOYER", StringComparison.Ordinal)
             || t.Contains(name, StringComparison.OrdinalIgnoreCase));
         Assert.Contains("Sens : débit\nMotif : COURSES EXPRESS\nLibellé : CB COURSES EXPRESS 0412 [IBAN]", texts);
         Assert.Contains("Sens : débit\nMotif : MUTUELLE SANTE\nLibellé : PRLV MUTUELLE SANTE [N]\nContrepartie : MUTUELLE EXEMPLE", texts);
+        // #821: each batch in two steps, each request opening with the texts that say nothing: the side's tops with their children's names
+        // and « none of these », then the children of the top scored best, never the top itself.
         Assert.All(labels.Decisions, d =>
         {
             Assert.Equal(DataClasses.BankLabels, d.DataClass);
-            Assert.Equal("Aucune de ces catégories", d.Options[^1]);
+            Assert.Equal(CategoryQuestion.ContentFree(d.Texts[^1].StartsWith("Sens : débit", StringComparison.Ordinal)), d.Texts.Take(3));
         });
+        Assert.Equal(4, labels.Decisions.Count(d => d.Options[^1] == CategoryGuesser.NoneOfThese));
+        Assert.Contains(labels.Decisions, d => d.Options.SequenceEqual(["Santé › Mutuelle", "Santé › Médecin & pharmacie"]));
         // Each request concerns the readers of its lines' accounts: the shared one A's and B's, a private one its owner's.
-        IReadOnlyList<Guid> Concerned(string pattern) => labels.Decisions.Single(d => d.Texts.Any(t => t.Contains(pattern, StringComparison.Ordinal))).Concerned!;
+        IReadOnlyList<Guid> Concerned(string pattern) => labels.Decisions.First(d => d.Texts.Any(t => t.Contains(pattern, StringComparison.Ordinal))).Concerned!;
         Assert.Equal(new[] { app.AdultA.Value, app.AdultB.Value }.Order(), Concerned("COURSES EXPRESS"));
         Assert.Equal([app.AdultA.Value], Concerned("MUTUELLE SANTE"));
         Assert.Equal([app.AdultB.Value], Concerned("COURSES MARCHE"));
-        var credit = labels.Decisions.Single(d => d.Texts.Any(t => t.Contains("SALAIRE", StringComparison.Ordinal))).Options;
+        var credit = labels.Decisions.Where(d => d.Texts.Any(t => t.Contains("SALAIRE", StringComparison.Ordinal))).SelectMany(d => d.Options).ToList();
+        Assert.Contains("Revenus (Autres revenus, Intérêts, Loyers perçus, Remboursements, Salaire)", credit);
         Assert.Contains("Revenus › Salaire", credit);
         Assert.DoesNotContain("Alimentation › Courses", credit);
 
-        // Shown to whoever writes the lines, at the model's probability; B reads the shared account but does not write it.
+        // Shown to whoever writes the lines, at the model's probability, each step's multiplied (0.917 × 0.917); B reads the shared account
+        // but does not write it.
         var a = await PageAsync(app, app.AdultA);
         var express = Group(a, "COURSES EXPRESS")!.Value;
-        Assert.Equal((Groceries, "ai", 92, 0, "local"), (express.GetProperty("categoryId").GetGuid(), express.GetProperty("basis").GetString(),
+        Assert.Equal((Groceries, "ai", 84, 0, "local"), (express.GetProperty("categoryId").GetGuid(), express.GetProperty("basis").GetString(),
             express.GetProperty("agreement").GetInt32(), express.GetProperty("evidenceCount").GetInt32(), express.GetProperty("placement").GetString()));
-        Assert.Equal((Seed("health"), "ai"), Suggested(a, "MUTUELLE SANTE")); // « Santé », the first option sharing a word
+        Assert.Equal((Seed("health.insurance"), "ai"), Suggested(a, "MUTUELLE SANTE")); // « Santé », then its first child sharing a word
         Assert.Equal((Seed("income.salary"), "ai"), Suggested(a, "SALAIRE EXEMPLE", "credit"));
         Assert.Null(Group(a, "COURSES MARCHE"));
         var b = await PageAsync(app, app.AdultB);
@@ -549,7 +588,7 @@ public class CategorySuggestionTests(PostgresFixture fixture) : IClassFixture<Po
         await BankingApi.JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Post, $"{BankingApi.Root}/categories", new { name = "Épicerie fine", kind = "expense" }));
         Assert.Null(Group(await PageAsync(app, app.AdultA), "COURSES EXPRESS"));
         await GuessAsync(app);
-        Assert.Equal(4, labels.Decisions.SelectMany(d => d.Texts).Count());
+        Assert.Equal(4, Asked(labels).Count);
         Assert.Equal((Groceries, "ai"), Suggested(await PageAsync(app, app.AdultA), "COURSES EXPRESS"));
 
         // « Suggérer à nouveau », by any adult: forgotten, and asked again at the loop's next tick.
@@ -593,7 +632,7 @@ public class CategorySuggestionTests(PostgresFixture fixture) : IClassFixture<Po
         await using var scope = app.Services.CreateAsyncScope();
         scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
         return await scope.ServiceProvider.GetRequiredService<ICategorySuggestionStore>().GuessesAsync(
-            new DecideKey("llm-choice", "1", "fake-decide", Labels.DecideDigest), TestContext.Current.CancellationToken);
+            new DecideKey("llm-choice", "1/2", "fake-decide", Labels.DecideDigest), TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -629,20 +668,20 @@ public class CategorySuggestionTests(PostgresFixture fixture) : IClassFixture<Po
         Assert.True(signal.TryTake());
 
         var view = JsonDocument.Parse(await app.GetRawAsync(app.AdultB, Calibrations)).RootElement;
-        Assert.Equal(("llm-choice", "1", "fake-decide", Labels.DecideDigest, "done"), (view.GetProperty("implementation").GetString(),
+        Assert.Equal(("llm-choice", "1/2", "fake-decide", Labels.DecideDigest, "done"), (view.GetProperty("implementation").GetString(),
             view.GetProperty("version").GetString(), view.GetProperty("model").GetString(), view.GetProperty("digest").GetString(),
             view.GetProperty("latest").GetProperty("status").GetString()));
         var profile = view.GetProperty("profile");
         Assert.Equal((CategoryEvalSet.Current.Cases.Count, false), (profile.GetProperty("cases").GetInt32(), profile.GetProperty("scoreless").GetBoolean()));
         Assert.Equal(JsonValueKind.Number, profile.GetProperty("temperature").ValueKind);
         Assert.NotEmpty(profile.GetProperty("reliability").EnumerateArray());
-        // Invented labels: no household data, every case asked once, among the categories of its side and « none of these ».
-        Assert.Equal(CategoryEvalSet.Current.Cases.Count, labels.Decisions.Sum(d => d.Texts.Count));
+        // Invented labels: no household data, every case asked once among the tops of its side and « none of these », then among the
+        // children of the top it took, as the guess job asks.
+        Assert.Equal(CategoryEvalSet.Current.Cases.Count, labels.Decisions.Where(d => d.Options[^1] == CategoryGuesser.NoneOfThese).Sum(d => d.Texts.Count - 3));
         Assert.All(labels.Decisions, d =>
         {
             Assert.Equal((DataClasses.BankLabels, 0), (d.DataClass, d.Concerned!.Count));
-            Assert.Equal("Aucune de ces catégories", d.Options[^1]);
-            Assert.True(d.Texts.Count <= CategoryGuesser.Batch);
+            Assert.True(d.Texts.Count <= 16 && d.Options.Count <= CategoryQuestion.MaxOptions);
         });
 
         // A model with no scores: its answers as they are, no temperature.
@@ -654,6 +693,13 @@ public class CategorySuggestionTests(PostgresFixture fixture) : IClassFixture<Po
             profile.GetProperty("threshold").ValueKind));
     }
 
+    /// <summary>The texts the fake model was asked, but the content-free ones, each once.</summary>
+    private static List<string> Asked(Labels labels)
+    {
+        var free = CategoryQuestion.ContentFree(true).Concat(CategoryQuestion.ContentFree(false)).ToHashSet();
+        return [.. labels.Decisions.SelectMany(d => d.Texts).Where(t => !free.Contains(t)).Distinct()];
+    }
+
     private static async Task GuessAsync(NidApp app)
     {
         await using var scope = app.Services.CreateAsyncScope();
@@ -662,12 +708,12 @@ public class CategorySuggestionTests(PostgresFixture fixture) : IClassFixture<Po
     }
 
     /// <summary>#450: the profile a calibration of the fake <c>decide</c> model would have left, at this probability, temperature 1.</summary>
-    private static async Task WorkerProfileAsync(NidApp app, double threshold)
+    private static async Task WorkerProfileAsync(NidApp app, double threshold, int? evalVersion = null)
     {
         await using var scope = app.Services.CreateAsyncScope();
         scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.System;
         await scope.ServiceProvider.GetRequiredService<IDecideCalibrationStore>().SaveProfileAsync(new DecideProfile(
-            new DecideKey("llm-choice", "1", "fake-decide", Labels.DecideDigest), 1, 36, threshold, null, 1.0, false,
+            new DecideKey("llm-choice", "1/2", "fake-decide", Labels.DecideDigest), evalVersion ?? CategoryEvalSet.Current.Version, 13, threshold, null, 1.0, false,
             new DecideCalibration.Results(400, null, null, null, Temperature: 1.0), SystemClock.Instance.GetCurrentInstant()),
             TestContext.Current.CancellationToken);
     }
@@ -699,7 +745,7 @@ public class CategorySuggestionTests(PostgresFixture fixture) : IClassFixture<Po
             lock (Decisions)
                 Decisions.Add(request);
             static HashSet<string> Words(string text)
-                => [.. TransactionLabel.Normalize(text).Split([' ', '›'], StringSplitOptions.RemoveEmptyEntries).Where(w => w.Length >= 4)];
+                => [.. TransactionLabel.Normalize(text).Split([' ', '›', '(', ')', ','], StringSplitOptions.RemoveEmptyEntries).Where(w => w.Length >= 4)];
             var decisions = request.Texts.Select(text =>
             {
                 var pattern = Words(text.Split('\n').Single(l => l.StartsWith("Motif : ", StringComparison.Ordinal))["Motif : ".Length..]);

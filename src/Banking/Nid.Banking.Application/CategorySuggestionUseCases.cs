@@ -84,7 +84,7 @@ public sealed class CategoryPicks(
     /// <summary>#450: the embed model and its nearest-neighbours profile (<c>docs/ai/README.md</c> §7.3), while the <c>decide</c> use is on.</summary>
     private async Task<(string Model, DecideProfile Profile)?> NeighboursAsync(CancellationToken ct)
         => await embeddings.UseOnAsync(ModelUses.Decide, ct) && (await setup.NeighboursAsync(ct)).Key is { } key
-            && await calibrations.ProfileAsync(key, ct) is { } profile
+            && await calibrations.CurrentProfileAsync(key, ct) is { } profile
             ? (key.Model, profile)
             : null;
 
@@ -102,7 +102,9 @@ public sealed class CategoryPicks(
     private async Task<IEnumerable<CategorySuggestions.Pick>> ByNameAsync(string model, IReadOnlyList<(string Pattern, bool Debit)> undecided,
         IEnumerable<BankCategory> all, Func<Guid, bool> inUse, double threshold, CancellationToken ct)
     {
-        Guid[] Side(CategoryKind kind) => [.. all.Where(c => c.Kind == kind && inUse(c.Id)).Select(c => c.Id)];
+        // #821: a parent with a child in use is no answer: a line goes in its most precise category (CategoryEvalSet.Options).
+        Guid[] Side(CategoryKind kind) => [.. all.Where(c => c.Kind == kind && inUse(c.Id) && !all.Any(child => child.Parent == c.Id && inUse(child.Id)))
+            .Select(c => c.Id)];
         var near = await index.NearestCategoriesAsync(model, [.. undecided.Select(c => c.Pattern).Distinct()], Side(CategoryKind.Expense),
             Side(CategoryKind.Income), ct);
         return undecided.Select(u => CategorySuggestions.ByName(u.Pattern, u.Debit, near, threshold)).OfType<CategorySuggestions.Pick>();

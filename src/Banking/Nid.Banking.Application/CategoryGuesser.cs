@@ -19,9 +19,7 @@ public sealed class CategoryGuesser(
     IDecisions decisions, DecideSetup setup, IDecideCalibrationStore calibrations, ICategorySuggestionStore suggestions, ICategoryStore categories,
     IAccountStore accounts, IPersonRegistry persons, BankingAccess access, IClock clock)
 {
-    /// <summary>The most texts one request takes; the most options, « none of these » included, below.</summary>
-    public const int Batch = 16;
-    private const int MaxOptions = 52;
+    /// <summary>Batches asked a pass, each in two steps (<see cref="CategoryQuestion"/>).</summary>
     private const int RequestsPerPass = 4;
 
     // ponytail: the newest open lines only; a household with more waits for its oldest patterns until those are classified.
@@ -62,16 +60,13 @@ public sealed class CategoryGuesser(
 
     private static bool Named(string text, IReadOnlyCollection<string> names) => BankLabelMask.Mask(text, names).Contains(BankLabelMask.Name, StringComparison.Ordinal);
 
-    /// <summary>The household's categories of each side in use, by option text, masked: what a request offers (a guess's place reads back
-    /// into them).</summary>
-    public static IReadOnlyDictionary<bool, IReadOnlyList<(Guid Category, string Text)>> Options(IReadOnlyList<BankCategory> all, IReadOnlyCollection<string> names)
+    /// <summary>The household's categories of each side in use, masked, as the two steps offer them (<see cref="CategoryQuestion.Tree"/>); null
+    /// for a side with too many to ask.</summary>
+    public static IReadOnlyDictionary<bool, IReadOnlyList<CategoryQuestion.Top>?> Options(IReadOnlyList<BankCategory> all, IReadOnlyCollection<string> names)
     {
-        var byId = all.ToDictionary(c => c.Id, c => c.Name);
-        IReadOnlyList<(Guid, string)> Side(CategoryKind kind)
-            => [.. all.Where(c => c.Kind == kind && c.ArchivedAt is null)
-                .Select(c => (c.Id, Text: BankLabelMask.Mask(CategorySuggestions.OptionText(c.Parent is { } parent ? byId[parent] : null, c.Name), names)))
-                .OrderBy(c => c.Text, StringComparer.Ordinal)];
-        return new Dictionary<bool, IReadOnlyList<(Guid Category, string Text)>> { [true] = Side(CategoryKind.Expense), [false] = Side(CategoryKind.Income) };
+        IReadOnlyList<CategoryQuestion.Top>? Side(CategoryKind kind)
+            => CategoryQuestion.Tree([.. all.Where(c => c.Kind == kind && c.ArchivedAt is null).Select(c => (c.Id, c.Parent, BankLabelMask.Mask(c.Name, names)))]);
+        return new Dictionary<bool, IReadOnlyList<CategoryQuestion.Top>?> { [true] = Side(CategoryKind.Expense), [false] = Side(CategoryKind.Income) };
     }
 
     public async Task RunOnceAsync(CancellationToken ct)
@@ -93,43 +88,40 @@ public sealed class CategoryGuesser(
         var options = Options(categoryList, names);
 
         var sent = 0;
-        foreach (var batch in pending.GroupBy(p => (p.Debit, Concerned: string.Join(',', p.Concerned))).SelectMany(g => g.Chunk(Batch)))
+        foreach (var batch in pending.GroupBy(p => (p.Debit, Concerned: string.Join(',', p.Concerned))).SelectMany(g => g.Chunk(CategoryQuestion.Batch)))
         {
             if (sent == RequestsPerPass)
                 break;
-            var side = options[batch[0].Debit];
-            if (side.Count + 1 > MaxOptions)
-                continue; // more categories than one request offers: that side is not asked
-            var decision = await decisions.DecideAsync(new LlmDecideRequest([.. batch.Select(p => p.Text)], [.. side.Select(o => o.Text), NoneOfThese],
-                DataClasses.BankLabels, batch[0].Concerned), ct);
-            if (!decision.TryGetValue(out var answer))
+            if (options[batch[0].Debit] is not { } side)
+                continue; // more categories than one list offers: that side is not asked
+            var asked = await CategoryQuestion.AskAsync(decisions, [.. batch.Select(p => p.Text)], batch[0].Debit, side, DataClasses.BankLabels,
+                batch[0].Concerned, ct);
+            if (!asked.TryGetValue(out var answer))
             {
                 // An adult who has not allowed it holds back their own lines only; anything else stops the pass, the next one tries again.
-                if (decision.TryGetFailure(out var failure) && failure!.Code == JobCodes.OffsiteNotAllowed)
+                if (asked.TryGetFailure(out var failure) && failure!.Code == JobCodes.OffsiteNotAllowed)
                     continue;
                 return;
             }
             sent++;
-            if (new DecideKey(answer.Implementation, answer.Version, answer.Model, answer.Digest) != key)
+            if (answer.Key != key)
                 return;
             var at = clock.GetCurrentInstant();
-            await suggestions.SaveGuessesAsync([.. batch.Zip(answer.Decisions, (p, d) =>
+            await suggestions.SaveGuessesAsync([.. batch.Zip(answer.Guesses, (p, g) =>
             {
-                var (category, probability) = Read(d, profile, side);
+                var (category, probability) = Read(g, profile);
                 return new CategoryGuess(p.Pattern, p.Debit, category, probability, key, answer.Placement, at);
             })], ct);
         }
     }
 
-    /// <summary>With scores, the option scored best and its probability at the profile's temperature; without, the option written.</summary>
-    public static (Guid? Category, double? Probability) Read(LlmDecision decision, DecideProfile profile, IReadOnlyList<(Guid Category, string Text)> side)
+    /// <summary>With scores, the category picked and its probability at the profile's temperature (<see cref="DecideCalibration.Pick"/>);
+    /// without, the option written at the last step.</summary>
+    public static (Guid? Category, double? Probability) Read(DecideCalibration.Guess guess, DecideProfile profile)
     {
-        Guid? Category(int place) => place < side.Count ? side[place].Category : null;
         if (profile.Scoreless)
-            return (decision.Choice is { } choice ? Category(choice) : null, null);
-        return DecideCalibration.Top([.. decision.Scores.Select(s => (s.Key, s.Value))], profile.Temperature ?? 1) is { } top
-            ? (Category(top.Option), top.Probability)
-            : (null, null);
+            return (guess.Written, null);
+        return DecideCalibration.Pick(guess, profile.Temperature ?? 1) is { } pick ? (pick.Option, pick.Probability) : (null, null);
     }
 }
 

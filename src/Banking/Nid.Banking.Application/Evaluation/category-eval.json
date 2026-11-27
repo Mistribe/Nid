@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "history": [
     {"label": "CB CARREFOUR CITY 0408 ANGERS", "debit": true, "category": "food.groceries", "lines": 4},
     {"label": "PAIEMENT PAR CARTE X6019 MONOPRIX 16/01", "debit": true, "category": "food.groceries", "lines": 2},
@@ -632,7 +632,7 @@
     {"label": "VIREMENT DE REGULARISATION 165728", "counterparty": "REGULARISATION", "debit": false, "expected": null},
     {"label": "VIR SEPA M DRAVELIN 2442934", "counterparty": null, "debit": false, "expected": null},
     {"label": "VIR INST MLLE ORSINI DAVAL", "counterparty": null, "debit": false, "expected": null},
-    {"label": "ANNULATION OPERATION 24/06", "counterparty": null, "debit": false, "expected": null},
+    {"label": "ANNULATION OPERATION 24/06", "counterparty": null, "debit": false, "expected": "income.refunds"},
     {"label": "VIR SEPA OPERATION DIVERSE 8074193", "counterparty": "OPERATION DIVERSE", "debit": false, "expected": null},
     {"label": "VIR INST LEA", "counterparty": "LEA", "debit": false, "expected": null},
     {"label": "VIREMENT DE SNC TREVANO 115180", "counterparty": "SNC TREVANO", "debit": false, "expected": null},
