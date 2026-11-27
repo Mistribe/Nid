@@ -3,17 +3,9 @@ title: "Assistant"
 description: "An AI assistant that reads your figures and proposes, never deciding for you."
 sidebar:
   order: 11
-  badge:
-    text: Preview
-    variant: caution
 ---
 
 import Screen from '../../../../components/Screen.astro';
-import { Aside, Badge } from '@astrojs/starlight/components';
-
-<Aside type="caution" title="Preview">
-The assistant inside the app is still being built: it may change from one version to the next. The MCP server and « À valider » (to review) are available and stable.
-</Aside>
 
 Nid plugs into your AI assistant (Claude Desktop or any MCP-compatible assistant), and has one inside the app. The assistant reads your figures and answers your questions; it can propose a change, but nothing is saved until a person approves it.
 
@@ -29,7 +21,7 @@ Nid plugs into your AI assistant (Claude Desktop or any MCP-compatible assistant
 
 - **An MCP server**: your assistant finds read tools there, and write tools that only propose.
 - **« À valider »** (to review): each proposal shows what it would change next to the current state; you approve, edit or reject it.
-- <Badge text="Preview" variant="caution" /> **The assistant inside the app**, with a local or a cloud model, and conversations kept for their author only.
+- **The assistant inside the app**, with a local or a cloud model, and conversations kept for their author only.
 - **Personal access tokens**, with their scope, revocable at any time.
 - **The AI never computes**: a gain, a return, a schedule or a tax always comes from the server.
 
