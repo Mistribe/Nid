@@ -53,7 +53,7 @@ public sealed record EditPropertyCommand(ItemId ItemId, string? Name, PropertyCh
 [RequestHandler<ListPropertiesQuery, PropertyList>]
 public sealed class ListPropertiesHandler(
     IVisibleItems visible, IItemRegistry items, IPropertyStore properties, PropertyReading reading, IHouseholdCalendar calendar,
-    IAccessPolicy policy, IActorAccessor actor)
+    IAccessPolicy policy, IActorAccessor actor, IHouseholdSettings household, IFxRates fx)
     : IRequestHandler<ListPropertiesQuery, PropertyList>
 {
     private static readonly StringComparer French = StringComparer.Create(new CultureInfo("fr-FR"), true);
@@ -74,9 +74,16 @@ public sealed class ListPropertiesHandler(
         read.TryGetValue(out var reads);
         var writable = await policy.CheckManyAsync(person, listed.Select(l => l.Property.ItemId).ToList(), AccessKind.Write, ct);
 
-        var rows = listed.Select(l => PropertyViews.Summary(l.Item, l.Property, reads![l.Property.ItemId].Figures, writable.Contains(l.Property.ItemId)));
-        // A stable order: the name alone ties on a duplicate (as the loans' list).
-        return Result.Success(new PropertyList(rows.OrderBy(r => r.Name, French).ThenBy(r => r.Id.Value).ToList()));
+        var rows = listed.Select(l => PropertyViews.Summary(l.Item, l.Property, reads![l.Property.ItemId].Figures, writable.Contains(l.Property.ItemId)))
+            // A stable order: the name alone ties on a duplicate (as the loans' list).
+            .OrderBy(r => r.Name, French).ThenBy(r => r.Id.Value).ToList();
+        var sums = await OwnerGroups.LoadAsync(household, fx, rows.Select(r => r.Currency), today, ct);
+        var money = (string? amount) => amount is null ? null : new PropertyMoneyView(amount, sums.Reference.Code);
+        var groups = OwnerGroups.Of(rows, r => r.Owners)
+            .Select(g => new PropertyGroupView(g.First().Owners, g.Select(r => r.Id.Value).ToList(),
+                money(sums.Sum(g.Select(r => (r.Value, r.Currency)))), money(sums.Sum(g.Select(r => (r.NetValue, r.Currency))))))
+            .ToList();
+        return Result.Success(new PropertyList(rows, groups));
     }
 }
 

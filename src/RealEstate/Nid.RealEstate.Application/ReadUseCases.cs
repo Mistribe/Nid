@@ -31,7 +31,8 @@ public sealed record SimulateLoanRepaymentQuery(ItemId ItemId, LocalDate On, dec
 
 [RequestHandler<ListLoansQuery, LoanList>]
 public sealed class ListLoansHandler(
-    IVisibleItems visible, IItemRegistry items, ILoanStore loans, IHouseholdCalendar calendar, IAccessPolicy policy, IActorAccessor actor)
+    IVisibleItems visible, IItemRegistry items, ILoanStore loans, IHouseholdCalendar calendar, IAccessPolicy policy, IActorAccessor actor,
+    IHouseholdSettings household, IFxRates fx)
     : IRequestHandler<ListLoansQuery, LoanList>
 {
     private static readonly StringComparer French = StringComparer.Create(new CultureInfo("fr-FR"), true);
@@ -72,7 +73,14 @@ public sealed class ListLoansHandler(
         }
 
         // A stable order: the name alone ties on a duplicate (as the income sources' list).
-        return Result.Success(new LoanList(rows.OrderBy(r => r.Name, French).ThenBy(r => r.Id.Value).ToList()));
+        var ordered = rows.OrderBy(r => r.Name, French).ThenBy(r => r.Id.Value).ToList();
+        var sums = await OwnerGroups.LoadAsync(household, fx, ordered.Select(r => r.Currency), today, ct);
+        var money = (string? amount) => amount is null ? null : new LoanMoneyView(amount, sums.Reference.Code);
+        var groups = OwnerGroups.Of(ordered, r => r.Owners)
+            .Select(g => new LoanGroupView(g.First().Owners, g.Select(r => r.Id.Value).ToList(),
+                money(sums.Sum(g.Select(r => ((string?)r.RemainingBalance, r.Currency)))), money(sums.Sum(g.Select(r => (r.NextPaymentTotal, r.Currency))))))
+            .ToList();
+        return Result.Success(new LoanList(ordered, groups));
     }
 }
 

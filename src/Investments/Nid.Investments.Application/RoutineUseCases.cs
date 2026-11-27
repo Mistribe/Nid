@@ -14,11 +14,12 @@ namespace Nid.Investments.Application;
 public sealed record GetRoutineQuery(LocalDate? On) : IQuery<RoutineView>;
 
 /// <summary>
+/// <c>Kind</c> is the envelope's kind (a checking account takes no contributions, issue #374).
 /// Issue #34 §2.6: with a units-of-account floor, <c>UcSharePct</c> is the share in the latest holdings snapshot on or before the date (null
 /// without one) and <c>UcShareBelowFloor</c> says it is under the floor.
 /// </summary>
 public sealed record RoutineLineView(
-    ItemId Id, string Name, string Currency, string Cadence, AmountView? LastValue, LocalDate? LastAsOf, bool Due,
+    ItemId Id, string Name, string Currency, string Cadence, string Kind, AmountView? LastValue, LocalDate? LastAsOf, bool Due,
     decimal? UcShareFloorPct, decimal? UcSharePct, bool UcShareBelowFloor, AmountView? CeilingRoom = null);
 
 public sealed record RoutineView(LocalDate On, IReadOnlyList<RoutineLineView> Lines) : IExposesItems
@@ -55,7 +56,7 @@ public sealed class GetRoutineHandler(
             if (!(await performance.FactsAsync(envelope.ItemId, ct)).TryGetValue(out var f) || f!.Item.ArchivedAt is not null) continue;
             var last = f.Values.Where(v => v.AsOf <= on).OrderByDescending(v => v.AsOf).FirstOrDefault();
             var share = envelope.UcShareFloorPct is null ? null : await UcShareAsync(envelope.ItemId, on, ct);
-            lines.Add(new RoutineLineView(envelope.ItemId, f.Item.DisplayName, f.Currency.Code, EnvelopeWire.Of(envelope.Cadence),
+            lines.Add(new RoutineLineView(envelope.ItemId, f.Item.DisplayName, f.Currency.Code, EnvelopeWire.Of(envelope.Cadence), EnvelopeWire.Of(envelope.Kind),
                 last is null ? null : AmountView.From(last.Value), last?.AsOf,
                 RoutineMath.IsDue(envelope.Cadence, f.Values.Select(v => v.AsOf), on), envelope.UcShareFloorPct, share, share < envelope.UcShareFloorPct,
                 EnvelopeInsights.Ceiling(f, on)?.Room));

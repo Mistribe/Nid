@@ -62,6 +62,24 @@ describe('EnvelopesPage', () => {
     await expectNoAxeViolations(container);
   });
 
+  it('lists every envelope on its own row once the grouping is switched off, and keeps that in the URL', async () => {
+    const alice = [{ personId: '0192f0aa-0000-7000-8000-0000000000a1', shareBp: 10000 }];
+    serve(list([summary({ id: 'a', displayName: 'PEA', owners: alice }), summary({ id: 'b', displayName: 'Livret A', owners: alice })],
+      [{ owners: alice, items: ['a', 'b'], value: eur('30000.0000') }]));
+    const { user, router } = await renderApp('/investments?tab=list');
+
+    expect(await rows()).toHaveLength(1);
+    const grouping = screen.getByRole('switch', { name: 'Regrouper par propriétaire' });
+    expect(grouping).toBeChecked();
+    await user.click(grouping);
+
+    await waitFor(() => expect(router.state.location.search).toMatchObject({ flat: 1 }));
+    expect((await rows()).map((r) => within(r).getAllByRole('cell')[0]!.textContent)).toEqual(['PEA', 'Livret A']);
+    await user.click(screen.getByRole('switch', { name: 'Regrouper par propriétaire' }));
+    await waitFor(() => expect(router.state.location.search).not.toHaveProperty('flat'));
+    expect(await rows()).toHaveLength(1);
+  });
+
   it('sorts by value', async () => {
     serve(list([
       summary({ id: 'a', displayName: 'Gros', figures: figures({ value: eur('25000.0000') }) }),

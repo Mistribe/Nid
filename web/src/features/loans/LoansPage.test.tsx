@@ -56,6 +56,35 @@ describe('LoansPage', () => {
     await expectNoAxeViolations(container);
   });
 
+  it('folds the loans of the same owners into one row with the server totals; the switch lists them flat, kept in the URL', async () => {
+    const alice = [{ personId: '0192f0aa-0000-7000-8000-0000000000a1', shareBp: 10000 }];
+    const works = summary({ id: 'b', name: 'Prêt travaux', owners: alice });
+    const car = summary({ id: 'c', name: 'Prêt auto' });
+    serve(list([summary({ owners: alice }), works, car], [
+      { owners: alice, items: [LOAN, 'b'], remainingBalance: { amount: '387128.46', currency: 'EUR' }, nextPaymentTotal: { amount: '2319.84', currency: 'EUR' } },
+      { owners: car.owners, items: ['c'], remainingBalance: null, nextPaymentTotal: null },
+    ]));
+    const { user, router } = await renderApp('/loans?tab=list');
+
+    expect(await rows()).toHaveLength(2);
+    const [group] = await rows();
+    expect(group).toHaveTextContent('2 crédits');
+    expect(group).toHaveTextContent('387 128,46 €');
+    expect(group).toHaveTextContent('2 319,84 €');
+    await user.click(within(group!).getByRole('button', { name: 'Déplier les crédits' }));
+    const names = async () => (await rows()).map((r) => within(r).getAllByRole('cell')[0]!.textContent?.match(/^(2 crédits|Prêt (maison|travaux|auto))/)?.[0]);
+    expect(await names()).toEqual(['2 crédits', 'Prêt maison', 'Prêt travaux', 'Prêt auto']);
+
+    const grouping = screen.getByRole('switch', { name: 'Regrouper par propriétaire' });
+    expect(grouping).toBeChecked();
+    await user.click(grouping);
+    await waitFor(() => expect(router.state.location.search).toMatchObject({ flat: 1 }));
+    expect(await names()).toEqual(['Prêt maison', 'Prêt travaux', 'Prêt auto']);
+    await user.click(screen.getByRole('switch', { name: 'Regrouper par propriétaire' }));
+    await waitFor(() => expect(router.state.location.search).not.toHaveProperty('flat'));
+    expect(await rows()).toHaveLength(2);
+  });
+
   it('sorts by the balance left', async () => {
     serve(list([summary({ name: 'Gros' }), summary({ id: 'b', name: 'Petit', remainingBalance: '1000.00' })]));
     const { user } = await renderApp('/loans?tab=list');

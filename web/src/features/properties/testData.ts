@@ -13,7 +13,9 @@ export const propertySummary = (over: Partial<PropertySummary> = {}): PropertySu
   valueOn: '2026-06-01', stale: false, netValue: '96435.77', grossYield: null, vacancyRate: null, canWrite: true, owners: [], ...over,
 });
 
-export const propertyList = (items: PropertySummary[]): PropertyList => ({ items });
+// Each property in a group of its own unless the test names the groups: nothing gathered.
+export const propertyList = (items: PropertySummary[], groups?: PropertyList['groups']): PropertyList =>
+  ({ items, groups: groups ?? items.map((i) => ({ owners: i.owners, items: [i.id], value: null, netValue: null })) });
 
 export const propertyDetail = (over: Partial<PropertyDetail> = {}): PropertyDetail => ({
   id: PROPERTY, name: 'Maison de Nantes', type: 'primary_residence', currency: 'EUR', visibility: 'shared',
