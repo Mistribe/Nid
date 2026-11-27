@@ -282,7 +282,8 @@ public static class WorkerEndpoints
             [.. jobs.Types.Select(t => new ContractVersion(t.Type, t.Version))],
             [.. jobs.RequestTypes.Select(t => new ContractVersion(t.Type, t.Version))],
             MaxConcurrentRequests: JobTable.MaxConcurrent,
-            await context.RequestServices.GetRequiredService<EngineClient>().ModelsAsync(context.RequestAborted),
+            [.. await context.RequestServices.GetRequiredService<EngineClient>().ModelsAsync(context.RequestAborted),
+                .. context.RequestServices.GetRequiredService<NliDecider>().Model is { } nli ? [nli] : Array.Empty<DeclaredModel>()],
             state.NidKey is null ? new string('0', 64) : KeyFingerprint.Compact(Convert.FromBase64String(state.NidKey)),
             jobs.Load);
 

@@ -12,7 +12,7 @@ namespace Nid.Ai.Worker;
 /// <summary>
 /// The model engine behind the worker (#485, <c>docs/ai/README.md</c> §3): any runtime with the OpenAI-compatible API
 /// (Ollama, llama.cpp, vLLM, LM Studio), on the worker's own network. Nid never sees its address. No <see cref="Url"/>: the
-/// worker serves no model.
+/// worker serves no engine model (#811: <see cref="DecideOnnx"/> needs none).
 /// </summary>
 public sealed class EngineOptions
 {
@@ -46,6 +46,13 @@ public sealed class EngineOptions
 
     public IReadOnlySet<string> DecideNames()
         => (DecideModels ?? "").Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).ToHashSet(StringComparer.Ordinal);
+
+    /// <summary>#811: a mounted directory holding an NLI cross-encoder in ONNX (<c>model.onnx</c>, <c>spm.model</c>, <c>config.json</c>), which
+    /// the worker runs itself for <c>decide</c> (<see cref="NliDecider"/>), with or without an engine.</summary>
+    public string? DecideOnnx { get; set; }
+
+    /// <summary>The name it is declared under; empty: the directory's name.</summary>
+    public string? DecideOnnxName { get; set; }
 }
 
 /// <summary>How the worker reaches its engine; a test replaces it with a fake engine.</summary>
@@ -358,8 +365,8 @@ public sealed class EmbedRequest(EngineClient engine, IOptions<EngineOptions> op
 }
 
 /// <summary>#450: texts put in one of the options (<c>contracts/requests/decide/v1</c>), one engine call and one data frame per text: a
-/// label never reads another's.</summary>
-public sealed class DecideRequest(EngineClient engine, IOptions<EngineOptions> options) : IRequestHandler
+/// label never reads another's. #811: the encoder's model (<see cref="NliDecider"/>) answers in the worker, one text at a time too.</summary>
+public sealed class DecideRequest(EngineClient engine, IOptions<EngineOptions> options, NliDecider nli) : IRequestHandler
 {
     /// <summary>The version changes with the prompt (<see cref="DecidePrompt"/>): what a calibration measured holds for that one only.</summary>
     public static readonly DecideImplementation Implementation = new("llm-choice", "1", DecideScores.Logprobs);
@@ -368,11 +375,23 @@ public sealed class DecideRequest(EngineClient engine, IOptions<EngineOptions> o
 
     public int Version => 1;
 
-    public bool Available => engine.Configured && options.Value.DecideNames().Count > 0;
+    public bool Available => (engine.Configured && options.Value.DecideNames().Count > 0) || nli.Model is not null;
 
     public async IAsyncEnumerable<byte[]> RunAsync(byte[] input, [EnumeratorCancellation] CancellationToken ct)
     {
         var request = EchoJob.Read<DecideRequestInput>(input);
+        if (nli.Model is { } encoder && encoder.Name == request.Model)
+        {
+            for (var i = 0; i < request.Texts.Count; i++)
+            {
+                ct.ThrowIfCancellationRequested();
+                var (choice, scores) = nli.Decide(request.Options, request.Texts[i]);
+                yield return ContractJson.Write(new DecideRequestOutput(i, choice, scores, encoder.Digest, NliDecider.Implementation.Name,
+                    NliDecider.Implementation.Version));
+            }
+            yield break;
+        }
+
         var digest = (await engine.ModelsAsync(ct)).FirstOrDefault(m => m.Capability == DeclaredCapability.Decide && m.Name == request.Model)?.Digest
                      ?? throw new EngineException("engine_refused");
         for (var i = 0; i < request.Texts.Count; i++)

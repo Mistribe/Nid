@@ -368,7 +368,7 @@ du moteur.
 - Un moteur injoignable, qui refuse ou qui échoue termine la requête par une trame d'erreur : `engine_unreachable`,
   `engine_refused` (4xx), `engine_failed` (5xx), `engine_invalid` (réponse illisible). Un moteur muet retire ses modèles
   de la déclaration jusqu'à ce qu'il réponde.
-- Sans `Engine:Url`, le worker ne déclare ni modèle ni `chat`.
+- Sans `Engine:Url`, le worker ne déclare ni modèle ni `chat` (sauf l'encodeur de `Engine:DecideOnnx`, ci-dessous).
 - **`embed` (#558) :** `Engine:EmbedModels` (`nom=dimension`, séparés par des virgules) nomme les modèles du moteur qui
   plongent du texte. Ils sont déclarés pour `embed` avec leur dimension, jamais pour `chat`.
   - La requête `contracts/requests/embed/v1` envoie un lot de 64 textes au plus (32 000 caractères chacun). Le worker
@@ -398,6 +398,18 @@ du moteur.
     la note, la meilleure par option. Le choix est le jeton écrit s'il est un identifiant, sinon aucun. Une réponse sans
     logprobs finit en `engine_invalid` (la déclaration promet `logprobs`) ; une trame par texte rend le choix, les scores bruts,
     l'empreinte du modèle et l'implémentation avec sa version. La version change avec le prompt.
+  - **Encodeur zéro-shot (#811)** : `Engine:DecideOnnx` nomme un dossier monté qui contient un encodeur NLI exporté en ONNX
+    (`model.onnx`, le `spm.model` SentencePiece du checkpoint, son `config.json`) ; `Engine:DecideOnnxName` son nom (par défaut celui
+    du dossier). Le worker le fait tourner lui-même par ONNX Runtime, sur le CPU, avec ou sans moteur, et ne télécharge rien. Il est
+    déclaré pour `decide` avec l'implémentation `nli-onnx`, version `1`, scores `native` ; son empreinte est le SHA-256 de
+    `model.onnx`, ses poids. Un dossier qui ne se charge pas est noté dans le journal et rien n'est déclaré.
+  - Il répond à la même requête `decide/v1` : pour chaque texte, une passe par option (en un lot), le texte en prémisse et l'option
+    en hypothèse (« Cette opération bancaire concerne : {option}. », « Aucune de ces catégories » comprise, sans traitement à part) ;
+    le score d'une option est le logit d'implication de sa paire, le choix l'option la mieux notée. Les identifiants des options ne
+    servent qu'à la réponse : l'encodeur lit leurs noms. Banking le demande comme le petit LLM (deux étapes, textes vides,
+    correction) ; son profil a sa propre clé (`nli-onnx` `1/2`).
+  - Essai sur le jeu v2 (mDeBERTa-v3 XNLI, fp32, CPU) : il ne passe pas la règle des 5 % (au mieux 6 fausses sur 27 montrées, ainsi demandé),
+    0,5 s par libellé, 1,6 Gio ; détail dans `../ingestion/llm-providers.md` §14.1.
   - Côté Nid, `IDecisions` (`Ai.Contracts`, `LlmDecider`) prend le modèle et le mode de l'usage `decide`, comme `LlmEmbedder` :
     classe de données, `allow` de chaque adulte concerné pour un worker distant, un `llm_call` par requête (tâche `decide`,
     sans contenu). Il vérifie la réponse : chaque texte a sa trame, le choix et les scores ne nomment que des options demandées,
@@ -732,7 +744,8 @@ livrée par défaut.
 **Essai de référence (2026-11-27)** : `bge-m3`, `nomic-embed-text`, `qwen2.5:1.5b`, `qwen2.5:3b` et `gemma3:1b` sur Ollama, CPU
 seul ; aucun ne passe la règle des 5 %. **Essai #821 (même jour, même machine)** : demandé en deux temps avec la correction
 contextuelle ci-dessous, `qwen2.5:3b` la passe (seuil 0,67 : 1 fausse sur 30 montrées, 7 % des libellés du jeu) ; les voisins
-proches et `qwen2.5:1.5b`, non. Conseillé : `qwen2.5:3b` sur un worker. Chiffres, essais gardés ou non et réserves :
+proches et `qwen2.5:1.5b`, non. **Essai #811** : un encodeur NLI mDeBERTa-v3 servi par le worker (candidat 2), non plus (au mieux
+16 à 22 % de fausses selon la façon de demander). Conseillé : `qwen2.5:3b` sur un worker. Chiffres, essais gardés ou non et réserves :
 `../ingestion/llm-providers.md` §14.1.
 
 **Livré en partie (#450, voisins proches)** :
@@ -752,7 +765,8 @@ proches et `qwen2.5:1.5b`, non. Conseillé : `qwen2.5:3b` sur un worker. Chiffre
   `meaning` ou `category_name` (alors `evidenceCount` = 0 et `agreement` = la similarité en pour cent) ; `byMeaning` disparaît.
 - **Changement par rapport à #699** : sans profil pour le modèle `embed` et son empreinte, il n'y a plus de suggestion `meaning`
   (ni `category_name`) ; le seuil fixe de 0,8 disparaît. Un admin calibre le modèle (§7.3) pour les retrouver.
-- Le candidat 2 (encodeur zéro-shot en ONNX) est renvoyé à #811 : l'API du moteur ne le sert pas.
+- Le candidat 2 (encodeur zéro-shot en ONNX) est renvoyé à #811 : l'API du moteur ne le sert pas. **Livré (#811)** : le worker le
+  fait tourner lui-même (§3.7, `nli-onnx`) ; essayé sur le jeu, il ne passe pas la règle.
 
 **Livré (#450, capacité `decide` d'un worker, candidat 3)** :
 - Le worker (§3.7) sert `decide` avec un petit LLM de son moteur (`llm-choice`, version `1`, scores par logprobs).

@@ -7,6 +7,8 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="MimeKit" />
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" />
+    <PackageReference Include="Microsoft.ML.Tokenizers" />
     <ProjectReference Include="..\Nid.Ai.Protocol\Nid.Ai.Protocol.csproj" />
   </ItemGroup>
 </Project>

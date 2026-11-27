@@ -400,3 +400,85 @@ correction, sous la stratégie `3` de Banking (version de profil `1/3`).
 **Aucun essai** : pas de clé. L'adaptateur est testé contre un faux serveur seulement. À faire dès qu'une clé existe : « Calibrer »
 sur le jeu version 2 (412 libellés, ~0,005 $ au prix public) et consigner ici, à côté des modèles du tableau ci-dessus, le seuil
 retenu, le meilleur point du balayage, la température apprise, la latence et le coût mesurés.
+
+**Essai #811 : un encodeur zéro-shot sur le worker (candidat 2), 2026-11-27.** Même machine (Apple M3 Pro, **CPU seul**), même jeu
+(version 2, 412 libellés), même **code réel** : `NliDecider` et `DecideRequest` du worker appelés en processus, la réponse lue comme
+`LlmDecider` la lit, `CategoryQuestion` (deux étapes, textes vides, correction), `DecideCalibration.Worker` ; la configuration gardée
+est repassée par `DecideCalibrator` lui-même, qui donne le même résultat. ONNX Runtime `1.32.0` avec ses fils par défaut,
+hors Docker pour les mesures de justesse et de temps ; mémoire et image mesurées dans l'image du worker (OrbStack, arm64).
+
+- **Checkpoint** : [`MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7`](https://huggingface.co/MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7),
+  révision `b5113eb38ab63efdd7f280f8c144ea8b13f978ce`, **licence MIT** (fichier `LICENSE` du dépôt et étiquette de la fiche).
+  mDeBERTa-v3 base (environ 280 M de paramètres, dont le vocabulaire de 250 000 jetons), entraîné sur XNLI et 2,7 millions de
+  paires NLI en 27 langues, français compris ; `id2label` : 0 implication, 1 neutre, 2 contradiction.
+- **Export, reproductible** (Python 3.14 dans un venv à part, `torch 2.15.0`, `transformers 5.24.1`, `onnx 1.23.2`,
+  `onnxruntime 1.32.0`, `sentencepiece 0.2.3`) : télécharger `config.json`, `spm.model`, `LICENSE` et `model.safetensors` à cette
+  révision (`https://huggingface.co/<checkpoint>/resolve/<révision>/<fichier>`, 580 Mo), puis :
+
+  ```python
+  model = AutoModelForSequenceClassification.from_pretrained(src, dtype=torch.float32).eval()
+  enc = AutoTokenizer.from_pretrained(src)(["CB LIDL"], ["Cette opération bancaire concerne : Alimentation › Courses."], return_tensors="pt")
+  torch.onnx.export(model, (enc["input_ids"], enc["attention_mask"]), "model.onnx", input_names=["input_ids", "attention_mask"],
+                    output_names=["logits"], opset_version=17, dynamo=False,
+                    dynamic_axes={"input_ids": {0: "batch", 1: "sequence"}, "attention_mask": {0: "batch", 1: "sequence"}, "logits": {0: "batch"}})
+  onnxruntime.quantization.quantize_dynamic("model.onnx", "int8/model.onnx", weight_type=QuantType.QInt8)  # essayé, non gardé
+  ```
+
+  puis copier `spm.model`, `config.json` et `LICENSE` à côté de `model.onnx`. `model.onnx` en fp32 : 1 116 141 725 octets,
+  empreinte `sha256:e319342a…`, écart maximal de 9·10⁻⁶ sur les logits de PyTorch ; en int8 : 338 317 492 octets, mais un écart
+  de 1,29 sur des logits de l'ordre de ±2.
+- **Tokenizer** : `Microsoft.ML.Tokenizers` `3.0.0` lit le `spm.model` (Unigram, normalisation du modèle comprise) ; sur 2 568 paires
+  (textes du jeu, textes vides, toutes les options des deux étapes et de l'étape unique), ses identifiants sont **ceux du tokenizer
+  du checkpoint**, à l'identique.
+- **Ce que le worker fait** : une passe par paire (texte, option), le texte en prémisse, l'option en hypothèse ; le score
+  est le logit d'implication (`native`), sans softmax sur les trois classes. Les options d'un texte passent en un lot.
+
+*Essais.* « Meilleur point », « sommet juste » et « choix juste » comme plus haut ; règle : 5 % de fausses au plus sur 20 montrées.
+Gabarit A : « Cette opération relève de la catégorie {option}. » ; gabarit B : « Cette opération bancaire concerne : {option}. ».
+« Aucune » propre : l'hypothèse « Cette opération ne relève d'aucune de ces catégories. » au lieu du gabarit appliqué au nom de
+l'option.
+
+| Poids | Façon de demander | Variante | Meilleur point (≥ 20 montrées) | Choix juste ; sommet juste |
+|---|---|---|---|---|
+| int8 | deux étapes + correction | gabarit A | aucun : aucune catégorie montrée dès 0,30 | 42/412 ; 71/412 |
+| int8 | idem | sans correction | aucun | 41 ; 48 |
+| int8 | idem | « aucune » propre | aucun | 49 ; 75 |
+| int8 | idem | « aucune » à un score fixe de 0 | aucun | 44 ; 68 |
+| int8 | idem | log-probabilité d'implication (softmax sur les trois classes) | aucun | 39 ; 72 |
+| int8 | une étape sur les feuilles (+ « aucune »), corrigée | gabarit A | aucun (0,30 : 0/7) | 46 |
+| int8 | idem | sans correction | aucun | 40 |
+| fp32 | deux étapes + correction | gabarit A | aucun (0,30 : 4/14) | 63 ; 98 |
+| fp32 | idem | sans correction | aucun (rien de montré dès 0,30) | 50 ; 86 |
+| fp32 | idem | gabarit A, « aucune » propre | 0,36 : 7/21 = 33 % [17–55 %] | 63 ; 96 |
+| fp32 | idem | le nom seul, « aucune » propre | aucun (0,30 : 4/11) | 58 ; 100 |
+| fp32 | idem | gabarit B, « aucune » propre | 0,43 : 6/27 = 22 % [11–41 %] | 74 ; 120 |
+| **fp32** | **deux étapes + correction** | **gabarit B** (gardé) | **0,32 : 6/27 = 22 % [11–41 %], couverture 6,6 %** ; calibrage réel : **aucun seuil**, T = 1,1 | **74 ; 120** |
+| fp32 | une étape sur les feuilles, corrigée | gabarit A | 0,31 : 4/22 = 18 % [7–39 %] | 87 |
+| fp32 | idem | gabarit B, « aucune » propre | 0,55 : 4/25 = 16 % [6–35 %], couverture 6,1 % | 108 |
+
+Coût de la configuration gardée, mesuré seul sur la machine : 412 libellés en 218 s (994 textes, ceux des deux étapes et les
+textes vides), soit **0,53 s par libellé** ; par texte, médiane 115 ms, p90 449 ms (la première étape, 14 sommets suivis des noms de
+leurs enfants). En une étape : 0,73 s par libellé (médiane 645 ms, p90 830 ms par texte). En int8 : 0,26 s par libellé (médiane
+51 ms, p90 209 ms). **Mémoire** du conteneur du worker : 1,6 Gio une fois le modèle chargé (pic de 2,07 Go au chargement) ; sans
+`Engine:DecideOnnx`, 56,5 Mio, contre 54,8 Mio avant. **Image** du worker : 564,3 Mo → 633,6 Mo (**+69,3 Mo**, arm64, dont 27 Mo de
+`libonnxruntime.so`) ; les poids n'y sont pas, ils sont montés.
+
+**Résultat : l'encodeur ne passe pas la règle.** Dans aucune variante, à aucun seuil : au mieux 16 à 22 % de fausses sur une
+vingtaine de suggestions, et l'intervalle ne descend pas sous 6 %. Le calibrage réel le refuse (aucun seuil) : il ne suggère rien,
+comme voulu. Le sommet juste 120 fois sur 412, contre 140 pour `qwen2.5:3b` en deux étapes.
+
+- **Pourquoi** : sondé sur quelques libellés, le modèle sait peu ce que vend une enseigne d'un ou deux mots (`SHELL` plus proche
+  d'« Alimentation » que de « Transport ») et penche, comme le petit LLM, vers « Banque & frais » pour toute opération bancaire ;
+  la correction contextuelle aide (sommet juste 98 contre 86), le gabarit B aussi (120 contre 98).
+- **int8 non gardé** : la quantification dynamique perd un tiers des choix justes (42 contre 63 au gabarit A). Le fp32 coûte
+  1,1 Go de disque et 1,6 Gio de mémoire.
+- **Une étape ou deux** : en une étape sur les feuilles, le choix juste monte (108 contre 74) et le meilleur point baisse (16 %
+  contre 22 %), mais il reste dans l'intervalle de la base (11–41 %) : selon la règle de #821, ce n'est pas un gain établi, et il
+  demanderait à Banking une façon de demander propre à l'implémentation. **Les deux étapes et la correction restent** celles de
+  Banking pour tous les modèles ; la clé du profil distingue l'encodeur par son implémentation (`nli-onnx` `1/2`), à côté de
+  `llm-choice` `1/2`. Piste, non mesurée : un encodeur plus grand (XLM-RoBERTa large XNLI), ou une étape unique pour les seuls
+  encodeurs s'il en vient un qui s'approche de la règle.
+- « Aucune » propre ne change rien de net : « Aucune de ces catégories » reste une option comme les autres, lue par le même
+  gabarit, et le worker ne reconnaît aucun nom d'option.
+- **Recommandation inchangée** : `qwen2.5:3b` sur un worker. L'encodeur est servi pour qui veut le calibrer, ou essayer un
+  meilleur checkpoint exporté de la même façon (§3.7 de `../ai/README.md`, `deploy/README.md`).

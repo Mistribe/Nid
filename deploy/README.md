@@ -772,10 +772,24 @@ Le réseau `models` n'a pas de sortie : le moteur sert les modèles déjà prés
 
 | Réglage (`Engine__…`) | Effet |
 |---|---|
-| `Url` | L'adresse du moteur ; sans elle, le worker ne sert aucun modèle |
+| `Url` | L'adresse du moteur ; sans elle, le worker ne sert aucun modèle du moteur |
 | `Models` | Les modèles à servir, séparés par des virgules ; vide : tous ceux du moteur |
 | `ContextTokens`, `MaxOutputTokens` | Le contexte et la sortie que le moteur accepte (8192 et 4096 par défaut) |
 | `Tools` | Le modèle sait appeler des outils (`true` par défaut) |
 | `EmbedModels` | Les modèles de plongement et la longueur de leurs vecteurs, que le moteur ne dit pas : `nomic-embed-text=768,bge-m3=1024`. Ils servent la recherche dans les documents (`embed`), jamais le chat |
 | `DecideModels` | Les petits modèles qui devinent la catégorie d'une opération (`decide`), séparés par des virgules : `qwen2.5:3b`. Ils répondent par une lettre, avec ses probabilités ; s'ils sont aussi dans `Models` (ou si `Models` est vide), ils servent aussi le chat |
+| `DecideOnnx` | Un dossier monté qui contient un encodeur NLI exporté en ONNX (`model.onnx`, `spm.model`, `config.json`) : le worker le fait tourner lui-même, sur le CPU, pour `decide`, avec ou sans moteur. Le worker ne télécharge rien ; un dossier illisible est noté dans son journal et rien n'est déclaré |
+| `DecideOnnxName` | Le nom sous lequel ce modèle est déclaré ; vide : le nom du dossier |
+
+Un encodeur à côté du modèle du moteur, dans le même `compose.override.yaml` (export et quantification :
+`../docs/ingestion/llm-providers.md` §14.1) :
+
+```yaml
+services:
+  worker:
+    environment:
+      Engine__DecideOnnx: /models/mdeberta-v3-base-xnli
+    volumes:
+      - ./models/mdeberta-v3-base-xnli:/models/mdeberta-v3-base-xnli:ro
+```
 
