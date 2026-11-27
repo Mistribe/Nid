@@ -82,7 +82,9 @@ public sealed class TransactionLinker(
         string? recorded = null;
         if (module == Assets)
         {
-            var cost = await RecordCostAsync(line, item, category ?? AssetCostCategories.Other, ct);
+            // #650: a line the bank files as fuel is, on a vehicle, its fuel or charging, whoever links it (web, MCP, proposal).
+            var fallback = line.Category == CategorySeed.Find("transport.fuel")?.Id ? AssetCostCategories.Fuel : AssetCostCategories.Other;
+            var cost = await RecordCostAsync(line, item, category ?? fallback, ct);
             if (!cost.TryGetValue(out var flow))
                 return Result.Failure<BankLink>(cost.TryGetFailure(out var refused) ? refused! : throw new InvalidOperationException());
             recorded = $"flow:{flow:N}";
