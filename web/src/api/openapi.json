@@ -68030,6 +68030,7 @@
           "name",
           "currency",
           "cadence",
+          "kind",
           "due",
           "ucShareBelowFloor"
         ],
@@ -68046,6 +68047,9 @@
             "type": "string"
           },
           "cadence": {
+            "type": "string"
+          },
+          "kind": {
             "type": "string"
           },
           "lastValue": {

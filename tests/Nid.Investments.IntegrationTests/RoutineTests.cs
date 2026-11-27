@@ -57,6 +57,7 @@ public class RoutineTests(PostgresFixture fixture, SharedNidApp shared) : IClass
         Assert.False(lines[1].GetProperty("due").GetBoolean());
         Assert.False(lines[2].GetProperty("due").GetBoolean());
         Assert.Equal("manual", lines[2].GetProperty("cadence").GetString());
+        Assert.Equal("savings", lines[2].GetProperty("kind").GetString());
         Assert.Equal(JsonValueKind.Null, lines[2].GetProperty("lastValue").ValueKind);
     }
 

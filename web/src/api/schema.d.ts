@@ -45496,6 +45496,7 @@ export interface components {
             name: string;
             currency: string;
             cadence: string;
+            kind: string;
             lastValue?: null | components["schemas"]["AmountView"];
             /** Format: date */
             lastAsOf?: null | string;
