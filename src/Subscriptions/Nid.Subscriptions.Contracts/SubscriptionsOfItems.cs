@@ -15,4 +15,14 @@ public interface ISubscriptionsOfItems
 {
     Task<IReadOnlyDictionary<ItemId, IReadOnlyList<LinkedSubscription>>> ForAsync(
         PersonId reader, VisibilityScope scope, IReadOnlyCollection<ItemId> items, CancellationToken ct);
+
+    /// <summary>
+    /// #650: what the same subscriptions charge in [<paramref name="from"/>, <paramref name="to"/>] (their phases' charges, as the calendar
+    /// expects them), converted to the item's currency at <paramref name="to"/>; a null <c>Cost</c> when no rate converts it.
+    /// </summary>
+    Task<IReadOnlyDictionary<ItemId, IReadOnlyList<ItemSubscriptionCost>>> CostsAsync(
+        PersonId reader, VisibilityScope scope, IReadOnlyCollection<ItemId> items, LocalDate from, LocalDate to, CancellationToken ct);
 }
+
+/// <summary>#650: a subscription linked to an item, with what it charges over a period in that item's currency.</summary>
+public sealed record ItemSubscriptionCost(ItemId Id, string Name, Money? Cost);

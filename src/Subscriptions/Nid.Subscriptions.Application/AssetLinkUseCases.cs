@@ -55,7 +55,7 @@ public sealed class SetSubscriptionAssetHandler(ISubscriptionStore store, AssetL
 }
 
 /// <summary>#648: what an asset's page lists, through the port Assets reads: the reader's visible subscriptions linked to each item.</summary>
-public sealed class SubscriptionsOfItems(SubscriptionSet set, ISubscriptionStore store, IHouseholdCalendar calendar) : ISubscriptionsOfItems
+public sealed class SubscriptionsOfItems(SubscriptionSet set, ISubscriptionStore store, IHouseholdCalendar calendar, IItemRegistry items, IFxRates fx) : ISubscriptionsOfItems
 {
     public async Task<IReadOnlyDictionary<ItemId, IReadOnlyList<LinkedSubscription>>> ForAsync(
         PersonId reader, VisibilityScope scope, IReadOnlyCollection<ItemId> items, CancellationToken ct)
@@ -72,6 +72,47 @@ public sealed class SubscriptionsOfItems(SubscriptionSet set, ISubscriptionStore
         return linked.ToDictionary(
             l => l.Key,
             l => (IReadOnlyList<LinkedSubscription>)l.Value.Where(built.ContainsKey).Select(id => Of(built[id])).OrderBy(s => s.Name, StringComparer.CurrentCultureIgnoreCase).ToList());
+    }
+
+    public async Task<IReadOnlyDictionary<ItemId, IReadOnlyList<ItemSubscriptionCost>>> CostsAsync(
+        PersonId reader, VisibilityScope scope, IReadOnlyCollection<ItemId> targets, LocalDate from, LocalDate to, CancellationToken ct)
+    {
+        var linked = await store.SubscriptionsOfAssetsAsync(targets, ct);
+        if (linked.Count == 0)
+            return new Dictionary<ItemId, IReadOnlyList<ItemSubscriptionCost>>();
+
+        var today = await calendar.TodayAsync(ct);
+        var built = (await set.LoadAsync(reader, scope, today, to > today ? to : today, ct, wanted: linked.Values.SelectMany(s => s).ToHashSet()))
+            .ToDictionary(b => b.Input.Subscription.Id);
+        // The charges SubscriptionExpectedCharges expects: a phase's, in the period (a purchase is a one-off, not a running cost).
+        var charged = built.Values.ToDictionary(b => b.Input.Subscription.Id, b => b.Timeline.Charges
+            .Where(c => c.Origin is ChargeOrigin.FromPhase && c.Date >= from && c.Date <= to).Select(c => c.Price).ToList());
+        var access = await items.FindManyAsync(linked.Keys.ToList(), ct);
+        var currencies = charged.Values.SelectMany(p => p).Select(p => p.Currency)
+            .Concat(access.Values.Select(a => Currency.TryCreate(a.Currency ?? "", out var c) ? (Currency?)c : null).OfType<Currency>()).Distinct().ToList();
+        var rates = currencies.Count == 0 ? RateTable.Empty(to, 0) : await fx.LoadAsync(currencies, to, to, ct);
+
+        var result = new Dictionary<ItemId, IReadOnlyList<ItemSubscriptionCost>>();
+        foreach (var (target, ids) in linked)
+        {
+            if (!access.TryGetValue(target, out var item) || !Currency.TryCreate(item.Currency ?? "", out var currency))
+                continue;
+            result[target] = ids.Where(built.ContainsKey).Select(id => new ItemSubscriptionCost(id, built[id].DisplayName, Total(charged[id], currency)))
+                .OrderBy(s => s.Name, StringComparer.CurrentCultureIgnoreCase).ToList();
+        }
+        return result;
+
+        Money? Total(IReadOnlyList<Money> prices, Currency currency)
+        {
+            var sum = 0m;
+            foreach (var price in prices)
+            {
+                if (!rates.TryConvert(price.Amount, price.Currency, currency, to, projected: false, out var converted, out _))
+                    return null;
+                sum += converted;
+            }
+            return Money.Create(decimal.Round(sum, Money.MaxDecimals), currency).TryGetValue(out var m) ? m : null;
+        }
     }
 
     private static LinkedSubscription Of(BuiltSubscription b)

@@ -1,7 +1,10 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
 using Nid.Core.Contracts;
+using Nid.Subscriptions.Contracts;
+using NodaTime;
 using Nid.TestSupport;
 
 namespace Nid.Subscriptions.IntegrationTests;
@@ -56,6 +59,25 @@ public class AssetLinkTests(PostgresFixture fixture) : IClassFixture<PostgresFix
 
         Assert.Equal(JsonValueKind.Null, (await AssetOfAsync(app, app.AdultA, subscription)).ValueKind);
         Assert.Empty(await SubscriptionsOfAsync(app, app.AdultA, asset));
+    }
+
+    [Fact]
+    public async Task A_linked_insurance_costs_its_charges_in_the_period()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var insurance = await app.NewMonthlyAsync(app.AdultA, 50m);
+        var hidden = await app.NewSubscriptionAsync("Privé de A", app.AdultA, Visibility.Private);
+        var asset = await NewAssetAsync(app, app.AdultA);
+        Assert.Equal(HttpStatusCode.OK, (await LinkAsync(app, app.AdultA, insurance, asset)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await LinkAsync(app, app.AdultA, hidden, asset)).StatusCode);
+        await using var scope = app.Services.CreateAsyncScope();
+        var port = scope.ServiceProvider.GetRequiredService<ISubscriptionsOfItems>();
+
+        var costs = (await port.CostsAsync(app.AdultB, VisibilityScope.Me, [asset], new LocalDate(2025, 3, 1), new LocalDate(2025, 5, 31),
+            TestContext.Current.CancellationToken))[asset];
+
+        var cost = Assert.Single(costs);
+        Assert.Equal((insurance, 150m, "EUR"), (cost.Id, cost.Cost!.Value.Amount, cost.Cost!.Value.Currency.Code));
     }
 
     [Fact]
