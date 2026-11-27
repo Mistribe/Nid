@@ -9,6 +9,8 @@ export type LinkedSubscription = components['schemas']['LinkedSubscriptionView']
 export type AssetValuation = components['schemas']['ValuationView'];
 export type AssetCosts = components['schemas']['AssetCostsView'];
 export type AssetCost = components['schemas']['AssetCostView'];
+export type OwnershipCost = components['schemas']['OwnershipCostView'];
+export type CostPart = components['schemas']['CostPartView'];
 export type CreateAssetBody = components['schemas']['CreateAssetBody'];
 export type EditAssetBody = components['schemas']['EditAssetBody'];
 
@@ -20,6 +22,7 @@ export const ASSET_VALUATIONS = '/api/v1/assets/{id}/valuations' as const;
 export const ASSET_VALUATION = '/api/v1/assets/{id}/valuations/{valuationId}' as const;
 export const ASSET_COSTS = '/api/v1/assets/{id}/costs' as const;
 export const ASSET_COST = '/api/v1/assets/{id}/costs/{flowId}' as const;
+export const ASSET_OWNERSHIP_COST = '/api/v1/assets/{id}/ownership-cost' as const;
 
 /** The categories of a vehicle's running cost, in the order the form offers them. */
 export const ASSET_COST_CATEGORIES = ['service', 'repair', 'tyres', 'fuel', 'other'] as const;
@@ -30,5 +33,5 @@ export const ASSET_KINDS = ['vehicle', 'precious_metal', 'art', 'collectible', '
 
 /** Every write on an asset invalidates the list, every detail and the home's net worth. */
 export function invalidateAssets(queryClient: QueryClient): Promise<void> {
-  return Promise.all([ASSETS, ASSET, ASSET_COSTS, DASHBOARD].map((path) => queryClient.invalidateQueries({ queryKey: ['get', path] }))).then(() => undefined);
+  return Promise.all([ASSETS, ASSET, ASSET_COSTS, ASSET_OWNERSHIP_COST, DASHBOARD].map((path) => queryClient.invalidateQueries({ queryKey: ['get', path] }))).then(() => undefined);
 }

@@ -5,7 +5,7 @@ import { lazy, Suspense, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
-import { ASSET, ASSET_ARCHIVE, ASSET_UNARCHIVE, invalidateAssets } from '@/api/assets';
+import { ASSET, ASSET_ARCHIVE, ASSET_OWNERSHIP_COST, ASSET_UNARCHIVE, invalidateAssets } from '@/api/assets';
 import { present, toProblem } from '@/api/errors';
 import { AccessBadge } from '@/components/AccessBadge';
 import { ErrorPage } from '@/components/ErrorPage';
@@ -48,6 +48,8 @@ export function AssetDetailPage() {
   const queryClient = useQueryClient();
   const { id } = useParams({ from: '/other-assets/$id' });
   const answer = $api.useQuery('get', ASSET, { params: { path: { id } } });
+  // #650: a vehicle's monthly cost over the last 12 months, the same answer the « Frais » tab opens on.
+  const ownership = $api.useQuery('get', ASSET_OWNERSHIP_COST, { params: { path: { id }, query: {} } }, { enabled: answer.data?.kind === 'vehicle' });
   const [tab, setTab] = useDetailTab(TABS);
   const [dialog, setDialog] = useState<'edit' | 'depreciation' | 'value' | 'mileage' | 'delete' | null>(null);
   const done = () => { void invalidateAssets(queryClient); };
@@ -84,6 +86,10 @@ export function AssetDetailPage() {
       value: asset.value ? <span className="inline-flex flex-wrap items-center gap-2"><Money value={asset.value} />{asset.valueEstimated ? <Badge variant="secondary">{t('assets_detail.estimated')}</Badge> : asset.valueFromPurchase ? <Badge variant="secondary">{t('assets_detail.from_purchase')}</Badge> : null}</span> : '—' },
     // #188: the server's figure, only while a readable loan finances the asset.
     ...(asset.netValue ? [{ label: t('assets_detail.net_value'), hint: asset.fxMissing ? <span className="text-status-warning-text">{t('assets_loans.fx_missing')}</span> : t('assets_detail.net_value_hint'), value: <Money value={asset.netValue} /> }] : []),
+    ...(asset.kind === 'vehicle' && ownership.data ? [{ label: t('assets_ownership.monthly'), tip: t('assets_ownership.tip'),
+      hint: <>{t('assets_ownership.monthly_hint')}{ownership.data.incomplete ? <> · <span className="text-status-warning-text">{t('assets_ownership.partial')}</span></> : null}</>,
+      value: <><Money value={ownership.data.monthly} /> {t('assets_ownership.a_month')}</> }] : []),
+    ...(asset.kind === 'vehicle' && ownership.data?.perKm ? [{ label: t('assets_ownership.per_km_label'), value: <Money value={ownership.data.perKm} /> }] : []),
     ...(asset.depreciationRate != null ? [{ label: t('assets_detail.depreciation'), value: t('assets_detail.per_year', { value: asset.depreciationRate.toLocaleString('fr-FR') }) }] : []),
     ...(asset.purchasedOn ? [{ label: t('assets_detail.purchased_on'), value: <LocalDate value={asset.purchasedOn} /> }] : []),
     ...(asset.purchasePrice ? [{ label: t('assets_detail.purchased_for'), value: <Money value={asset.purchasePrice} /> }] : []),
@@ -130,7 +136,7 @@ export function AssetDetailPage() {
       <DetailTabs value={tab} onChange={setTab} tabs={[
         { id: 'valuations', label: t('assets_detail.tab_valuations'), content: <AssetValuationsSection asset={asset} /> },
         // #649: the running costs are a vehicle's; another asset shows them only while it still holds some (history).
-        ...(asset.kind === 'vehicle' || asset.hasCosts ? [{ id: 'costs' as const, label: t('assets_costs.tab'), content: <AssetCostsSection asset={asset} /> }] : []),
+        ...(asset.kind === 'vehicle' || asset.hasCosts ? [{ id: 'costs' as const, label: t('assets_costs.tab'), content: <AssetCostsSection asset={asset} onTab={setTab} /> }] : []),
         { id: 'loans', label: t('assets_loans.tab'), content: <AssetLoansSection asset={asset} /> },
         { id: 'subscriptions', label: t('assets_subscriptions.tab'), content: <AssetSubscriptionsSection asset={asset} /> },
         { id: 'documents', label: t('documents_item.title'), content: <ItemDocuments itemId={asset.id} canWrite={asset.canWrite} defaultRole="invoice" /> },

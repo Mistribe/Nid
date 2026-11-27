@@ -1,4 +1,4 @@
-import type { AssetList, AssetRow, AssetView } from '@/api/assets';
+import type { AssetList, AssetRow, AssetView, OwnershipCost } from '@/api/assets';
 
 export const ASSET = '0192f0bb-0000-7000-8000-000000000001';
 const OWNER = [{ personId: '01926b9e-0000-7000-8000-00000000000a', shareBp: 10000 }];
@@ -17,4 +17,18 @@ export const assetView = (over: Partial<AssetView> = {}): AssetView => ({
   registeredOn: null, mileageKm: null, mileageOn: null, fiscalHp: null, energy: null, depreciationRate: null,
   valuations: [{ id: 'v1', asOf: '2026-06-01', amount: { amount: '8000.00', currency: 'EUR' }, note: 'cote', fromBank: false }],
   subscriptions: [], fxMissing: false, valueStale: false, hasCosts: false, version: 1, canWrite: true, shareLevel: 'edit', ...over,
+});
+
+/** #650: a vehicle's cost of ownership over the last 12 months, with every part filled. */
+export const ownershipCost = (over: Partial<OwnershipCost> = {}): OwnershipCost => ({
+  from: '2025-12-01', to: '2026-11-30', total: { amount: '4640.00', currency: 'EUR' }, monthly: { amount: '386.99', currency: 'EUR' },
+  perKm: { amount: '0.39', currency: 'EUR' }, incomplete: false, years: [2026, 2025],
+  parts: [
+    { code: 'running:service', amount: { amount: '600.00', currency: 'EUR' }, sourceId: null, name: null },
+    { code: 'running:fuel', amount: { amount: '1200.00', currency: 'EUR' }, sourceId: null, name: null },
+    { code: 'subscription', amount: { amount: '600.00', currency: 'EUR' }, sourceId: 'sub-1', name: 'Assurance auto' },
+    { code: 'credit', amount: { amount: '240.00', currency: 'EUR' }, sourceId: 'loan-1', name: 'Crédit auto' },
+    { code: 'depreciation', amount: { amount: '2000.00', currency: 'EUR' }, sourceId: null, name: null },
+  ],
+  ...over,
 });

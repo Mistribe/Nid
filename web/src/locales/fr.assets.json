@@ -169,7 +169,12 @@
     "col_price": "Prix",
     "col_deadline": "Prochaine échéance",
     "every": "tous les {{every}}",
-    "per": { "day": "par jour", "week": "par semaine", "month": "par mois", "year": "par an" },
+    "per": {
+      "day": "par jour",
+      "week": "par semaine",
+      "month": "par mois",
+      "year": "par an"
+    },
     "forbidden": "Vous ne pouvez pas modifier cet abonnement : il appartient à un autre membre du foyer.",
     "pick": "Abonnement",
     "pick_placeholder": "Choisir un abonnement",
@@ -239,5 +244,32 @@
     "correct": "Corriger",
     "delete_confirm": "Supprimer ce frais ?",
     "row_menu": "Actions pour le frais {{what}} du {{date}}"
+  },
+  "assets_ownership": {
+    "title": "Coût de possession",
+    "tip": "Ce que le véhicule coûte vraiment : ses frais, son carburant, son assurance et ses abonnements, les intérêts et l’assurance de son crédit, et la valeur qu’il perd. Le capital remboursé du crédit n’en fait pas partie : la perte de valeur compte déjà la voiture.",
+    "period": "Période",
+    "last_12": "12 derniers mois",
+    "a_month": "par mois",
+    "per_km": "par km",
+    "total": "Total :",
+    "incomplete": "Total partiel : des postes ne sont pas renseignés.",
+    "table": "Coût de possession par poste",
+    "col_part": "Poste",
+    "col_amount": "Montant",
+    "part": {
+      "subscription": "Assurance et abonnements",
+      "credit": "Coût du crédit",
+      "depreciation": "Perte de valeur"
+    },
+    "missing": "Non renseigné",
+    "missing_fuel": "reliez vos pleins depuis la banque ou ajoutez-les en frais",
+    "missing_subscription": "lier l’assurance",
+    "missing_value": "indiquer une valeur",
+    "missing_rate": "pas de taux de change",
+    "monthly": "Coût mensuel",
+    "monthly_hint": "12 derniers mois",
+    "per_km_label": "Coût au km",
+    "partial": "partiel"
   }
 }
