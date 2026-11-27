@@ -113,6 +113,63 @@ public class DecideCalibrationTests
     }
 
     [Fact]
+    public void The_lean_a_model_shows_on_texts_that_say_nothing_is_taken_out_of_its_scores()
+    {
+        // Whatever it reads, the model gives option 1 80 % and option 0 20 %; option 2 never makes its likeliest on those texts.
+        IReadOnlyList<IReadOnlyDictionary<int, double>> free =
+        [
+            new Dictionary<int, double> { [0] = Math.Log(0.2), [1] = Math.Log(0.8) },
+            new Dictionary<int, double> { [0] = Math.Log(0.2), [1] = Math.Log(0.8) },
+        ];
+
+        var corrected = Correct(new Dictionary<int, double> { [0] = Math.Log(0.4), [1] = Math.Log(0.5), [2] = Math.Log(0.1) }, free);
+
+        // 0.4 / 0.2 against 0.5 / 0.8: option 0 now leads. Option 2 had at most the lowest probability scored there, 20 %.
+        Assert.Equal([.. new[] { 2, 0.625, 0.5 }.Select(p => Math.Round(Math.Log(p), 6))], corrected.OrderBy(c => c.Key).Select(c => Math.Round(c.Value, 6)));
+        // No content-free answer scored anything: the scores as they are.
+        Assert.Equal(Math.Log(0.4), Correct(new Dictionary<int, double> { [0] = Math.Log(0.4) }, [new Dictionary<int, double>()])[0]);
+    }
+
+    [Fact]
+    public void In_two_steps_the_probability_is_the_top_s_times_the_child_s()
+    {
+        // Step 1: A (a top) at 90 %; step 2, among A's children, B at 50 %.
+        var guess = new Guess(A, null, [(A, 0), ((Guid?)null, -Math.Log(9))], Then: new Guess(B, null, [(B, 0), (Guid.NewGuid(), 0)]));
+
+        var pick = Pick(guess, 1)!.Value;
+
+        Assert.Equal((B, 0.45), (pick.Option, Math.Round(pick.Probability, 6)));
+        Assert.Equal(B, guess.Final);
+        // No second step (« none of these », or a top with no children): the first step's.
+        Assert.Equal(((Guid?)A, 0.9), Round(Pick(guess with { Then = null }, 1)!.Value));
+        Assert.Null(Pick(new Guess(A, null, []), 1));
+
+        static (Guid?, double) Round((Guid? Option, double Probability) p) => (p.Option, Math.Round(p.Probability, 6));
+    }
+
+    [Fact]
+    public void Two_steps_are_calibrated_on_the_expected_top_then_on_the_expected_child_under_it()
+    {
+        // Each step at 90 % at temperature 1: the top right 90 times out of 100, the child right 81 times out of those 90. A case whose top
+        // was wrong has its child outside the options of the second step, which then teaches nothing: calibrated as it is.
+        var child = Guid.NewGuid();
+        var other = Guid.NewGuid();
+        Guess Case(int i) => new(i < 90 ? A : B, null, [(A, 0), (B, -Math.Log(9))],
+            Then: new Guess(i < 81 ? child : i < 90 ? other : Guid.NewGuid(), null, [(child, 0), (other, -Math.Log(9))]));
+
+        var results = Worker([.. Enumerable.Range(0, 100).Select(Case)], scoreless: false);
+
+        Assert.Equal(1.0, results.Temperature);
+        // 0.9 × 0.9 for each, right 81 times out of 100.
+        var bin = Assert.Single(results.Reliability!);
+        Assert.Equal((0.81, 0.81, 100), (Math.Round(bin.Confidence, 6), Math.Round(bin.Accuracy, 6), bin.Count));
+
+        // Without scores: the option written at the last step asked.
+        var written = Worker([.. Enumerable.Range(0, 25).Select(_ => new Guess(A, A, [], Then: new Guess(child, child, [])))], scoreless: true);
+        Assert.Equal((25, 0), (written.Guess!.Shown, written.Guess.Wrong));
+    }
+
+    [Fact]
     public void A_model_that_cannot_tell_the_cases_apart_is_not_offered()
     {
         var cases = Enumerable.Range(0, 30).Select(i => new Case($"CASE {i}", true, i % 2 == 0 ? A : null)).ToList();

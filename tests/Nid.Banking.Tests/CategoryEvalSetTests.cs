@@ -12,7 +12,7 @@ public class CategoryEvalSetTests
     [Fact]
     public void It_holds_several_hundred_cases_about_one_in_seven_fitting_no_category()
     {
-        Assert.Equal(1, Set.Version);
+        Assert.Equal(2, Set.Version);
         Assert.True(Set.Cases.Count >= 400, $"{Set.Cases.Count} cases");
         Assert.True(Set.Cases.Count(c => c.Expected is null) >= 50);
         Assert.True(Set.History.Count >= 150, $"{Set.History.Count} history entries");
@@ -49,11 +49,25 @@ public class CategoryEvalSetTests
     }
 
     [Fact]
-    public void The_options_are_every_seed_category_but_the_transfers_as_a_model_reads_them()
+    public void The_options_are_every_seed_category_but_the_transfers_and_the_parents_as_a_model_reads_them()
     {
         var options = CategoryEvalSet.Options();
-        Assert.Equal(CategorySeed.All.Count(s => s.Kind != CategoryKind.Transfer), options.Count);
+        Assert.Equal(CategorySeed.All.Count(s => s.Kind != CategoryKind.Transfer && CategorySeed.All.All(o => o.ParentKey != s.Key)), options.Count);
         Assert.Contains(options, o => o.Debit && o.Text == "Alimentation › Courses");
+        Assert.Contains(options, o => o.Debit && o.Text == "Banque & frais");
         Assert.Contains(options, o => !o.Debit && o.Text == "Revenus › Salaire");
+        Assert.DoesNotContain(options, o => o.Text == "Alimentation");
+    }
+
+    [Fact]
+    public void A_worker_is_asked_each_side_in_two_lists_of_twenty_six_options_at_most()
+    {
+        var debit = CategoryEvalSet.Tree(true);
+        Assert.Equal(CategorySeed.All.Count(s => s.Kind == CategoryKind.Expense && s.ParentKey is null), debit.Count);
+        Assert.Equal("Alimentation (Courses, Livraison, Restaurants & cafés)", CategoryQuestion.TopText(debit[0]));
+        Assert.Equal("Assurances", CategoryQuestion.TopText(debit[1]));
+        var income = Assert.Single(CategoryEvalSet.Tree(false));
+        Assert.Equal(("Revenus", 5), (income.Name, income.Children.Count));
+        Assert.All(debit, t => Assert.True(t.Children.Count <= CategoryQuestion.MaxOptions));
     }
 }

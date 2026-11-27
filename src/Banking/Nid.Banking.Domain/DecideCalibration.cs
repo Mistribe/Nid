@@ -85,8 +85,36 @@ public static class DecideCalibration
 
     /// <summary>A worker's answer to a case: the category <paramref name="Expected"/> (null: none fits), the one it wrote
     /// (<paramref name="Choice"/>, null for « none of these » or no option), and its raw score of each option it scored, « none of these »
-    /// being the null category.</summary>
-    public sealed record Guess(Guid? Expected, Guid? Choice, IReadOnlyList<(Guid? Category, double Raw)> Scores);
+    /// being the null category. #821, asked in two steps: this is the first, among the tops (<paramref name="Expected"/> the expected one's
+    /// top), and <paramref name="Then"/> the second, among the children of the top scored best, when it has any.</summary>
+    public sealed record Guess(Guid? Expected, Guid? Choice, IReadOnlyList<(Guid? Category, double Raw)> Scores, Guess? Then = null)
+    {
+        /// <summary>The category expected at the last step asked.</summary>
+        public Guid? Final => Then is { } then ? then.Final : Expected;
+
+        /// <summary>The option written at the last step asked.</summary>
+        public Guid? Written => Then is { } then ? then.Written : Choice;
+    }
+
+    /// <summary>#821: the option scored best at the last step and its probability, each step's multiplied: p(top) × p(child | top). The
+    /// second step was asked under the top scored best, which no temperature changes.</summary>
+    public static (Guid? Option, double Probability)? Pick(Guess guess, double temperature)
+        => Top(guess.Scores, temperature) is not { } first ? null
+            : guess.Then is not { } then ? first
+            : Pick(then, temperature) is { } next ? (next.Option, first.Probability * next.Probability) : null;
+
+    /// <summary>
+    /// #821, contextual calibration: a small model leans to some options whatever it reads (« Banque & frais » for any bank line). Its scores
+    /// on texts that say nothing (<paramref name="free"/>) measure that lean: each score less the log of the option's mean probability there.
+    /// An option a content-free answer did not score had at most the lowest probability it scored. No content-free score: as they are.
+    /// </summary>
+    public static IReadOnlyDictionary<int, double> Correct(IReadOnlyDictionary<int, double> scores, IReadOnlyList<IReadOnlyDictionary<int, double>> free)
+    {
+        var answered = free.Where(f => f.Count > 0).ToList();
+        if (answered.Count == 0)
+            return scores;
+        return scores.ToDictionary(s => s.Key, s => s.Value - Math.Log(answered.Average(f => Math.Exp(f.TryGetValue(s.Key, out var p) ? p : f.Values.Min()))));
+    }
 
     /// <summary>The softmax of raw scores divided by <paramref name="temperature"/>: the probability of each.</summary>
     public static IReadOnlyList<double> Softmax(IReadOnlyList<double> raw, double temperature)
@@ -111,27 +139,29 @@ public static class DecideCalibration
 
     /// <summary>
     /// A worker's <c>decide</c> on the evaluation set. With scores: the temperature (0.25 to 4 by 0.05) that best predicts the expected
-    /// option (« none of these » for a case no category fits), then the lowest calibrated probability, from 0.30 to 0.99, at which the
-    /// option scored best is right often enough. Without (<paramref name="scoreless"/>): every option written is shown, offered only when
-    /// that is right often enough.
+    /// option at each step (« none of these » for a case no category fits), then the lowest calibrated probability, from 0.30 to 0.99, at
+    /// which the option picked (<see cref="Pick"/>) is right often enough. Without (<paramref name="scoreless"/>): every option written is
+    /// shown, offered only when that is right often enough.
     /// </summary>
     public static Results Worker(IReadOnlyList<Guess> guesses, bool scoreless)
     {
         if (scoreless)
         {
-            var all = Count(0, [.. guesses.Select(g => new Answer(g.Expected, g.Choice))]);
+            var all = Count(0, [.. guesses.Select(g => new Answer(g.Final, g.Written))]);
             return new Results(guesses.Count, null, null, null, Guess: Choose([all]));
         }
 
-        var scored = guesses.Where(g => g.Scores.Count > 0).ToList();
         // An expected option the model did not score among its likeliest has no probability at any temperature: its loss is the same for all.
-        var temperature = Enumerable.Range(0, 76).Select(i => Math.Round(0.25 + i * 0.05, 2)).MinBy(t => scored.Sum(g =>
+        // So has a second step asked under the wrong top, the expected child not being among its options.
+        static double Loss(Guess g, double t)
         {
             var p = Softmax([.. g.Scores.Select(s => s.Raw)], t);
             var expected = p.Where((_, i) => g.Scores[i].Category == g.Expected).DefaultIfEmpty(0).Single();
-            return -Math.Log(Math.Max(expected, 1e-9));
-        }));
-        var tops = guesses.Select(g => (g.Expected, Top: Top(g.Scores, temperature))).ToList();
+            return -Math.Log(Math.Max(expected, 1e-9)) + (g.Then is { Scores.Count: > 0 } then ? Loss(then, t) : 0);
+        }
+        var scored = guesses.Where(g => g.Scores.Count > 0).ToList();
+        var temperature = Enumerable.Range(0, 76).Select(i => Math.Round(0.25 + i * 0.05, 2)).MinBy(t => scored.Sum(g => Loss(g, t)));
+        var tops = guesses.Select(g => (Expected: g.Final, Top: Pick(g, temperature))).ToList();
         var guess = Choose(Grid(0.30, 0.99).Select(t => Count(t,
             [.. tops.Select(c => new Answer(c.Expected, c.Top is { Option: { } category, Probability: var p } && p >= t ? category : null))])));
         var reliability = tops.Where(c => c.Top is not null).GroupBy(c => Math.Min(4, (int)(c.Top!.Value.Probability * 5))).OrderBy(b => b.Key)

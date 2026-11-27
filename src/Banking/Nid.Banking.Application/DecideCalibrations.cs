@@ -52,6 +52,14 @@ public interface IDecideCalibrationStore
     Task SaveProfileAsync(DecideProfile profile, CancellationToken ct);
 }
 
+public static class DecideProfiles
+{
+    /// <summary>#821: the profile in force for <paramref name="key"/>. One measured on another version of the evaluation set is neither
+    /// applied nor shown: what it measured is not what the set asks now, so the model needs calibrating again.</summary>
+    public static async Task<DecideProfile?> CurrentProfileAsync(this IDecideCalibrationStore store, DecideKey key, CancellationToken ct)
+        => await store.ProfileAsync(key, ct) is { } profile && profile.EvalVersion == CategoryEvalSet.Current.Version ? profile : null;
+}
+
 /// <summary>#450: what suggests now, and so what a calibration measures: the <c>decide</c> use's model when it has one, a worker's
 /// implementation as the workers declare it; else nearest neighbours on the <c>embed</c> use's model. Each at the digest the workers
 /// declare (or the embed model's cloud profile).</summary>
@@ -87,14 +95,15 @@ public sealed class DecideSetup(IEmbeddings embeddings, IDecisions decisions, IM
     {
         if (await decisions.ModelAsync(ct) is not { } model)
             return null;
-        return await decisions.ImplementationAsync(model, ct) is { } implementation
-            ? new Current(implementation.Name, implementation.Version, model, await digests.DigestAsync(ModelUses.Capability(ModelUses.Decide), model, ct))
-            : new Current(null, null, model, null);
+        if (await decisions.ImplementationAsync(model, ct) is not { } implementation)
+            return new Current(null, null, model, null);
+        var digest = await digests.DigestAsync(ModelUses.Capability(ModelUses.Decide), model, ct);
+        return new Current(implementation.Name, CategoryQuestion.Version(implementation.Version, digest), model, digest);
     }
 
     /// <summary>A worker's profile in force: its guesses are shown (<see cref="DecideProfile.Offered"/>).</summary>
     public async Task<(DecideKey Key, DecideProfile Profile)?> WorkerProfileAsync(IDecideCalibrationStore calibrations, CancellationToken ct)
-        => await WorkerAsync(ct) is { Key: { } key } && await calibrations.ProfileAsync(key, ct) is { Offered: true } profile ? (key, profile) : null;
+        => await WorkerAsync(ct) is { Key: { } key } && await calibrations.CurrentProfileAsync(key, ct) is { Offered: true } profile ? (key, profile) : null;
 }
 
 /// <summary>
@@ -134,31 +143,32 @@ public sealed class DecideCalibrator(IDecideCalibrationStore store, IEmbeddings 
 
     private async Task<string?> WorkerAsync(DecideKey key, CancellationToken ct)
     {
-        if (await decisions.ImplementationAsync(key.Model, ct) is not { } implementation || (implementation.Name, implementation.Version) != (key.Implementation, key.Version))
+        if (await decisions.ImplementationAsync(key.Model, ct) is not { } implementation
+            || (implementation.Name, CategoryQuestion.Version(implementation.Version, key.Digest)) != (key.Implementation, key.Version))
             return JobCodes.ModelUnavailable;
         var set = CategoryEvalSet.Current;
-        var options = CategoryEvalSet.Options();
         var guesses = new List<DecideCalibration.Guess>();
+        var options = 0;
+        var oneStep = CategoryQuestion.OneStep(key.Digest);
         foreach (var side in set.Cases.Zip(set.CalibrationCases()).GroupBy(c => c.First.Debit))
         {
-            var sideOptions = options.Where(o => o.Debit == side.Key).ToList();
-            Guid? Category(int place) => place < sideOptions.Count ? sideOptions[place].Category : null; // past them: « none of these »
-            foreach (var batch in side.Chunk(CategoryGuesser.Batch))
+            var tops = CategoryEvalSet.Tree(side.Key);
+            options = Math.Max(options, oneStep ? CategoryQuestion.Leaves(tops)!.Count + 1 : Math.Max(tops.Count + 1, tops.Max(t => t.Children.Count)));
+            foreach (var batch in side.Chunk(CategoryQuestion.Batch))
             {
-                var decided = await decisions.DecideAsync(new LlmDecideRequest(
-                    [.. batch.Select(c => CategoryGuesser.Text(c.Second.Pattern, c.First.Label, c.First.Counterparty, c.First.Debit, []))],
-                    [.. sideOptions.Select(o => o.Text), CategoryGuesser.NoneOfThese], DataClasses.BankLabels, Concerned: []), ct);
-                if (!decided.TryGetValue(out var result))
-                    return decided.TryGetFailure(out var failure) ? failure!.Code : JobCodes.ModelUnavailable;
-                if (new DecideKey(result.Implementation, result.Version, result.Model, result.Digest) != key)
+                var asked = await CategoryQuestion.AskAsync(decisions,
+                    [.. batch.Select(c => CategoryGuesser.Text(c.Second.Pattern, c.First.Label, c.First.Counterparty, c.First.Debit, []))], side.Key, tops,
+                    DataClasses.BankLabels, [], oneStep, ct);
+                if (!asked.TryGetValue(out var result))
+                    return asked.TryGetFailure(out var failure) ? failure!.Code : JobCodes.ModelUnavailable;
+                if (result.Key != key)
                     return JobCodes.ModelUnavailable; // another model, or the same re-pulled, since it was queued
-                guesses.AddRange(batch.Zip(result.Decisions, (c, d) => new DecideCalibration.Guess(c.Second.Expected, d.Choice is { } choice ? Category(choice) : null,
-                    [.. d.Scores.Select(s => (Category(s.Key), s.Value))])));
+                guesses.AddRange(batch.Zip(result.Guesses, (c, g) => CategoryEvalSet.Expect(g, c.Second.Expected, oneStep)));
             }
         }
 
         var results = DecideCalibration.Worker(guesses, implementation.Scoreless);
-        await store.SaveProfileAsync(new DecideProfile(key, set.Version, options.GroupBy(o => o.Debit).Max(g => g.Count()) + 1,
+        await store.SaveProfileAsync(new DecideProfile(key, set.Version, options,
             implementation.Scoreless ? null : results.Guess?.Threshold, null, results.Temperature, implementation.Scoreless, results, clock.GetCurrentInstant()), ct);
         return null;
     }
@@ -240,7 +250,7 @@ public sealed class GetCategorySuggestionCalibrationHandler(DecideSetup setup, I
     {
         var current = await setup.CurrentAsync(ct);
         var latest = current.Key is { } key ? await store.LatestAsync(key, ct) : null;
-        var profile = current.Key is { } k ? await store.ProfileAsync(k, ct) : null;
+        var profile = current.Key is { } k ? await store.CurrentProfileAsync(k, ct) : null;
         return Result.Success(new CategorySuggestionCalibrationView(current.Implementation, current.Version,
             current.Model, current.Digest, current.Unavailable, latest is null ? null : View(latest), profile is null ? null : View(profile)));
     }

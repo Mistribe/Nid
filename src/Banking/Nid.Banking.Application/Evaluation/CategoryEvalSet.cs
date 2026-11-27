@@ -32,8 +32,25 @@ public sealed record CategoryEvalSet(int Version, IReadOnlyList<CategoryEvalSet.
     public IReadOnlyList<CategorySuggestions.Evidence> Evidence()
         => [.. History.Select(h => new CategorySuggestions.Evidence(Pattern(h.Label)!, h.Debit, CategorySeed.Find(h.Category)!.Id, h.Lines))];
 
-    /// <summary>Every seed category but the transfers, on its side, as a model reads it.</summary>
+    /// <summary>Every seed category but the transfers and the parents, on its side, as a model reads it. #821: a parent is no answer, a line
+    /// goes in its most precise category; offered, it drew the picks of its children's lines, every one counted wrong.</summary>
     public static IReadOnlyList<DecideCalibration.Option> Options()
-        => [.. CategorySeed.All.Where(c => c.Kind != CategoryKind.Transfer).Select(c => new DecideCalibration.Option(c.Id, c.Kind == CategoryKind.Expense,
-            CategorySuggestions.OptionText(c.ParentKey is { } parent ? CategorySeed.Find(parent)!.Name : null, c.Name)))];
+        => [.. CategorySeed.All.Where(c => c.Kind != CategoryKind.Transfer && !CategorySeed.All.Any(child => child.ParentKey == c.Key))
+            .Select(c => new DecideCalibration.Option(c.Id, c.Kind == CategoryKind.Expense,
+                CategorySuggestions.OptionText(c.ParentKey is { } parent ? CategorySeed.Find(parent)!.Name : null, c.Name)))];
+
+    /// <summary>#821: the seed categories of <paramref name="debit"/>'s side as a worker is asked them, in two steps.</summary>
+    public static IReadOnlyList<CategoryQuestion.Top> Tree(bool debit)
+        => CategoryQuestion.Tree([.. CategorySeed.All.Where(c => c.Kind == (debit ? CategoryKind.Expense : CategoryKind.Income))
+            .Select(c => (c.Id, c.ParentKey is { } parent ? CategorySeed.Find(parent)!.Id : (Guid?)null, c.Name))])!;
+
+    /// <summary>#821: a worker's guess with what the case expects at each step: the expected category's top, then the category itself;
+    /// asked in one step over the leaves (#812, <paramref name="oneStep"/>), the category itself.</summary>
+    public static DecideCalibration.Guess Expect(DecideCalibration.Guess guess, Guid? expected, bool oneStep = false)
+    {
+        if (oneStep)
+            return guess with { Expected = expected };
+        var top = expected is { } id && CategorySeed.All.First(c => c.Id == id).ParentKey is { } parent ? CategorySeed.Find(parent)!.Id : expected;
+        return guess with { Expected = top, Then = guess.Then is { } then ? then with { Expected = expected } : null };
+    }
 }
