@@ -55,5 +55,32 @@ public static partial class TransactionLabel
 
     /// <summary>What a recurring debit keeps from one month to the next: the normalized label without its numbers, references and dates.</summary>
     public static string Stem(string normalizedLabel)
-        => string.Join(' ', normalizedLabel.Split(' ', StringSplitOptions.RemoveEmptyEntries).Where(t => !t.Any(char.IsDigit)));
+        => string.Join(' ', Tokens(normalizedLabel).Where(t => !t.Any(char.IsDigit)));
+
+    [GeneratedRegex(@"^\d{2}/\d{2}(/\d{2,4})?$")]
+    private static partial Regex DateToken();
+
+    /// <summary>
+    /// #826: the stem a link rule made from a line keeps, its <see cref="Stem"/> plus the tokens holding a digit that also open
+    /// <paramref name="earlier"/> (the normalized labels of the account's other lines of the same stem, booked another day): a loan or
+    /// contract number, which tells two loans of one creditor apart (« REMB PRET 111111A » and « REMB PRET 222222B »). A reference
+    /// that changes every month never recurs and is dropped, as a date always is.
+    /// </summary>
+    public static string RuleStem(string normalizedLabel, IEnumerable<string> earlier)
+    {
+        var stem = Stem(normalizedLabel);
+        var seen = earlier.Where(l => Stem(l) == stem).SelectMany(Tokens).ToHashSet(StringComparer.Ordinal);
+        return string.Join(' ', Tokens(normalizedLabel).Where(t => !t.Any(char.IsDigit) || (!DateToken().IsMatch(t) && seen.Contains(t))));
+    }
+
+    /// <summary>Whether a link rule of <paramref name="ruleStem"/> (<see cref="RuleStem"/>) reads the line: the same stem, and every number it keeps.</summary>
+    public static bool RuleMatches(string ruleStem, string normalizedLabel)
+    {
+        if (Stem(ruleStem) != Stem(normalizedLabel))
+            return false;
+        var tokens = Tokens(normalizedLabel).ToHashSet(StringComparer.Ordinal);
+        return Tokens(ruleStem).Where(t => t.Any(char.IsDigit)).All(tokens.Contains);
+    }
+
+    private static string[] Tokens(string normalizedLabel) => normalizedLabel.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 }

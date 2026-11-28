@@ -101,11 +101,33 @@ public class LinkTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
 
         await using var scope = app.Services.CreateAsyncScope();
         var rule = Assert.Single(await scope.ServiceProvider.GetRequiredService<IRuleStore>().ByAsync(app.AdultA, TestContext.Current.CancellationToken));
-        Assert.Equal(("NETFLIX", account, netflix), (rule.LabelStem, rule.Account, rule.TargetItem));
+        Assert.Equal(("NETFLIX 123", account, netflix), (rule.LabelStem, rule.Account, rule.TargetItem));
         var linked = (await LinkOfAsync(app, line))!;
         Assert.Equal((LinkOutcome.AsExpected, "2026-04-05", $"person:{app.AdultA.Value:D}"), (linked.Outcome, linked.TargetKey, linked.DecidedBy));
         var byRule = (await LinkOfAsync(app, older))!;
         Assert.Equal((LinkOutcome.AsExpected, "2026-03-05", $"rule:{rule.Id:D}", netflix), (byRule.Outcome, byRule.TargetKey, byRule.DecidedBy, byRule.TargetItem));
+    }
+
+    [Fact]
+    public async Task The_rule_keeps_the_contract_number_and_leaves_another_contract_unlinked()
+    {
+        // #826: one creditor, two contracts, the same wording; only the contract number tells them apart.
+        var (app, account) = await StartAsync(fixture);
+        await using var _ = app;
+        var older = await AddAsync(app, account, "a", D(3, 5), -12.99m, "PRLV SEPA ACME 111111A DU 05/03/26");
+        var line = await AddAsync(app, account, "b", D(4, 5), -12.99m, "PRLV SEPA ACME 111111A DU 05/04/26");
+        var otherOlder = await AddAsync(app, account, "c", D(3, 5), -40.00m, "PRLV SEPA ACME 222222B DU 05/03/26");
+        var other = await AddAsync(app, account, "d", D(4, 5), -40.00m, "PRLV SEPA ACME 222222B DU 05/04/26");
+        var netflix = await MonthlyAsync(app);
+
+        await LinkAsync(app, line, "subscriptions", netflix.Value);
+
+        await using var scope = app.Services.CreateAsyncScope();
+        var rule = Assert.Single(await scope.ServiceProvider.GetRequiredService<IRuleStore>().ByAsync(app.AdultA, TestContext.Current.CancellationToken));
+        Assert.Equal("ACME 111111A DU", rule.LabelStem);
+        Assert.Equal($"rule:{rule.Id:D}", (await LinkOfAsync(app, older))!.DecidedBy);
+        Assert.Null(await LinkOfAsync(app, other));
+        Assert.Null(await LinkOfAsync(app, otherOlder));
     }
 
     [Fact]

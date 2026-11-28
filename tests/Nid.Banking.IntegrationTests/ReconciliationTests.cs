@@ -440,6 +440,27 @@ public class ReconciliationTests(PostgresFixture fixture) : IClassFixture<Postgr
     }
 
     [Fact]
+    public async Task A_rule_naming_the_contract_wins_over_a_plain_one()
+    {
+        // #826: a plain rule made before rules kept numbers, then one for the other contract of the same wording.
+        await using var app = await StartAsync(fixture);
+        var courant = await CourantAsync(app);
+        var first = await MonthlyAsync(app);
+        var second = await MonthlyAsync(app, "Netflix 2", price: "20.00");
+        var plain = await RuleAsync(app, courant, "NETFLIX", "subscriptions", first, app.AdultA);
+        var named = await RuleAsync(app, courant, "NETFLIX 222222B", "subscriptions", second, app.AdultA);
+        var ofFirst = await AddAsync(app, courant, "a", D(10, 5), -12.99m, "PRLV SEPA NETFLIX 111111A");
+        var ofSecond = await AddAsync(app, courant, "b", D(10, 5), -20.00m, "PRLV SEPA NETFLIX 222222B");
+
+        Assert.Equal(2, (await PassAsync(app)).Linked);
+
+        var a = (await LinkOfAsync(app, ofFirst))!;
+        var b = (await LinkOfAsync(app, ofSecond))!;
+        Assert.Equal(((ItemId?)first, $"rule:{plain.Id:D}"), (a.TargetItem, a.DecidedBy));
+        Assert.Equal(((ItemId?)second, $"rule:{named.Id:D}"), (b.TargetItem, b.DecidedBy));
+    }
+
+    [Fact]
     public async Task The_depositor_writes_the_target()
     {
         await using var app = await StartAsync(fixture);
