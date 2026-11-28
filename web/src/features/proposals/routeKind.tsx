@@ -4,7 +4,7 @@ import { useApi } from '@/api/ApiProvider';
 import { formatLocalDate } from '@/components/LocalDate';
 import { formatMoney } from '@/components/Money';
 import strings from '@/locales/fr.proposals.json';
-import { Table, TableBody } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { percent } from '@/lib/format';
 import { DOCUMENTS } from '@/api/documents';
 import { TAX_ASSESSMENTS, type TaxAssessment } from '../tax/assessments/api';
@@ -110,7 +110,21 @@ function shown(t: TFunction, key: string, v: unknown, names: Map<string, string>
   return ISO_DAY.test(v) ? formatLocalDate(v, 'short') : v;
 }
 
-type Group = { heading: string | null; rows: [string, string][] };
+type Group = { heading: string | null; rows: [string, string][]; table?: { columns: string[]; cells: string[][] } };
+
+const isObject = (e: unknown): e is Record<string, unknown> => typeof e === 'object' && e !== null && !isMoney(e);
+/** An entry with plain values only (no nested object or list of objects): it fits one row of a table. */
+const isFlat = (entry: unknown) => isObject(entry) && Object.values(entry).every((x) => !isObject(x) && !(Array.isArray(x) && x.some(isObject)));
+const cell = (t: TFunction, key: string, v: unknown, names: Map<string, string>) =>
+  Array.isArray(v) ? v.map((e) => shown(t, key, e, names)).filter(isText).join(', ') || null : v === null || v === undefined ? null : shown(t, key, v, names);
+
+/** Several plain entries (twenty movements, edits, days): one row each, a column per field, never a block per entry. */
+function entryTable(t: TFunction, entries: Record<string, unknown>[], names: Map<string, string>): Group['table'] {
+  // A column nothing fills (an id nothing names) is left out.
+  const keys = [...new Set(entries.flatMap((e) => Object.keys(e)))]
+    .filter((k) => !HIDDEN.has(k) && entries.some((e) => cell(t, k, e[k], names) !== null));
+  return { columns: keys.map(fieldLabel), cells: entries.map((e) => keys.map((k) => cell(t, k, e[k], names) ?? '')) };
+}
 
 /** The fields as titled groups: one per array entry (« Déclarant 1 — Alex ») or nested object, a list of plain values on one line. */
 function groups(t: TFunction, value: Record<string, unknown>, heading: string | null, names: Map<string, string>, out: Group[], skip?: string) {
@@ -119,7 +133,9 @@ function groups(t: TFunction, value: Record<string, unknown>, heading: string | 
   const within = (title: string) => (heading ? `${heading} · ${title}` : title);
   for (const [key, v] of Object.entries(value)) {
     if (key === skip || HIDDEN.has(key) || v === null || v === undefined) continue;
-    if (Array.isArray(v) && v.some((e) => typeof e === 'object' && e !== null && !isMoney(e))) {
+    if (Array.isArray(v) && v.length > 1 && v.every(isFlat)) {
+      out.push({ heading: within(FIELDS[key] ?? ENTRIES[key] ?? fieldLabel(key)), rows: [], table: entryTable(t, v as Record<string, unknown>[], names) });
+    } else if (Array.isArray(v) && v.some(isObject)) {
       v.forEach((entry: Record<string, unknown>, i) => {
         // The entry's name is its heading: a person's or a document's, or the name or label it carries.
         const by = Object.keys(entry).find((k) => isId(k) && isText(entry[k]) && names.has(entry[k]))
@@ -183,7 +199,7 @@ export function RoutePayload({ p, preview }: { p: ProposalView; preview?: unknow
   }
   // The route's own values (`year`, `on`) first; its `id` is the subject, its other ids named or hidden.
   // An entry whose only field is its name (a guarantee) keeps its heading.
-  const shownGroups = groups(t, { ...route, ...body }, null, names, [], 'id').filter((g) => g.rows.length > 0 || g.heading);
+  const shownGroups = groups(t, { ...route, ...body }, null, names, [], 'id').filter((g) => g.rows.length > 0 || g.table || g.heading);
   const replacesInsurance = actionOf(p.kind) === 'set_insurance';
   return (
     <section aria-label={t('proposal.route.fields')} className="flex max-w-2xl flex-col gap-4">
@@ -195,6 +211,12 @@ export function RoutePayload({ p, preview }: { p: ProposalView; preview?: unknow
           {g.rows.length > 0 ? (
             <Table>
               <TableBody>{g.rows.map(([label, v], j) => <Row key={j} label={label}>{v}</Row>)}</TableBody>
+            </Table>
+          ) : null}
+          {g.table ? (
+            <Table>
+              <TableHeader><TableRow>{g.table.columns.map((c, k) => <TableHead key={k} scope="col">{c}</TableHead>)}</TableRow></TableHeader>
+              <TableBody>{g.table.cells.map((row, j) => <TableRow key={j}>{row.map((v, k) => <TableCell key={k}>{v}</TableCell>)}</TableRow>)}</TableBody>
             </Table>
           ) : null}
         </section>

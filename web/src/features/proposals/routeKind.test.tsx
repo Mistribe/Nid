@@ -49,6 +49,25 @@ describe('Une proposition d’action du web', () => {
     expect(edit.getByRole('row', { name: /^Date du document/ })).toHaveTextContent('31 mars 2024');
   });
 
+  it('shows many operations as one table, a row each', async () => {
+    const docs = Array.from({ length: 20 }, (_, i) => ({ id: `doc-${i + 1}`, title: `Relevé ${i + 1}` }));
+    const p = proposal({
+      kind: 'documents.file_documents', targetItemId: null, targetName: null, subjectKey: null,
+      payload: { body: { edits: docs.map((d, i) => ({ id: d.id, documentDate: `2024-01-${String(i + 1).padStart(2, '0')}`, version: 3 })) } },
+    });
+    serve([p], { preview: {} });
+    server.use(http.get('*/api/v1/documents', () => HttpResponse.json({ items: docs })));
+    const { container } = await renderApp(`/proposals/${p.id}`);
+
+    const edits = within(await screen.findByRole('region', { name: 'Modifications' }));
+    await waitFor(() => expect(edits.getAllByRole('row')[20]).toHaveTextContent('Relevé 20'));
+    expect(edits.getAllByRole('row')).toHaveLength(21);
+    expect(edits.getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['Élément', 'Date du document']);
+    expect(edits.getAllByRole('row')[1]).toHaveTextContent('1 janv. 2024');
+    expect(screen.queryByRole('region', { name: /^Modification 1/ })).toBeNull();
+    await expectNoAxeViolations(container);
+  });
+
   it('is listed by its action and the name it will have', async () => {
     serve([creation()]);
     await renderApp('/proposals');
