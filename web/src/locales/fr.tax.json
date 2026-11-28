@@ -320,9 +320,8 @@
       "more": "Afficher les {{count}} autres",
       "less": "Afficher moins",
       "childcare": {
-        "from_statements": "{{amount}} ({{validated}} mois validés)",
-        "projected": "{{amount}} ({{validated}} mois validés, {{estimated}} estimés)",
-        "estimated": "{{amount}} ({{estimated}} mois estimés)"
+        "from_statements": "{{amount}} retenus, d’après les mois validés ({{validated}}/{{months}})",
+        "estimated": "{{amount}} retenus, estimés d’après le contrat faute de mois validé (0/{{months}})"
       },
       "home_employment": {
         "recorded": "{{amount}} d’après {{validated}} mois enregistrés",
