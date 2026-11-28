@@ -50,8 +50,8 @@ function childcareItems(t: TFunction, notices: TaxNotice[], year: number): Notic
   return notices.map((n) => ({
     key: n.item,
     name: n.name,
-    detail: t(n.code === 'childcare_estimated' ? 'tax.notices.childcare.estimated' : n.monthsEstimated ? 'tax.notices.childcare.projected' : 'tax.notices.childcare.from_statements',
-      { amount: eur(n.amount), validated: n.monthsValidated, estimated: n.monthsEstimated }),
+    detail: t(n.code === 'childcare_estimated' ? 'tax.notices.childcare.estimated' : 'tax.notices.childcare.from_statements',
+      { amount: eur(n.amount), validated: n.monthsValidated, months: (n.monthsValidated ?? 0) + (n.monthsEstimated ?? 0) }),
     link: { to: '/childcare/$id', params: { id: n.item }, search: { tab: 'summary', year: String(year) } },
   }));
 }

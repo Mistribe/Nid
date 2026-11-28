@@ -44,9 +44,9 @@ describe('noticeGroups', () => {
     expect(g).toHaveLength(1);
     expect(g[0]!.heading).toBe('Frais de garde : le montant du profil est remplacé par le réel ou estimé d’après le contrat.');
     expect(g[0]!.items.map((i) => i.detail!.replace(/\s/g, ' '))).toEqual([
-      '2 628,81 € (7 mois validés, 5 estimés)',
-      '1 200,00 € (12 mois validés)',
-      '500,00 € (3 mois estimés)',
+      '2 628,81 € retenus, d’après les mois validés (7/12)',
+      '1 200,00 € retenus, d’après les mois validés (12/12)',
+      '500,00 € retenus, estimés d’après le contrat faute de mois validé (0/3)',
     ]);
     const c1 = g[0]!.items[0]!;
     expect(c1.amount).toBeUndefined();
