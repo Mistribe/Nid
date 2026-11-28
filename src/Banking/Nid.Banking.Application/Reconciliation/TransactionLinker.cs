@@ -95,9 +95,11 @@ public sealed class TransactionLinker(
         if (stem.Length == 0 || module == Assets)
             return Result.Success(link);
 
-        var rule = await rules.UpsertAsync(line.Account, stem, module, item, by, ct);
-        foreach (var other in await transactions.ListAsync([line.Account], null, null, 0, int.MaxValue, ct, "unlinked"))
-            if (other.Id != line.Id && TransactionLabel.Stem(other.NormalizedLabel) == stem)
+        var lines = await transactions.ListAsync([line.Account], null, null, 0, int.MaxValue, ct);
+        var ruleStem = TransactionLabel.RuleStem(line.NormalizedLabel, lines.Where(l => l.BookedOn != line.BookedOn).Select(l => l.NormalizedLabel));
+        var rule = await rules.UpsertAsync(line.Account, ruleStem, module, item, by, ct);
+        foreach (var other in lines)
+            if (other.Id != line.Id && other.LinkState == TransactionLinkState.Unlinked && TransactionLabel.RuleMatches(ruleStem, other.NormalizedLabel))
                 await ApplyRuleAsync(other, rule, today, ct);
         return Result.Success(link);
     }

@@ -242,7 +242,9 @@ public sealed partial class BankReconciliation(
             await TryAsync([line.Id], async () =>
             {
                 var stem = TransactionLabel.Stem(line.NormalizedLabel);
-                List<BankRule> applicable = stem.Length == 0 ? [] : rulesOf[line.Account].Where(r => r.LabelStem == stem).ToList();
+                List<BankRule> matching = stem.Length == 0 ? [] : rulesOf[line.Account].Where(r => TransactionLabel.RuleMatches(r.LabelStem, line.NormalizedLabel)).ToList();
+                // #826: a rule that names the loan or contract (its number) wins over one made before it did.
+                List<BankRule> applicable = matching.Any(r => r.LabelStem != stem) ? [.. matching.Where(r => r.LabelStem != stem)] : matching;
                 if (applicable.Count > 0)
                 {
                     // Two targets, or no charge within tolerance: the line stays unlinked, without a guess.
