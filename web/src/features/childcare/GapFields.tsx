@@ -1,39 +1,77 @@
-import { Controller, useFieldArray, type ArrayPath, type FieldValues, type Path, type UseFormReturn } from 'react-hook-form';
+import type { FieldValues, Path, UseFormReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { DateField } from '@/components/form/DateField';
-import { Field } from '@/components/form/Field';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { formatLocalDate } from '@/components/LocalDate';
+import { Toggle } from '@/components/ui/toggle';
+import { cn } from '@/lib/utils';
 import type { GapRow } from './childcareSchema';
+import { monthsOf, mondaysOf, plusDays, rowsOf, type GapYear } from './gapWeeks';
 import '@/locales/childcare';
 
 type WithGaps = FieldValues & { gaps: GapRow[] };
 
-/** The weeks without care: each row a Monday and a number of weeks; the server checks them against the programmed weeks. */
-export function GapFields<T extends WithGaps>({ form }: { form: UseFormReturn<T> }) {
+const monthShort = new Intl.DateTimeFormat('fr-FR', { timeZone: 'UTC', month: 'short' });
+
+/**
+ * The weeks without care as one calendar per contract year: a cell per week (its Monday), pressed when the child is not cared for.
+ * The rows sent stay a first Monday and a number of weeks, one per run; the server checks each year against its programmed weeks.
+ */
+export function GapFields<T extends WithGaps>({ form, years }: { form: UseFormReturn<T>; years: GapYear[] }) {
   const { t } = useTranslation();
-  const rows = useFieldArray({ control: form.control, name: 'gaps' as ArrayPath<T> });
-  const errors = form.formState.errors.gaps as { message?: string; [i: number]: { monday?: { message?: string }; weeks?: { message?: string } } } | undefined;
-  // A full year has none: its leave goes in the months' days (the hook above runs either way).
+  const name = 'gaps' as Path<T>;
+  const rows = form.watch(name) as GapRow[];
+  const error = (form.formState.errors.gaps as { message?: string } | undefined)?.message;
+  // A full year has none: its leave goes in the months' days.
   if (form.watch('fullYear' as Path<T>) === true) return <p className="text-sm text-muted-foreground">{t('childcare_form.gaps_full_year')}</p>;
+  const placed = mondaysOf(rows);
+  const toggle = (monday: string) => {
+    const next = new Set(placed);
+    if (!next.delete(monday)) next.add(monday);
+    form.setValue(name, rowsOf(next) as never, { shouldDirty: true });
+  };
   return (
-    <div className="space-y-3">
+    <div className="space-y-6">
       <p className="text-sm text-muted-foreground">{t('childcare_form.gaps_hint')}</p>
-      {errors?.message ? <p className="text-sm text-destructive">{errors.message}</p> : null}
-      {rows.fields.map((row, i) => (
-        <div key={row.id} className="flex flex-wrap items-end gap-3">
-          <Controller control={form.control} name={`gaps.${i}.monday` as Path<T>} render={({ field }) => (
-            <Field label={t('childcare_form.gap_monday', { n: i + 1 })} error={errors?.[i]?.monday?.message}>
-              {(c) => <DateField {...c} value={field.value} onChange={field.onChange} />}
-            </Field>
-          )} />
-          <Field label={t('childcare_form.gap_weeks', { n: i + 1 })} error={errors?.[i]?.weeks?.message}>
-            {(c) => <Input inputMode="numeric" className="w-24" {...c} {...form.register(`gaps.${i}.weeks` as Path<T>)} />}
-          </Field>
-          <Button type="button" variant="ghost" onClick={() => rows.remove(i)}>{t('childcare_form.gap_remove')}</Button>
-        </div>
-      ))}
-      <Button type="button" variant="outline" onClick={() => rows.append({ monday: '', weeks: '1' } as never)}>{t('childcare_form.gap_add')}</Button>
+      {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
+      {years.length === 0 ? <p className="text-sm text-muted-foreground">{t('childcare_form.gaps_no_start')}</p> : null}
+      {years.map((y) => <YearWeeks key={y.from} year={y} placed={placed} onToggle={toggle} />)}
     </div>
+  );
+}
+
+function YearWeeks({ year, placed, onToggle }: { year: GapYear; placed: Set<string>; onToggle: (monday: string) => void }) {
+  const { t } = useTranslation();
+  const label = t('childcare_detail.gap_year', { from: formatLocalDate(year.from, 'short'), to: formatLocalDate(year.to, 'short') });
+  const inYear = [...placed].filter((m) => m >= year.from && m <= year.to);
+  const left = year.allowed - inYear.length;
+  return (
+    <section aria-label={label} className="space-y-2">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h3 className="text-sm font-medium">{label}</h3>
+        <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium',
+          left === 0 ? 'bg-status-good/15 text-status-good-text' : left > 0 ? 'bg-status-warning/15 text-status-warning-text' : 'bg-destructive/10 text-destructive')}>
+          {t('childcare_form.gaps_count', { placed: inYear.length, allowed: year.allowed })}
+          {left > 0 ? ` · ${t('childcare_form.gaps_left', { count: left })}` : left < 0 ? ` · ${t('childcare_form.gaps_over', { count: -left })}` : ''}
+        </span>
+      </div>
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(2.5rem,1fr))] gap-1">
+        {monthsOf(year).map(({ month, mondays }) => (
+          <div key={month} className="flex flex-col gap-1">
+            <span aria-hidden="true" className="text-center text-xs text-muted-foreground">{monthShort.format(new Date(`${month}-01T00:00:00Z`))}</span>
+            {mondays.map((m) => (
+              <Toggle key={m} variant="outline" size="sm" pressed={placed.has(m)} onPressedChange={() => onToggle(m)}
+                aria-label={t('childcare_form.gap_week', { date: formatLocalDate(m) })}
+                className="w-full data-[state=on]:border-primary data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
+                {Number(m.slice(8))}
+              </Toggle>
+            ))}
+          </div>
+        ))}
+      </div>
+      {inYear.length > 0 ? (
+        <p className="text-xs text-muted-foreground">
+          {rowsOf(inYear).map((r) => `${formatLocalDate(r.monday, 'short')} → ${formatLocalDate(plusDays(r.monday, 7 * Number(r.weeks) - 1), 'short')} · ${t('childcare_detail.weeks', { count: Number(r.weeks) })}`).join(' ; ')}
+        </p>
+      ) : null}
+    </section>
   );
 }
