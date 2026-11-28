@@ -1,0 +1,4 @@
+{
+  "en": "An OFX statement whose bank repeats the payee in the memo no longer shows it twice in the transaction's label.",
+  "fr": "Un relevé OFX dont la banque répète le bénéficiaire dans le mémo ne le montre plus deux fois dans le libellé de l’opération."
+}
