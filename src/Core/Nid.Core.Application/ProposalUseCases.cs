@@ -287,7 +287,7 @@ public sealed class SubmitProposalHandler(
 }
 
 [RequestHandler<ListProposalsQuery, ProposalList>]
-public sealed class ListProposalsHandler(IProposalStore store, IVisibleItems visible, IActorAccessor accessor, IItemRegistry items)
+public sealed class ListProposalsHandler(IProposalStore store, IVisibleItems visible, IActorAccessor accessor, IItemRegistry items, IAccessPolicy policy)
     : IRequestHandler<ListProposalsQuery, ProposalList>
 {
     public async ValueTask<Result<ProposalList>> HandleAsync(ListProposalsQuery query, CancellationToken ct = default)
@@ -301,9 +301,12 @@ public sealed class ListProposalsHandler(IProposalStore store, IVisibleItems vis
         var skip = query.Page is { } page ? (Math.Max(page, 1) - 1) * size : 0;
         var take = query.Page is null ? (int?)null : size;
         var search = string.IsNullOrWhiteSpace(query.Search) ? null : query.Search;
+        // The browser's « À valider » shows only what its reader can decide (as canDecide); a token still lists every pending one it reads.
+        var writable = status == ProposalStatus.Pending && accessor.Current!.TokenId is null
+            ? await policy.CheckManyAsync(me, targets.ToList(), AccessKind.Write, ct) : null;
         var stored = query.Target is { } target
-            ? await store.PageAsync(targets.Contains(target) ? new HashSet<ItemId> { target } : new HashSet<ItemId>(), null, status, me, search, skip, take, ct)
-            : await store.PageAsync(targets, me, status, me, search, skip, take, ct);
+            ? await store.PageAsync(targets.Contains(target) ? new HashSet<ItemId> { target } : new HashSet<ItemId>(), null, status, me, search, skip, take, ct, writable)
+            : await store.PageAsync(targets, me, status, me, search, skip, take, ct, writable);
         var names = await ProposalAccess.NamesAsync(items, stored.Items.Select(p => p.Target), ct);
         return Result.Success(new ProposalList(stored.Items.Select(p => ProposalView.From(p, names(p.Target))).ToList(), stored.Total));
     }

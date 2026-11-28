@@ -233,7 +233,8 @@ public class ProposalRouteTests(PostgresFixture fixture) : IClassFixture<Postgre
     public async Task The_list_narrowed_to_a_target_holds_its_proposals_alone_and_nothing_on_an_item_the_reader_cannot_see()
     {
         await using var app = await StartAsync(fixture);
-        var netflix = await app.NewSubscriptionAsync("Netflix", app.AdultA, Visibility.Shared);
+        // Joint, so B decides — and lists — the proposal on it too.
+        var netflix = await app.NewOwnedSubscriptionAsync("Netflix", Visibility.Shared, (app.AdultA, 5_000), (app.AdultB, 5_000));
         var spotify = await app.NewSubscriptionAsync("Spotify", app.AdultA, Visibility.Shared);
         var hidden = await app.NewSubscriptionAsync("Privé", app.AdultA, Visibility.Private);
         var mine = (await JsonOf(await app.RawAsync(app.AdultA, HttpMethod.Post, Proposals, Echo(netflix.Value)))).GetProperty("id").GetGuid();
@@ -283,6 +284,9 @@ public class ProposalRouteTests(PostgresFixture fixture) : IClassFixture<Postgre
     {
         await using var app = await StartAsync(fixture);
         var item = await app.NewSubscriptionAsync("Netflix", app.AdultA, Visibility.Shared);
+        // Shared at « edit », so B decides — and lists — the proposal while it is shared.
+        await using (var core = PostgresFixture.NewCoreContext(app.ConnectionString))
+            await core.Items.Where(i => i.Id == item.Value).ExecuteUpdateAsync(s => s.SetProperty(i => i.ShareLevel, "edit"), TestContext.Current.CancellationToken);
         var proposal = await JsonOf(await app.RawAsync(app.AdultA, HttpMethod.Post, Proposals, Echo(item.Value)));
         Assert.Single((await JsonOf(await app.RawAsync(app.AdultB, HttpMethod.Get, Proposals))).GetProperty("items").EnumerateArray());
 
@@ -297,7 +301,7 @@ public class ProposalRouteTests(PostgresFixture fixture) : IClassFixture<Postgre
     {
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
         await core.Items.Where(i => i.Id == item.Value)
-            .ExecuteUpdateAsync(s => s.SetProperty(i => i.Visibility, "private"));
+            .ExecuteUpdateAsync(s => s.SetProperty(i => i.Visibility, "private").SetProperty(i => i.ShareLevel, "view"));
     }
 
     [Fact]
