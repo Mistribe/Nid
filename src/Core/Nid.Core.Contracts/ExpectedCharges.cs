@@ -21,6 +21,7 @@ public static class ChargeKinds
     public const string Rent = "rent";
     public const string Childcare = "childcare";
     public const string Income = "income";
+    public const string Purchase = "purchase";
 }
 
 /// <summary>
@@ -46,3 +47,9 @@ public interface IExpectedCharges
 /// validated yet. Registered under this interface only, so the readers of <see cref="IExpectedCharges"/> (the reconciliation) never see them.
 /// </summary>
 public interface IProjectedCharges : IExpectedCharges;
+
+/// <summary>
+/// A payment already recorded on an item (a subscription's prepaid pack) that a bank line may pay, but that the reconciliation does not
+/// expect: registered under this interface only, read by a line's link candidates and its link, never by the matching nor the calendar.
+/// </summary>
+public interface IRecordedCharges : IExpectedCharges;

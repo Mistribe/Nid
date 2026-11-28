@@ -224,6 +224,31 @@ public class LinkRouteTests(PostgresFixture fixture) : IClassFixture<PostgresFix
     }
 
     [Fact]
+    public async Task A_prepaid_pack_is_a_candidate_and_its_line_links_to_it()
+    {
+        await using var s = await StartAsync(fixture);
+        var app = s.App;
+        var game = await app.NewSubscriptionAsync("Game", app.AdultA, Visibility.Shared);
+        (await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/subscriptions/{game.Value}/purchases", new
+        {
+            date = "2026-10-08", label = "Pack 1 an", kind = "prepaid_term",
+            price = new { amount = "60.00", currency = "EUR" },
+            payer = new { type = "household" },
+            grants = new[] { new { subscriptionId = game.Value, duration = new { count = 12, unit = "month" }, source = "paid" } },
+        })).EnsureSuccessStatusCode();
+        var line = await AddAsync(app, s.Joint, "a", new LocalDate(2026, 10, 9), -60.00m, "CARTE PAYPAL GAME");
+
+        var candidates = (await BankingApi.JsonAsync(await app.RawAsync(app.AdultA, HttpMethod.Get, $"{BankingApi.Root}/transactions/{line}/candidates"))).EnumerateArray();
+        var pack = Assert.Single(candidates, c => c.GetProperty("itemId").GetGuid() == game.Value);
+        Assert.Equal(("purchase", "2026-10-08", "0.00"), (pack.GetProperty("kind").GetString(), pack.GetProperty("dueOn").GetString(), pack.GetProperty("gap").GetString()));
+
+        var response = await PostAsync(app, app.AdultA, line, "link", new { module = "subscriptions", itemId = game.Value, key = pack.GetProperty("key").GetString() });
+        Assert.True(response.StatusCode == HttpStatusCode.OK, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var link = (await LineAsync(app, app.AdultA, line)).GetProperty("link");
+        Assert.Equal(("as_expected", "60.00"), (link.GetProperty("outcome").GetString(), link.GetProperty("expectedAmount").GetString()));
+    }
+
+    [Fact]
     public async Task Expected_charges_window_is_capped()
     {
         await using var s = await StartAsync(fixture);

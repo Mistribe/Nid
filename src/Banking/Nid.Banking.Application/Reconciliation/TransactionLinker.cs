@@ -63,7 +63,7 @@ public sealed class TransactionLinker(
     /// </summary>
     public async Task<ExpectedCharge?> ChargeAsync(BankTransaction line, ItemId item, string? key, PersonId person, CancellationToken ct)
     {
-        var own = (await charges.WritableAsync(person, line.BookedOn.PlusDays(-AskDays), line.BookedOn.PlusDays(AskDays), ct))
+        var own = (await charges.LinkableAsync(person, line.BookedOn.PlusDays(-AskDays), line.BookedOn.PlusDays(AskDays), ct))
             .Where(c => c.Item == item).ToList();
         return key is not null
             ? own.FirstOrDefault(c => c.Key == key)

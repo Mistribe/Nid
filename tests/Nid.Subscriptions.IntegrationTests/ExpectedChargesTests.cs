@@ -56,4 +56,28 @@ public class ExpectedChargesTests(PostgresFixture fixture) : IClassFixture<Postg
         // #241: the household scope shows the shared items only, the reader's private ones left out.
         Assert.Empty(await ChargesAsync(app, app.AdultA, from, to, VisibilityScope.Household));
     }
+
+    [Fact]
+    public async Task A_prepaid_pack_is_a_recorded_charge_not_an_expected_one()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        var id = await app.NewSubscriptionAsync("Game", app.AdultA, Visibility.Shared);
+        (await app.RawAsync(app.AdultA, HttpMethod.Post, $"/api/v1/subscriptions/{id.Value}/purchases", new
+        {
+            date = "2026-03-10", label = "Pack 1 an", kind = "prepaid_term",
+            price = new { amount = "60.00", currency = "EUR" },
+            payer = new { type = "household" },
+            // Two grants, one purchase: one charge to link.
+            grants = new[] { 12, 1 }.Select(months => new { subscriptionId = id.Value, duration = new { count = months, unit = "month" }, source = "paid" }).ToArray(),
+        })).EnsureSuccessStatusCode();
+        var (from, to) = (new LocalDate(2026, 3, 1), new LocalDate(2026, 3, 31));
+
+        Assert.Empty(await ChargesAsync(app, app.AdultA, from, to));
+        await using var scope = app.Services.CreateAsyncScope();
+        scope.ServiceProvider.GetRequiredService<IActorAccessor>().Current = Actor.Browser(app.AdultA);
+        var recorded = await Assert.Single(scope.ServiceProvider.GetServices<IRecordedCharges>()).ChargesAsync(app.AdultA, VisibilityScope.Me, from, to, TestContext.Current.CancellationToken);
+        var charge = Assert.Single(recorded.TryGetValue(out var found) ? found : throw new InvalidOperationException());
+        Assert.Equal((id, ChargeKinds.Purchase, new LocalDate(2026, 3, 10), 60.00m, false), (charge.Item, charge.Kind.Name, charge.DueOn, charge.Amount.Amount, charge.Credit));
+        Assert.StartsWith("purchase:", charge.Key, StringComparison.Ordinal);
+    }
 }
