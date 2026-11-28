@@ -217,6 +217,7 @@ public static class NidServiceCollectionExtensions
         services.AddScoped<IPersonUsePart, Nid.Subscriptions.Infrastructure.Persistence.SubscriptionsPersonUsePart>();
         services.AddScoped<ICommitmentsContribution, Nid.Subscriptions.Application.SubscriptionsCommitments>();
         services.AddScoped<IExpectedCharges, Nid.Subscriptions.Application.SubscriptionExpectedCharges>();
+        services.AddScoped<IRecordedCharges, Nid.Subscriptions.Application.SubscriptionPurchaseCharges>();
         services.AddScoped<Nid.Subscriptions.Application.SubscriptionSet>();
         services.AddScoped<Nid.Subscriptions.Application.AssetLinks>();
         services.AddScoped<Nid.Subscriptions.Contracts.ISubscriptionsOfItems, Nid.Subscriptions.Application.SubscriptionsOfItems>();

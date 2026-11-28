@@ -303,7 +303,7 @@ public sealed class LinkCandidatesHandler(IContextAccessor context, BankingAcces
         var line = CheckedResources.Of<BankTransaction>(context, query);
 
         var (from, to) = (line!.BookedOn.PlusDays(-Days), line.BookedOn.PlusDays(Days));
-        var own = (await charges.WritableAsync(access.Person, from, to, ct)).Where(c => c.Credit == line.Amount > 0).ToList();
+        var own = (await charges.LinkableAsync(access.Person, from, to, ct)).Where(c => c.Credit == line.Amount > 0).ToList();
         var convert = await charges.ConverterAsync(own, from, to, ct);
         var stem = TransactionLabel.Stem(line.NormalizedLabel);
         var paid = Math.Abs(line.Amount);

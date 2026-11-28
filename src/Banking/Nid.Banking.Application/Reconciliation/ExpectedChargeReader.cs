@@ -6,7 +6,7 @@ namespace Nid.Banking.Application.Reconciliation;
 
 /// <summary>5C spec §6.1: every module's expected charges for a person, and their amounts in a line's currency (D25).</summary>
 public sealed partial class ExpectedChargeReader(
-    IEnumerable<IExpectedCharges> sources, IAccessPolicy policy, IFxRates fx, IAccountStore accounts, ILogger<ExpectedChargeReader> logger)
+    IEnumerable<IExpectedCharges> sources, IEnumerable<IRecordedCharges> recorded, IAccessPolicy policy, IFxRates fx, IAccountStore accounts, ILogger<ExpectedChargeReader> logger)
 {
     [LoggerMessage(Level = LogLevel.Warning, Message = "Expected charges from {Source} ({Scope}) failed with {Code}; its charges are left out.")]
     private partial void LogSourceFailed(string source, VisibilityScope scope, string? code);
@@ -15,10 +15,14 @@ public sealed partial class ExpectedChargeReader(
         => InScopeAsync(person, VisibilityScope.Me, from, to, ct);
 
     /// <summary>Every module's charges on the items the person sees in <paramref name="scope"/>; a module that fails adds none.</summary>
-    public async Task<IReadOnlyList<ExpectedCharge>> InScopeAsync(PersonId person, VisibilityScope scope, LocalDate from, LocalDate to, CancellationToken ct)
+    public Task<IReadOnlyList<ExpectedCharge>> InScopeAsync(PersonId person, VisibilityScope scope, LocalDate from, LocalDate to, CancellationToken ct)
+        => FromAsync(sources, person, scope, from, to, ct);
+
+    private async Task<IReadOnlyList<ExpectedCharge>> FromAsync(
+        IEnumerable<IExpectedCharges> providers, PersonId person, VisibilityScope scope, LocalDate from, LocalDate to, CancellationToken ct)
     {
         var charges = new List<ExpectedCharge>();
-        foreach (var source in sources)
+        foreach (var source in providers)
         {
             var result = await source.ChargesAsync(person, scope, from, to, ct);
             if (result.TryGetValue(out var found))
@@ -31,8 +35,17 @@ public sealed partial class ExpectedChargeReader(
 
     /// <summary>The readable charges of the items the person writes: the ones they may link a line to.</summary>
     public async Task<IReadOnlyList<ExpectedCharge>> WritableAsync(PersonId person, LocalDate from, LocalDate to, CancellationToken ct)
+        => await WritableOfAsync(person, await ReadableAsync(person, from, to, ct), ct);
+
+    /// <summary>
+    /// What a person may link a line to: <see cref="WritableAsync"/> and the payments already recorded (<see cref="IRecordedCharges"/>, a
+    /// prepaid pack), which the matching does not expect.
+    /// </summary>
+    public async Task<IReadOnlyList<ExpectedCharge>> LinkableAsync(PersonId person, LocalDate from, LocalDate to, CancellationToken ct)
+        => await WritableOfAsync(person, [.. await ReadableAsync(person, from, to, ct), .. await FromAsync(recorded, person, VisibilityScope.Me, from, to, ct)], ct);
+
+    private async Task<IReadOnlyList<ExpectedCharge>> WritableOfAsync(PersonId person, IReadOnlyList<ExpectedCharge> charges, CancellationToken ct)
     {
-        var charges = await ReadableAsync(person, from, to, ct);
         var writable = await policy.CheckManyAsync(person, [.. charges.Select(c => c.Item).Distinct()], AccessKind.Write, ct);
         return [.. charges.Where(c => writable.Contains(c.Item))];
     }
