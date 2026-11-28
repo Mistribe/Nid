@@ -14,6 +14,7 @@ import {
   type EditValues, type GapRow, type TermsValues,
 } from './childcareSchema';
 import { GapFields } from './GapFields';
+import { contractYear, plusDays } from './gapWeeks';
 import { RateFields } from './RateFields';
 import { WeekTypesFields } from './WeekTypesFields';
 import { useChildcareErrors } from './useChildcareErrors';
@@ -123,11 +124,14 @@ export function GapsDialog({ detail, onClose, onDone }: DialogProps) {
   const replace = useReplaceGaps();
   const form = useForm<{ gaps: GapRow[] }>({ resolver: zodResolver(gapsSchema(t)) as unknown as Resolver<{ gaps: GapRow[] }>, defaultValues: { gaps: gapsDefaults(detail) } });
   const errors = useChildcareErrors(form.setError, (p) => {
-    const gap = /^gaps\[(\d+)\]\.(monday|weeks)$/.exec(p);
-    return gap ? `gaps.${Number(gap[1])}.${gap[2] as 'monday' | 'weeks'}` : p === 'gaps' ? 'gaps' : undefined;
+    // The calendar has no row fields: a refused row shows above it.
+    return /^gaps(\[\d+\]\.(monday|weeks))?$/.test(p) ? 'gaps' : undefined;
   });
+  // The server's years, and the next one to plan ahead unless the contract ends.
+  const last = detail.gapYears.at(-1);
+  const years = [...detail.gapYears, ...(last && !detail.summary.end ? [contractYear(plusDays(last.to, 1), last.allowed)] : [])];
   return (
-    <FormDialog title={t('childcare_detail.gaps_title')} onClose={onClose} onDone={onDone}>
+    <FormDialog title={t('childcare_detail.gaps_title')} className="sm:max-w-3xl" onClose={onClose} onDone={onDone}>
       {({ titleId, done }) => (
         <form aria-labelledby={titleId} noValidate className="space-y-3" onSubmit={(event) => {
           event.stopPropagation();
@@ -139,7 +143,7 @@ export function GapsDialog({ detail, onClose, onDone }: DialogProps) {
         }}>
           {errors.problem ? <ProblemMessage problem={errors.problem} /> : null}
           <Unplaced messages={errors.unplaced} />
-          <GapFields form={form} />
+          <GapFields form={form} years={years} />
           <Actions submit={t('childcare_detail.save')} pending={replace.isPending} onCancel={() => done()} />
         </form>
       )}

@@ -63,6 +63,27 @@ describe('ChildcareDetailPage', () => {
     expect(years[1]).toHaveTextContent('Aucune semaine sans accueil placée.');
   });
 
+  it('places the weeks without care on a calendar per contract year, next year included', async () => {
+    const gap = { monday: '2026-12-21', weeks: 2, sunday: '2027-01-03' };
+    const writes: { path: string; body: unknown }[] = [];
+    serve(detail({ gaps: [gap], gapYears: [{ from: '2026-09-01', to: '2027-08-31', allowed: 6, placed: 2, toPlace: 4, gaps: [gap] }] }), writes);
+    const { user } = await renderApp(url);
+    await user.click(await screen.findByRole('tab', { name: 'Semaines sans accueil' }));
+    await user.click(screen.getByRole('button', { name: 'Modifier les semaines sans accueil' }));
+    const dialog = await screen.findByRole('dialog');
+    const years = within(dialog).getAllByRole('region');
+    expect(years.map((y) => within(y).getByRole('heading').textContent)).toEqual([
+      'Année de contrat du 1 sept. 2026 au 31 août 2027', 'Année de contrat du 1 sept. 2027 au 31 août 2028',
+    ]);
+    expect(years[0]).toHaveTextContent('2 / 6 posées · 4 à placer');
+    expect(within(years[0]!).getByRole('button', { name: 'Semaine du lundi 21 décembre 2026' })).toHaveAttribute('aria-pressed', 'true');
+    await user.click(within(years[0]!).getByRole('button', { name: 'Semaine du lundi 4 janvier 2027' }));
+    await user.click(within(years[1]!).getByRole('button', { name: 'Semaine du lundi 27 décembre 2027' }));
+    expect(years[0]).toHaveTextContent('21 déc. 2026 → 10 janv. 2027 · 3 semaines');
+    await user.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
+    await waitFor(() => expect(writes.at(-1)?.body).toEqual({ gaps: [{ monday: '2026-12-21', weeks: 3 }, { monday: '2027-12-27', weeks: 1 }] }));
+  });
+
   it('shows the server figures inline and the template', async () => {
     serve(detail());
     const { user } = await renderApp(url);

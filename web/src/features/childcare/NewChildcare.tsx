@@ -19,6 +19,7 @@ import { useSubmitErrors } from '@/components/form/useSubmitErrors';
 import { useCreateChildcare } from './api';
 import { childcarePath, childcareSchema, termsDefaults, toCreateBody, type ChildcareValues } from './childcareSchema';
 import { GapFields } from './GapFields';
+import { startYears } from './gapWeeks';
 import { RateFields } from './RateFields';
 import { WeekTypesFields } from './WeekTypesFields';
 import '@/locales/childcare';
@@ -88,7 +89,7 @@ export function NewChildcare() {
           { id: 'who', title: t('childcare_form.step_who'), fields: steps.who, content: <WhoFields form={form} persons={people.data ?? []} /> },
           { id: 'rates', title: t('childcare_form.step_rates'), fields: steps.rates, content: <RateFields form={form} withFrom /> },
           { id: 'schedule', title: t('childcare_form.step_schedule'), fields: steps.schedule, content: <WeekTypesFields form={form} /> },
-          { id: 'gaps', title: t('childcare_form.step_gaps'), fields: steps.gaps, content: <GapFields form={form} /> },
+          { id: 'gaps', title: t('childcare_form.step_gaps'), fields: steps.gaps, content: <GapFields form={form} years={startYears(form.watch('from'), form.watch('weekTypes'))} /> },
           { id: 'owners', title: t('childcare_form.step_owners'), fields: steps.owners, content: <OwnershipFields form={form} persons={people.data ?? []} /> },
         ]}
       />

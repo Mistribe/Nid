@@ -183,7 +183,7 @@ export function childcarePath(path: string, weekTypes: WeekTypeRow[]): Path<Chil
     }
     return field === 'schedule' ? `weekTypes.${k}.days` : undefined;
   }
-  const gap = /^gaps\[(\d+)\]\.(monday|weeks)$/.exec(path);
-  if (gap) return `gaps.${Number(gap[1])}.${gap[2] as 'monday' | 'weeks'}`;
+  // The calendar has no row fields: a refused row shows above it.
+  if (/^gaps\[\d+\]\.(monday|weeks)$/.test(path)) return 'gaps';
   return ownershipPath(path);
 }
