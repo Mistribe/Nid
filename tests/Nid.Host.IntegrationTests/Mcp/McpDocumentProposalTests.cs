@@ -138,7 +138,7 @@ public class McpDocumentProposalTests(PostgresFixture fixture) : IClassFixture<P
     public async Task A_refused_link_leaves_the_proposal_stored_with_its_document_and_no_link()
     {
         await using var app = await NidApp.StartAsync(fixture);
-        var envelope = await McpSeed.EnvelopeAsync(app, app.AdultA);
+        var envelope = await McpSeed.JointEnvelopeAsync(app); // B decides it too, so lists it
         var box = await app.NewSubscriptionAsync("Box", app.AdultB, Visibility.Shared);
         var document = await UploadedAsync(app, app.AdultB, Pdf, $"fileName=facture.pdf&targetKind=core.item&targetId={box.Value}&role=invoice");
         await using var client = await ClientAsync(app);

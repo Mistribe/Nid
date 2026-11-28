@@ -382,9 +382,11 @@ public interface IProposalStore
     /// <summary>
     /// #774: <see cref="ListAsync"/> in SQL, narrowed to <paramref name="search"/> (part of the source label or of the target's name,
     /// whatever the case), <paramref name="take"/> rows from <paramref name="skip"/> (all when null), with the total before the page.
+    /// With <paramref name="writable"/>, the pending ones the viewer cannot decide are left out: on a target outside it, or a consent
+    /// request (<see cref="PrivateRequestProposal"/>) the viewer made.
     /// </summary>
     Task<ProposalPage> PageAsync(IReadOnlySet<ItemId> targets, PersonId? person, ProposalStatus status, PersonId viewer,
-        string? search, int skip, int? take, CancellationToken ct);
+        string? search, int skip, int? take, CancellationToken ct, IReadOnlySet<ItemId>? writable = null);
 
     /// <summary>`pending` → approved or rejected; <see cref="ProposalCodes.Conflict"/> on a stale version, <see cref="ProposalCodes.Decided"/> when not pending.</summary>
     Task<Result<StoredProposal>> DecideAsync(Guid id, uint version, ProposalStatus to, PersonId by, JsonElement? editedPayload,

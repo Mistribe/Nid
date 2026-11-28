@@ -665,8 +665,8 @@ public class McpRouteToolTests(PostgresFixture fixture) : IClassFixture<Postgres
             id = source, body = new { occurredOn = "2025-06-20", amount = new { amount = "1500.00", currency = "EUR" }, note = "Prime" },
         });
         Assert.Equal(source, bonus.GetProperty("proposal").GetProperty("targetItemId").GetGuid());
-        // The other adult reads the shared source, so they see and may decide its proposal.
-        Assert.Single((await PendingAsync(app, app.AdultB)).EnumerateArray());
+        // The other adult reads the shared source but cannot write it, so its proposal is not theirs to decide nor to see pending.
+        Assert.Empty((await PendingAsync(app, app.AdultB)).EnumerateArray());
         Assert.Equal(HttpStatusCode.OK, (await ApproveAsync(app, app.AdultA, bonus.GetProperty("proposal").GetProperty("id").GetGuid())).StatusCode);
         var detail = JsonDocument.Parse(await app.GetRawAsync(app.AdultA, $"/api/v1/income/sources/{source}")).RootElement;
         Assert.Contains("1500", detail.GetRawText());

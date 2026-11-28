@@ -99,9 +99,16 @@ public sealed partial class ProposalStore(CoreDbContext db, IClock clock, IEnume
         => (await Listed(targets, person, status, viewer).ToListAsync(ct)).Select(ToStored).ToList();
 
     public async Task<ProposalPage> PageAsync(IReadOnlySet<ItemId> targets, PersonId? person, ProposalStatus status, PersonId viewer,
-        string? search, int skip, int? take, CancellationToken ct)
+        string? search, int skip, int? take, CancellationToken ct, IReadOnlySet<ItemId>? writable = null)
     {
         var rows = Listed(targets, person, status, viewer);
+        if (writable is not null)
+        {
+            var decides = writable.Select(t => (Guid?)t.Value).ToArray();
+            var me = viewer.Value;
+            rows = rows.Where(r => r.Status != "pending" || r.TargetItemId == null
+                || (r.Kind == PrivateRequestProposal.KindName ? r.CreatedByPersonId != me : decides.Contains(r.TargetItemId)));
+        }
         if (!string.IsNullOrWhiteSpace(search))
         {
             var pattern = LikePattern.Contains(search);
