@@ -23,6 +23,7 @@ export const ASSET_VALUATION = '/api/v1/assets/{id}/valuations/{valuationId}' as
 export const ASSET_COSTS = '/api/v1/assets/{id}/costs' as const;
 export const ASSET_COST = '/api/v1/assets/{id}/costs/{flowId}' as const;
 export const ASSET_OWNERSHIP_COST = '/api/v1/assets/{id}/ownership-cost' as const;
+export const ASSET_MILEAGE_READING = '/api/v1/assets/{id}/mileage-readings/{on}' as const;
 
 /** The categories of a vehicle's running cost, in the order the form offers them. */
 export const ASSET_COST_CATEGORIES = ['service', 'repair', 'tyres', 'fuel', 'other'] as const;

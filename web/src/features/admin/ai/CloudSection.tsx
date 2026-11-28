@@ -47,13 +47,15 @@ export function CloudSection() {
           <h3 className="text-sm font-medium">{name}</h3>
           <Badge variant="outline">{t(p.tier === 'free' ? 'ai.cloud.tier_free' : 'ai.cloud.tier_paid')}</Badge>
           {p.capabilities.includes('embed') ? <Badge variant="outline">{t('ai.cloud.embed')}</Badge> : null}
+          {p.capabilities.includes('decide') ? <Badge variant="outline">{t('ai.cloud.decide')}</Badge> : null}
           {p.enabled ? <Badge variant="secondary">{t('ai.cloud.on')}</Badge> : null}
           {p.suspended ? <Badge variant="outline">{t('ai.cloud.suspended')}</Badge> : null}
         </div>
         <ul className="space-y-0.5 text-sm text-muted-foreground">
           <li>{t(p.trainsOnData ? 'ai.cloud.trains' : 'ai.cloud.no_training')}</li>
           <li className="flex items-center gap-1.5">
-            {t(p.humanReview ? 'ai.cloud.human_review' : 'ai.cloud.no_human_review')}
+            {/* #812: null when its terms do not say. */}
+            {t(p.humanReview == null ? 'ai.cloud.human_review_unknown' : p.humanReview ? 'ai.cloud.human_review' : 'ai.cloud.no_human_review')}
             <InfoTip label={t('ai.cloud.human_review_label')}>{t('ai.cloud.human_review_tip')}</InfoTip>
           </li>
           {p.retentionDays != null ? <li>{t('ai.cloud.retention', { count: p.retentionDays })}</li> : null}
@@ -64,6 +66,7 @@ export function CloudSection() {
           {p.reviewDue ? <li className="text-status-warning-text">{t('ai.cloud.review_due')}</li> : null}
         </ul>
         {p.provider === 'gemini' ? <p className="text-sm text-muted-foreground">{t('ai.cloud.gemini_paid')}</p> : null}
+        {p.provider === 'typesafe' ? <p className="text-sm text-muted-foreground">{t('ai.cloud.typesafe_us')}</p> : null}
         <p className="text-sm">{p.keyHint ? t('ai.cloud.key_hint', { hint: p.keyHint }) : t('ai.cloud.no_key')}</p>
         <div className="flex flex-wrap gap-2">
             <Button type="button" variant="outline" size="sm" onClick={() => setKeying(p)}>{t(p.keyHint ? 'ai.cloud.replace_key' : 'ai.cloud.add_key')}</Button>

@@ -62,6 +62,14 @@ public class AdminMarkerTests
         Assert.False(typeof(IAdminOnly).IsAssignableFrom(typeof(Nid.Banking.Application.Sync.SyncMineCommand)));
     }
 
+    /// <summary>#450: calibrating the suggestions' model is the admin's (it sets what the household is offered); any adult reads its state.</summary>
+    [Fact]
+    public void Calibrating_the_suggestions_model_is_admin_only()
+    {
+        Assert.True(typeof(IAdminOnly).IsAssignableFrom(typeof(Nid.Banking.Application.CalibrateCategorySuggestionsCommand)));
+        Assert.False(typeof(IAdminOnly).IsAssignableFrom(typeof(Nid.Banking.Application.GetCategorySuggestionCalibrationQuery)));
+    }
+
     /// <summary>Rental spec §3.1: the IRL collection, its trigger, its journal and the manual entry are the admin's.</summary>
     [Fact]
     public void The_irl_collection_is_admin_only()

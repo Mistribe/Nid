@@ -15,7 +15,7 @@ namespace Nid.Ai.Infrastructure.Cloud;
 /// </summary>
 public sealed partial class LlmProfileLoader : ILlmProfiles
 {
-    public static readonly IReadOnlySet<string> Providers = new HashSet<string> { "anthropic", "openai", "gemini", "mistral" };
+    public static readonly IReadOnlySet<string> Providers = new HashSet<string> { "anthropic", "openai", "gemini", "mistral", "typesafe" };
 
     public LlmProfileLoader(ILogger<LlmProfileLoader> logger) : this(Embedded(), logger)
     {
@@ -85,7 +85,7 @@ internal sealed record ProfileFile(
     Quotas? Quotas = null, Pricing? Pricing = null, int? ContextTokens = null);
 
 internal sealed record TermsFile(
-    IReadOnlyDictionary<string, bool> TrainsOnData, bool HumanReview, string TermsUrl, string ReviewedOn, int? RetentionDays = null,
+    IReadOnlyDictionary<string, bool> TrainsOnData, bool? HumanReview, string TermsUrl, string ReviewedOn, int? RetentionDays = null,
     IReadOnlyList<string>? RetentionSwitches = null);
 
 /// <summary>The profile files: camelCase, no unknown field (a typo in a term is not a term silently dropped).</summary>

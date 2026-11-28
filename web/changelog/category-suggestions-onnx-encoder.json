@@ -1,0 +1,4 @@
+{
+  "en": "A model worker can run a zero-shot encoder for the AI category suggestions itself, on the CPU, from a folder you mount, and an administrator can calibrate it in Administration › AI like the other models. On our test labels, the mDeBERTa-v3 encoder does not pass the 5 % rule yet, so it suggests nothing.",
+  "fr": "Un worker de modèles peut faire tourner lui-même, sur le CPU, un encodeur zéro-shot pour les suggestions de catégorie par IA, depuis un dossier que vous montez, et un administrateur peut le calibrer dans Administration › IA comme les autres modèles. Sur nos libellés d’essai, l’encodeur mDeBERTa-v3 ne passe pas encore la règle des 5 % : il ne suggère donc rien."
+}

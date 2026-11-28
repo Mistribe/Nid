@@ -35,9 +35,9 @@ public class AiNotificationKindsTests
     [Fact]
     public void The_document_types_sent_to_the_cloud_are_named()
     {
-        Assert.Equal("Ces types de documents peuvent désormais partir vers un fournisseur cloud activé, si chaque adulte concerné l'autorise : "
-            + "relevés, tableaux d'amortissement, factures, contrats, payslip.",
-            Body(("change", "allowed_kinds"), ("kinds", "statement,amortization_table,invoice,contract,payslip")));
-        Assert.Equal("Plus aucun document ne part vers un fournisseur cloud.", Body(("change", "allowed_kinds")));
+        Assert.Equal("Ces données peuvent désormais partir vers un fournisseur cloud activé, si chaque adulte concerné l'autorise : "
+            + "relevés, tableaux d'amortissement, factures, contrats, libellés bancaires, payslip.",
+            Body(("change", "allowed_kinds"), ("kinds", "statement,amortization_table,invoice,contract,bank_labels,payslip")));
+        Assert.Equal("Plus aucun document ni libellé bancaire ne part vers un fournisseur cloud.", Body(("change", "allowed_kinds")));
     }
 }

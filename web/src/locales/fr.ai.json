@@ -229,6 +229,11 @@
       "decide_by_meaning": "Avec « Workers du foyer », ce modèle d’IA rapproche les libellés jamais classés de ceux que le foyer a déjà classés. Il se change sur la ligne « Recherche par le sens ».",
       "decide_needs_embed": "Choisissez d’abord un modèle pour la « Recherche par le sens » : c’est lui qui fait les suggestions.",
       "decide_embed_model": "{{name}} (celui de la recherche par le sens)",
+      "decide_by_meaning_option": "Par le sens ({{name}}, celui de la recherche par le sens)",
+      "decide_by_meaning_none": "Par le sens (choisissez d’abord un modèle pour la recherche par le sens)",
+      "decide_by_ai": "Ce petit modèle devine la catégorie des opérations que rien d’autre ne classe, à partir de libellés masqués. Il ne propose rien tant qu’il n’est pas calibré.",
+      "decide_cloud": "Un modèle cloud ne devine que si « Libellés bancaires » est coché plus bas, et seulement pour les comptes dont chaque adulte concerné l’autorise.",
+      "decide_cloud_model_hint": "Ce fournisseur cloud reçoit les libellés masqués et les noms des catégories, jamais un montant, une date, un compte ni un nom. Il ne propose rien tant qu’il n’est pas calibré, et chaque appel compte dans le budget du cloud.",
       "served_by_one": "{{name}} (1 worker)",
       "served_by_other": "{{name}} ({{count}} workers)",
       "gone": "{{name}} (plus proposé par aucun worker)",
@@ -245,8 +250,41 @@
         "chat": "L’assistant de Nid répond à vos questions sur vos comptes, en lisant vos données.",
         "extract": "Nid lit un document déposé (facture, avis d’impôt) pour en proposer les montants et les dates.",
         "embed": "Nid range vos documents par sens, pour les retrouver par une question plutôt que par un mot exact.",
-        "decide": "Nid propose une catégorie pour une opération bancaire, parmi celles du foyer."
+        "decide": "Nid propose une catégorie pour une opération bancaire, parmi celles du foyer : par le sens, avec le modèle de la recherche par le sens, ou deviné par un petit modèle d’IA qu’un worker propose, ou par un fournisseur cloud activé."
       }
+    },
+    "calibration": {
+      "title": "Calibrage",
+      "tip": "Avant de proposer quoi que ce soit, Nid essaie le modèle sur quelques centaines de libellés bancaires inventés dont il connaît la bonne catégorie. Il garde le niveau de confiance à partir duquel le modèle se trompe au plus 5 fois sur 100 ; en dessous, il ne propose rien. Aucune donnée du foyer ne sert à cet essai. À refaire après un changement de modèle.",
+      "by_ai": "Deviné par IA, avec {{model}}.",
+      "by_meaning": "Par le sens, avec {{model}} (le modèle de la recherche par le sens).",
+      "status_queued": "Calibrage en attente…",
+      "status_running": "Calibrage en cours…",
+      "status_done": "Calibré le {{when}}.",
+      "status_failed": "Le dernier calibrage a échoué : {{reason}}",
+      "failed": "Nid n’a pas pu le terminer ; réessayez.",
+      "none_ai": "Pas encore calibré : aucune suggestion par IA.",
+      "none_meaning": "Pas encore calibré : aucune suggestion par le sens ni par le nom des catégories.",
+      "calibrate": "Calibrer",
+      "queued": "Calibrage demandé : il tourne en arrière-plan.",
+      "guess": "Deviné par IA",
+      "with_history": "Avec les opérations déjà classées par le foyer",
+      "cold": "Avec les seuls noms des catégories",
+      "not_offered": "Pas assez fiable sur les libellés d’essai : rien n’est proposé ainsi.",
+      "figures": "Sur {{cases}} libellés d’essai : {{correct}} justes, {{wrong}} faux, {{dontKnow}} « je ne sais pas ».",
+      "wrong_rate": "Erreurs : entre {{low}} et {{high}} des suggestions faites.",
+      "wrong_rate_label": "Erreurs",
+      "wrong_rate_tip": "Sur quelques centaines de libellés, le taux d’erreur réel n’est pas connu exactement : il est très probablement (95 fois sur 100) dans cette fourchette.",
+      "coverage": "Suggestions faites : {{coverage}} des libellés.",
+      "coverage_label": "Suggestions faites",
+      "coverage_tip": "Les autres fois, le modèle n’était pas assez sûr : Nid ne propose rien plutôt que de risquer une erreur (« je ne sais pas »).",
+      "threshold_ai": "Proposé quand le modèle s’en dit sûr à {{threshold}} au moins.",
+      "threshold_meaning": "Proposé à partir d’une ressemblance de {{threshold}}.",
+      "scoreless": "sans scores",
+      "scoreless_tip": "Ce modèle ne dit pas à quel point il est sûr de sa réponse : Nid montre toutes ses réponses, puisqu’elles sont assez souvent justes sur les libellés d’essai.",
+      "sample": "Voir ce qui est envoyé au modèle",
+      "sample_hint": "Jusqu’à trois opérations du foyer, telles que le modèle les lit : masquées, sans montant, date, compte ni nom. Les noms de vos catégories sont envoyés avec.",
+      "sample_empty": "Aucune opération à deviner pour l’instant."
     },
     "cloud": {
       "title": "Fournisseurs cloud",
@@ -263,7 +301,8 @@
         "anthropic": "Anthropic",
         "openai": "OpenAI",
         "gemini": "Google Gemini",
-        "mistral": "Mistral"
+        "mistral": "Mistral",
+        "typesafe": "TypeSafe AI (Jev)"
       },
       "tier_free": "Gratuit",
       "tier_paid": "Payant",
@@ -273,6 +312,7 @@
       "trains": "Ses conditions lui permettent de s’entraîner sur vos données : Nid ne l’utilise pas",
       "human_review": "Une personne du fournisseur peut relire une demande",
       "no_human_review": "Aucune relecture humaine annoncée",
+      "human_review_unknown": "Ses conditions ne disent pas si une personne peut relire une demande",
       "human_review_label": "Relecture humaine",
       "human_review_tip": "Pour vérifier le respect de leurs règles d’usage, certains fournisseurs peuvent faire relire des demandes par leurs équipes.",
       "retention_one": "Demandes conservées {{count}} jour chez le fournisseur",
@@ -300,7 +340,9 @@
       "disable_confirm": "Nid n’enverra plus rien à {{name}}. Chaque adulte en sera prévenu.",
       "disabled": "Fournisseur désactivé.",
       "gemini_paid": "Utilisez une clé d’un projet Google avec la facturation activée : l’offre gratuite de Gemini laisse Google s’entraîner sur vos données.",
-      "embed": "Recherche par le sens"
+      "embed": "Recherche par le sens",
+      "decide": "Suggestions de catégories",
+      "typesafe_us": "Hébergé aux États-Unis seulement. Ses conditions lui laissent le droit d’exploiter des statistiques tirées des demandes, sans entraîner de modèle dessus. Il ne génère aucun texte : il choisit une catégorie parmi celles du foyer et dit à quel point il en est sûr."
     },
     "budget": {
       "title": "Budget du cloud",
@@ -392,16 +434,18 @@
       "status_blocked_budget": "Bloqué par le budget"
     },
     "kinds": {
-      "title": "Documents envoyés au cloud",
-      "tip": "Pour la recherche par le sens, un fournisseur cloud ne lit que les documents des types cochés ici, et seulement si chaque adulte concerné a choisi « Autoriser » pour ses données. Un bulletin de paie et un document sans classement n’y partent jamais.",
-      "body": "Aucun type n’est coché par défaut : rien ne part.",
+      "title": "Données envoyées au cloud",
+      "tip": "Pour la recherche par le sens, un fournisseur cloud ne lit que les documents des types cochés ici ; pour les suggestions de catégories, les libellés bancaires seulement s’ils sont cochés. Et toujours seulement si chaque adulte concerné a choisi « Autoriser » pour ses données. Un bulletin de paie et un document sans classement n’y partent jamais.",
+      "body": "Rien n’est coché par défaut : rien ne part.",
+      "bank_labels_tip": "Pour deviner la catégorie d’une opération, un fournisseur cloud activé pour les suggestions reçoit son libellé masqué (sans chiffres longs, IBAN, e-mail, téléphone ni nom du foyer), son sens (débit ou crédit) et les noms des catégories du foyer : jamais un montant, une date, un compte ni un nom.",
       "legend": "Types de documents que le cloud peut lire",
       "saved": "Types de documents enregistrés.",
       "kind": {
         "statement": "Relevés",
         "amortization_table": "Tableaux d’amortissement",
         "invoice": "Factures",
-        "contract": "Contrats"
+        "contract": "Contrats",
+        "bank_labels": "Libellés bancaires"
       }
     }
   }

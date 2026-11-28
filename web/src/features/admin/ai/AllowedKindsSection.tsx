@@ -3,7 +3,7 @@ import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useApi } from '@/api/ApiProvider';
-import { AI_SETTINGS, aiProblem, ALLOWED_KINDS, CLOUD_DOCUMENT_KINDS } from '@/api/ai';
+import { AI_SETTINGS, aiProblem, ALLOWED_KINDS, BANK_LABELS, CLOUD_DOCUMENT_KINDS } from '@/api/ai';
 import { InfoTip } from '@/components/InfoTip';
 import { Section } from '@/components/page/Section';
 import { ProblemMessage } from '@/components/ProblemMessage';
@@ -12,8 +12,9 @@ import { Label } from '@/components/ui/label';
 import '@/locales/ai';
 
 /**
- * « Documents envoyés au cloud » (#556, `allowed_kinds`, docs/ai/README.md §6.1): the document types a cloud provider may read
- * to embed them, none by default. Each adult concerned must still allow it; a payslip is never offered. Each tick saves.
+ * « Données envoyées au cloud » (#556, `allowed_kinds`, docs/ai/README.md §6.1): the document types a cloud provider may read
+ * to embed them, and (#812) the masked bank labels a cloud `decide` model may read, none by default. Each adult concerned must
+ * still allow it; a payslip is never offered. Each tick saves.
  */
 export function AllowedKindsSection() {
   const { t } = useTranslation();
@@ -27,6 +28,13 @@ export function AllowedKindsSection() {
   const allowed = settings.data?.allowedKinds ?? [];
   const toggle = (kind: string, on: boolean) =>
     save.mutate({ body: { kinds: on ? [...allowed, kind] : allowed.filter((k) => k !== kind) } });
+  const box = (kind: string) => (
+    <>
+      <Checkbox id={`${legendId}-${kind}`} checked={allowed.includes(kind)} disabled={save.isPending}
+        onCheckedChange={(checked) => toggle(kind, checked === true)} />
+      <Label htmlFor={`${legendId}-${kind}`}>{t(`ai.kinds.kind.${kind}` as 'ai.kinds.kind.invoice')}</Label>
+    </>
+  );
 
   return (
     <Section title={t('ai.kinds.title')} tip={<InfoTip label={t('ai.kinds.title')}>{t('ai.kinds.tip')}</InfoTip>}>
@@ -35,13 +43,11 @@ export function AllowedKindsSection() {
         <div className="space-y-2">
           <p id={legendId} className="text-sm font-medium">{t('ai.kinds.legend')}</p>
           <div role="group" aria-labelledby={legendId} className="flex flex-wrap gap-x-4 gap-y-2">
-            {CLOUD_DOCUMENT_KINDS.map((kind) => (
-              <div key={kind} className="flex items-center gap-2">
-                <Checkbox id={`${legendId}-${kind}`} checked={allowed.includes(kind)} disabled={save.isPending}
-                  onCheckedChange={(checked) => toggle(kind, checked === true)} />
-                <Label htmlFor={`${legendId}-${kind}`}>{t(`ai.kinds.kind.${kind}`)}</Label>
-              </div>
-            ))}
+            {CLOUD_DOCUMENT_KINDS.map((kind) => <div key={kind} className="flex items-center gap-2">{box(kind)}</div>)}
+          </div>
+          <div className="flex items-center gap-2 pt-2">
+            {box(BANK_LABELS)}
+            <InfoTip label={t('ai.kinds.kind.bank_labels')}>{t('ai.kinds.bank_labels_tip')}</InfoTip>
           </div>
           {allowed.length === 0 ? <p className="text-sm text-muted-foreground">{t('ai.kinds.body')}</p> : null}
         </div>

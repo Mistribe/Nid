@@ -7,14 +7,14 @@ Réglages › IA, après avoir confirmé la région du foyer, entré la clé du 
 | Champ | Contenu |
 |---|---|
 | `id` | Identifiant stable du profil |
-| `provider` | `anthropic`, `openai`, `gemini` ou `mistral` |
+| `provider` | `anthropic`, `openai`, `gemini`, `mistral` ou `typesafe` (Jev) |
 | `tier` | `free` ou `paid` ; un profil payant donne son prix |
 | `host` | Le seul hôte que l'adaptateur peut joindre, en HTTPS |
 | `model` | Le modèle imposé par le profil |
-| `capabilities` | Ce qu'il sert : `chat` ou `embed` (plongements de la recherche par le sens, #556) |
+| `capabilities` | Ce qu'il sert : `chat`, `embed` (plongements de la recherche par le sens, #556) ou `decide` (suggestions de catégories, #812) |
 | `contextTokens` | Ce que le modèle lit, en jetons (1 024 au moins), obligatoire : l'assistant en borne ce qu'il envoie (#527). Mieux vaut une valeur prudente : trop basse, elle ne fait que demander des questions plus précises |
 | `dataTerms.trainsOnData` | Par région (`eea_ch_uk`, `other`) : `true` refuse le profil au chargement |
-| `dataTerms.humanReview`, `retentionDays`, `retentionSwitches` | Ce que le fournisseur fait des demandes |
+| `dataTerms.humanReview`, `retentionDays`, `retentionSwitches` | Ce que le fournisseur fait des demandes ; `humanReview` nul quand ses conditions ne le disent pas, `retentionDays` absent quand elles ne donnent pas de durée |
 | `dataTerms.termsUrl`, `reviewedOn` | Les conditions lues et leur date ; au-delà de 90 jours, Réglages › IA prévient |
 | `quotas`, `pricing` | Limites et prix (par million de jetons, en entrée et en sortie) |
 
@@ -38,3 +38,10 @@ arrondis d'après les pages de prix publiques (à vérifier à la prochaine rele
 | `openai-embed` | `text-embedding-3-small` | 0,02 $ par million de jetons |
 | `gemini-embed` | `gemini-embedding-001` | Offre payante seulement, comme `gemini-flash` ; 0,15 $ par million de jetons |
 | `mistral-embed` | `mistral-embed` | 0,10 $ par million de jetons |
+
+Profil de suggestions de catégories (#812, `decide`), conditions relues le 2026-11-27 : seulement avec « Workers du foyer, puis
+le cloud », les libellés bancaires cochés dans « Données envoyées au cloud » et l'accord de chaque adulte concerné.
+
+| Profil | Modèle | À savoir |
+|---|---|---|
+| `jev-choice` | `jev-1.14.0` (TypeSafe AI) | Pas d'entraînement ; garde le droit d'exploiter des statistiques tirées des demandes (« Telemetry ») ; rétention sans durée, relecture humaine non précisée ; hébergé aux États-Unis ; 0,042 $ par million de jetons en entrée. Écrit d'après la documentation publique, jamais appelé avec une vraie clé |

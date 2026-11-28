@@ -33,6 +33,31 @@ public sealed class FakeEngine : HttpMessageHandler
     /// <summary>The <c>Authorization</c> header of each chat request (a cloud provider's key; none for an engine).</summary>
     public List<string?> Authorizations { get; } = [];
 
+    /// <summary>#450: a call not streamed (<c>decide</c>) gets this answer; by default the token <c>B</c>, with <c>B</c>, <c>A</c> and a
+    /// word among its likeliest.</summary>
+    public Func<JsonObject, JsonObject> DecideAnswer { get; set; } = _ => Completion("B", ("B", -0.2), (" A", -1.9), ("Bon", -3.0), ("A", -2.5));
+
+    /// <summary>A completion of one <paramref name="token"/>, with these likeliest tokens; none: no log-probabilities.</summary>
+    public static JsonObject Completion(string token, params (string Token, double Logprob)[] top)
+        => new()
+        {
+            ["object"] = "chat.completion",
+            ["choices"] = new JsonArray(new JsonObject
+            {
+                ["index"] = 0,
+                ["message"] = new JsonObject { ["role"] = "assistant", ["content"] = token },
+                ["logprobs"] = top.Length == 0 ? null : new JsonObject
+                {
+                    ["content"] = new JsonArray(new JsonObject
+                    {
+                        ["token"] = token, ["logprob"] = top[0].Logprob,
+                        ["top_logprobs"] = new JsonArray([.. top.Select(t => (JsonNode)new JsonObject { ["token"] = t.Token, ["logprob"] = t.Logprob })]),
+                    }),
+                },
+                ["finish_reason"] = "length",
+            }),
+        };
+
     public static string TextChunk(string text) => $$$"""{"choices":[{"index":0,"delta":{"content":{{{JsonValue.Create(text).ToJsonString()}}}}}]}""";
 
     public static string ToolChunk(int index, string? id, string? name, string arguments)
@@ -84,8 +109,11 @@ public sealed class FakeEngine : HttpMessageHandler
                     ["usage"] = new JsonObject { ["prompt_tokens"] = texts.Sum(t => t.Length), ["total_tokens"] = texts.Sum(t => t.Length) },
                 });
             case "/v1/chat/completions":
-                ChatRequests.Add(JsonNode.Parse(await request.Content!.ReadAsStringAsync(cancellationToken))!.AsObject());
+                var chat = JsonNode.Parse(await request.Content!.ReadAsStringAsync(cancellationToken))!.AsObject();
+                ChatRequests.Add(chat);
                 Authorizations.Add(request.Headers.Authorization?.ToString());
+                if (chat["stream"]?.GetValue<bool>() == false)
+                    return Json(DecideAnswer(chat));
                 var body = string.Concat(Chunks.Select(c => $"data: {c}\n\n")) + "data: [DONE]\n\n";
                 return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(body, Encoding.UTF8, "text/event-stream") };
             default:

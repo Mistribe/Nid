@@ -13,11 +13,15 @@ public static class CategorySuggestions
     /// <summary><paramref name="Lines"/> lines of <paramref name="Pattern"/>, debits or credits, a person put in <paramref name="Category"/>.</summary>
     public sealed record Evidence(string Pattern, bool Debit, Guid Category, int Lines);
 
-    /// <summary>The majority <paramref name="Category"/>: <paramref name="Lines"/> of the <paramref name="Total"/> evidence lines agree;
-    /// <paramref name="ByMeaning"/> when they are lines of patterns near this one (#450), not of this pattern itself.</summary>
-    public sealed record Pick(string Pattern, bool Debit, Guid Category, int Lines, int Total, bool ByMeaning = false)
+    /// <summary>The majority <paramref name="Category"/>: <paramref name="Lines"/> of the <paramref name="Total"/> evidence lines agree.
+    /// <paramref name="Basis"/> (#450, <see cref="SuggestionBases"/>): the pattern's own lines, those of patterns near it by meaning, or, with
+    /// no evidence at all, the category's name, <paramref name="Similar"/> being that similarity in percent, or a model's guess, the
+    /// probability in percent (0 for a model with no scores) on a worker of that <paramref name="Placement"/>
+    /// (<c>local</c>, <c>remote</c>), or a cloud provider (<c>cloud</c>, #812).</summary>
+    public sealed record Pick(string Pattern, bool Debit, Guid Category, int Lines, int Total, string Basis = SuggestionBases.History, int? Similar = null,
+        string? Placement = null)
     {
-        public int Agreement => Lines * 100 / Total;
+        public int Agreement => Similar ?? Lines * 100 / Total;
     }
 
     /// <summary>
@@ -30,9 +34,10 @@ public static class CategorySuggestions
             .Where(g => g.Total >= MinEvidence && g.Top.Lines * 100 >= MinAgreementPercent * g.Total && inUse(g.Top.Category))
             .Select(g => new Pick(g.Top.Pattern, g.Top.Debit, g.Top.Category, g.Top.Lines, g.Total))];
 
-    // shortcut: starting values for bge-m3 on two-word labels, set by hand; the evaluation set of #450 sets them per model.
-    public const double MinSimilarity = 0.8;
     public const int Neighbours = 5;
+
+    /// <summary>#450, cold start: how far the nearest category's name must lead the second.</summary>
+    public const double MinMargin = 0.02;
 
     /// <summary>#450: the words of the household's names as a label writes them (upper case, no accent), three letters or more: a pattern
     /// holding one is never sent to a model.</summary>
@@ -45,11 +50,13 @@ public static class CategorySuggestions
 
     /// <summary>
     /// #450, for an open pattern no evidence of its own decides: the lines of its <see cref="Neighbour"/>s at least
-    /// <see cref="MinSimilarity"/> alike, in the same direction, decide as <see cref="Decide"/> does, on the same thresholds.
+    /// <paramref name="minSimilarity"/> alike (the model's evaluation profile), in the same direction, decide as <see cref="Decide"/> does,
+    /// on the same thresholds.
     /// </summary>
-    public static Pick? ByMeaning(string pattern, bool debit, IEnumerable<Neighbour> neighbours, IEnumerable<Evidence> evidence, Func<Guid, bool> inUse)
+    public static Pick? ByMeaning(string pattern, bool debit, IEnumerable<Neighbour> neighbours, IEnumerable<Evidence> evidence, Func<Guid, bool> inUse,
+        double minSimilarity)
     {
-        var near = neighbours.Where(n => n.Pattern == pattern && n.Similarity >= MinSimilarity).Select(n => n.Near).ToHashSet(StringComparer.Ordinal);
+        var near = neighbours.Where(n => n.Pattern == pattern && n.Similarity >= minSimilarity).Select(n => n.Near).ToHashSet(StringComparer.Ordinal);
         var lines = evidence.Where(e => e.Debit == debit && near.Contains(e.Pattern)).GroupBy(e => e.Category)
             .Select(g => (Category: g.Key, Lines: g.Sum(e => e.Lines))).ToList();
         if (lines.Count == 0)
@@ -57,7 +64,36 @@ public static class CategorySuggestions
         var top = lines.MaxBy(l => l.Lines);
         var total = lines.Sum(l => l.Lines);
         return total >= MinEvidence && top.Lines * 100 >= MinAgreementPercent * total && inUse(top.Category)
-            ? new Pick(pattern, debit, top.Category, top.Lines, total, ByMeaning: true)
+            ? new Pick(pattern, debit, top.Category, top.Lines, total, SuggestionBases.Meaning)
             : null;
     }
+
+    /// <summary>#450: an open <paramref name="Pattern"/>'s similarity to a category's option text (<see cref="OptionText"/>), the category
+    /// being of <paramref name="Debit"/>'s side (expense for debits, income for credits).</summary>
+    public sealed record CategoryNeighbour(string Pattern, bool Debit, Guid Category, double Similarity);
+
+    /// <summary>
+    /// #450, cold start: a pattern no one's lines decide takes the category whose name it is nearest to, when that similarity reaches
+    /// <paramref name="minSimilarity"/> (the model's profile) and leads the second nearest by <see cref="MinMargin"/>. <paramref name="near"/>
+    /// holds the categories in use of each side.
+    /// </summary>
+    public static Pick? ByName(string pattern, bool debit, IEnumerable<CategoryNeighbour> near, double minSimilarity)
+    {
+        var ranked = near.Where(n => n.Pattern == pattern && n.Debit == debit).OrderByDescending(n => n.Similarity).Take(2).ToList();
+        return ranked is [var top, ..] && top.Similarity >= minSimilarity && (ranked.Count == 1 || top.Similarity - ranked[1].Similarity >= MinMargin)
+            ? new Pick(pattern, debit, top.Category, 0, 0, SuggestionBases.CategoryName, (int)Math.Round(top.Similarity * 100))
+            : null;
+    }
+
+    /// <summary>#450: what a model reads of a category: « Parent › Name », or the name of a top category.</summary>
+    public static string OptionText(string? parent, string name) => parent is null ? name : $"{parent} › {name}";
+}
+
+/// <summary>#450: what a suggestion rests on, as the API writes it.</summary>
+public static class SuggestionBases
+{
+    public const string History = "history";
+    public const string Meaning = "meaning";
+    public const string CategoryName = "category_name";
+    public const string Ai = "ai";
 }

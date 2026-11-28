@@ -17,8 +17,10 @@ builder.Services.AddSingleton<IRequestHandler, EchoRequest>();
 builder.Services.Configure<EngineOptions>(builder.Configuration.GetSection("Engine"));
 builder.Services.TryAddSingleton(new EngineTransport(new SocketsHttpHandler { ConnectTimeout = TimeSpan.FromSeconds(5) }));
 builder.Services.AddSingleton<EngineClient>();
+builder.Services.AddSingleton<NliDecider>();
 builder.Services.AddSingleton<IRequestHandler, ChatRequest>();
 builder.Services.AddSingleton<IRequestHandler, EmbedRequest>();
+builder.Services.AddSingleton<IRequestHandler, DecideRequest>();
 builder.Services.AddSingleton<JobTable>();
 builder.Services.AddSingleton(sp => new NonceCache(sp.GetRequiredService<TimeProvider>()));
 builder.Services.AddHttpContextAccessor();
@@ -47,6 +49,9 @@ var app = builder.Build();
 
 var state = app.Services.GetRequiredService<StateStore>().Start();
 app.Logger.LogInformation("{Status}", StateStore.Describe(state));
+// #811: loaded now, so a wrong directory shows at start-up and the first declaration does not wait for the weights.
+if (app.Services.GetRequiredService<NliDecider>().Model is { } nli)
+    app.Logger.LogInformation("Serving {Model} for decide ({Digest})", nli.Name, nli.Digest);
 
 app.Use((context, next) =>
 {

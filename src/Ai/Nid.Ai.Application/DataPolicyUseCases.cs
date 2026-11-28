@@ -106,11 +106,11 @@ public sealed class SetAllowedKindsHandler(IAiSettings settings, INotifier notif
 {
     public async ValueTask<Result<PolicyChange<AiSettingsView>>> HandleAsync(SetAllowedKindsCommand command, CancellationToken ct = default)
     {
-        if (command.Kinds.FirstOrDefault(k => !CloudDocumentKinds.All.Contains(k)) is { } unknown)
+        if (command.Kinds.FirstOrDefault(k => !CloudKinds.All.Contains(k)) is { } unknown)
             return Result.Failure<PolicyChange<AiSettingsView>>(new Failure(JobCodes.UnknownKind, $"'{unknown}' may not go to a cloud provider.", null));
 
         // Kept in the list's order, once each.
-        var kinds = CloudDocumentKinds.All.Where(command.Kinds.Contains).ToList();
+        var kinds = CloudKinds.All.Where(command.Kinds.Contains).ToList();
         if ((await settings.AllowedKindsAsync(ct)).SequenceEqual(kinds))
             return Result.Success(new PolicyChange<AiSettingsView>(await AiSettingsViews.ReadAsync(settings, ct), Changed: false));
         if (!await settings.SetAllowedKindsAsync(kinds, ct))

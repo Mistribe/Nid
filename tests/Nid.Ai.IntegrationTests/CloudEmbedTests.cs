@@ -82,6 +82,8 @@ public sealed class CloudEmbedTests(PostgresFixture fixture) : IClassFixture<Pos
             new LlmEmbedRequest(["relevé"], DataClasses.Documents, both, Kinds: ["statement"]), TestContext.Current.CancellationToken);
         Assert.True(embedded.TryGetValue(out var result));
         Assert.Equal((Model, 3), (result!.Model, result.Dimension));
+        // #450: a provider versions its model by its name; its build is the profile's.
+        Assert.Equal("cloud:openai-embed", await scope.ServiceProvider.GetRequiredService<IModelDigests>().DigestAsync("embed", Model, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -126,8 +128,9 @@ public sealed class CloudEmbedTests(PostgresFixture fixture) : IClassFixture<Pos
 
         Assert.Equal(["gemini", "mistral", "openai"], shipped.Select(p => p.Provider).Order());
         Assert.All(shipped, p => Assert.Equal(0, p.Pricing!.OutputPerMillion));
-        Assert.All(CloudDocumentKinds.All, k => Assert.Contains(k, DocumentRoles.All));
-        Assert.DoesNotContain(DocumentRoles.Payslip, CloudDocumentKinds.All);
+        Assert.All(CloudKinds.Documents, k => Assert.Contains(k, DocumentRoles.All));
+        Assert.Equal([.. CloudKinds.Documents, DataClasses.BankLabels], CloudKinds.All);
+        Assert.DoesNotContain(DocumentRoles.Payslip, CloudKinds.All);
     }
 
     private Task<NidApp> StartAsync(FakeProvider provider)

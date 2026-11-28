@@ -194,6 +194,42 @@ public class AssetRecordStoreTests(PostgresFixture fixture) : IClassFixture<Post
     }
 
     [Fact]
+    public async Task Removing_the_current_reading_falls_back_to_the_newest_left()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await using var scope = app.Services.CreateAsyncScope();
+        var store = scope.ServiceProvider.GetRequiredService<IAssetRecordStore>();
+        var id = await NewItemAsync(scope.ServiceProvider, app);
+        await store.AddAsync(id, Car(12_000, new LocalDate(2026, 1, 10)), Ct);
+        Assert.True(await store.UpdateAsync(id, Car(150_000, new LocalDate(2026, 6, 10)), (await store.FindAsync(id, Ct))!.Version, Ct));
+
+        Assert.True(await store.RemoveReadingAsync(id, new LocalDate(2026, 6, 10), Ct));
+
+        Assert.Equal([new MileageReading(new LocalDate(2026, 1, 10), 12_000)], await store.ReadingsAsync(id, Ct));
+        var details = (await store.FindAsync(id, Ct))!.Details;
+        Assert.Equal((12_000, new LocalDate(2026, 1, 10)), (details.MileageKm, details.MileageOn));
+    }
+
+    [Fact]
+    public async Task Removing_an_older_reading_keeps_the_current_mileage_and_the_last_one_clears_it()
+    {
+        await using var app = await NidApp.StartAsync(fixture);
+        await using var scope = app.Services.CreateAsyncScope();
+        var store = scope.ServiceProvider.GetRequiredService<IAssetRecordStore>();
+        var id = await NewItemAsync(scope.ServiceProvider, app);
+        await store.AddAsync(id, Car(12_000, new LocalDate(2026, 1, 10)), Ct);
+        Assert.True(await store.UpdateAsync(id, Car(15_000, new LocalDate(2026, 6, 10)), (await store.FindAsync(id, Ct))!.Version, Ct));
+
+        Assert.True(await store.RemoveReadingAsync(id, new LocalDate(2026, 1, 10), Ct));
+        Assert.Equal(15_000, (await store.FindAsync(id, Ct))!.Details.MileageKm);
+
+        Assert.True(await store.RemoveReadingAsync(id, new LocalDate(2026, 6, 10), Ct));
+        var details = (await store.FindAsync(id, Ct))!.Details;
+        Assert.Equal(((int?)null, (LocalDate?)null), (details.MileageKm, details.MileageOn));
+        Assert.False(await store.RemoveReadingAsync(id, new LocalDate(2026, 6, 10), Ct));
+    }
+
+    [Fact]
     public async Task Deletion_part_removes_the_readings()
     {
         await using var app = await NidApp.StartAsync(fixture);

@@ -86,6 +86,8 @@ public class ResourceMarkerTests
             typeof(GetBankingStatusQuery), typeof(GetMyApplicationQuery), typeof(SaveMyApplicationCommand), typeof(DeleteMyApplicationCommand),
             typeof(TestMyApplicationCommand), typeof(SyncAllCommand), typeof(GetBankSyncRunsQuery), typeof(GetBankingDiagnosticsQuery),
             typeof(TestBankingConnectionCommand), typeof(TransferInstallationApplicationCommand), typeof(ListBankCategoriesQuery),
+            // #450: a model's calibration on invented labels, no account.
+            typeof(CalibrateCategorySuggestionsCommand), typeof(GetCategorySuggestionCalibrationQuery),
             typeof(Nid.Banking.Application.Spending.ListBudgetsQuery), typeof(GetBankingSettingsQuery), typeof(UpdateBankingSettingsCommand),
         ];
         var banking = RequestCatalogue.Discover().Where(t => t.Assembly == typeof(BankingAccess).Assembly).ToList();

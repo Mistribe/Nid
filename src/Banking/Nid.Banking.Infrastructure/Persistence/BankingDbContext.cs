@@ -35,6 +35,12 @@ public sealed class BankingDbContext(DbContextOptions<BankingDbContext> options)
 
     public DbSet<SuggestionDismissalRow> SuggestionDismissals => Set<SuggestionDismissalRow>();
 
+    public DbSet<DecideCalibrationRow> DecideCalibrations => Set<DecideCalibrationRow>();
+
+    public DbSet<DecideProfileRow> DecideProfiles => Set<DecideProfileRow>();
+
+    public DbSet<CategoryGuessRow> CategoryGuesses => Set<CategoryGuessRow>();
+
     public DbSet<RuleRow> Rules => Set<RuleRow>();
 
     public DbSet<RecurringGroupRow> RecurringGroups => Set<RecurringGroupRow>();
@@ -210,6 +216,28 @@ public sealed class BankingDbContext(DbContextOptions<BankingDbContext> options)
             e.HasIndex(x => new { x.Pattern, x.Direction, x.CategoryId }).IsUnique();
             // The author lives in core: no foreign key across contexts.
             e.HasOne<CategoryRow>().WithMany().HasForeignKey(x => x.CategoryId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<DecideCalibrationRow>(e =>
+        {
+            e.ToTable("decide_calibration", t => t.HasCheckConstraint("ck_decide_calibration_status", "status in ('queued','running','done','failed')"));
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            // One queued or running per key: a second « Calibrer » gets the same row.
+            e.HasIndex(x => new { x.Implementation, x.Version, x.Model, x.Digest }).IsUnique().HasFilter("status in ('queued','running')");
+        });
+
+        modelBuilder.Entity<CategoryGuessRow>(e =>
+        {
+            e.ToTable("category_guess", t => t.HasCheckConstraint("ck_category_guess_placement", "placement in ('local','remote','cloud')"));
+            e.HasKey(x => new { x.Pattern, x.Debit, x.Model, x.Digest });
+        });
+
+        modelBuilder.Entity<DecideProfileRow>(e =>
+        {
+            e.ToTable("decide_profile");
+            e.HasKey(x => new { x.Implementation, x.Version, x.Model, x.Digest });
+            e.Property(x => x.Results).HasColumnType("jsonb");
         });
 
         modelBuilder.Entity<CategoryBudgetRow>(e =>

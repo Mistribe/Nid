@@ -1,0 +1,4 @@
+{
+  "en": "The AI category suggestions ask the model in two steps, the main category then its sub-category, and are never a main category that has sub-categories. Calibrate the model again in Administration › AI: the earlier calibration no longer applies. On our test labels, qwen2.5:3b now passes the 5 % rule.",
+  "fr": "Les suggestions de catégorie par IA interrogent le modèle en deux temps, la catégorie principale puis sa sous-catégorie, et ne proposent jamais une catégorie principale qui a des sous-catégories. Calibrez à nouveau le modèle dans Administration › IA : l’ancien calibrage ne s’applique plus. Sur nos libellés d’essai, qwen2.5:3b passe désormais la règle des 5 %."
+}

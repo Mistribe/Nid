@@ -17,6 +17,8 @@ public sealed class ContractSchemaTests
         { nameof(DocumentTextOutput), "contracts/jobs/document-text/v1/output.schema.json" },
         { nameof(EmbedRequestInput), "contracts/requests/embed/v1/input.schema.json" },
         { nameof(EmbedRequestOutput), "contracts/requests/embed/v1/output.schema.json" },
+        { nameof(DecideRequestInput), "contracts/requests/decide/v1/input.schema.json" },
+        { nameof(DecideRequestOutput), "contracts/requests/decide/v1/output.schema.json" },
         { nameof(EchoRequestInput), "contracts/requests/echo/v1/input.schema.json" },
         { nameof(EchoRequestOutput), "contracts/requests/echo/v1/output.schema.json" },
         { nameof(ChatRequestInput), "contracts/requests/chat/v1/input.schema.json" },
