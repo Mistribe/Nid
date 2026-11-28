@@ -112,7 +112,12 @@ internal static partial class OfxReader
         {
             if (lines.Count == MaxLines)
                 throw Malformed(entry, $"The file holds more than {MaxLines} lines.");
-            var label = string.Join(' ', new[] { Text(First(entry, "NAME")), Text(First(entry, "MEMO")) }.OfType<string>());
+            var (name, memo) = (Text(First(entry, "NAME")), Text(First(entry, "MEMO")));
+            // #827: a bank that repeats the payee in MEMO (« ACME » then « PRLV ACME 123 ») gives it once, as the API reads it.
+            var label = name is null || memo is null ? name ?? memo ?? ""
+                : memo.Contains(name, StringComparison.OrdinalIgnoreCase) ? memo
+                : name.Contains(memo, StringComparison.OrdinalIgnoreCase) ? name
+                : $"{name} {memo}";
             lines.Add(new StatementLine(
                 Text(First(entry, "FITID")), Date(Field(entry, "DTPOSTED"), ofx: true, latest), null, Amount(Field(entry, "TRNAMT")),
                 label.Length > 0 ? label : NoLabel, null, null, Text(First(entry, "TRNTYPE"))));

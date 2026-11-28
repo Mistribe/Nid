@@ -208,6 +208,14 @@ public class OfxReaderTests
         Assert.DoesNotContain("upont", e.Message, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Theory]
+    // #827: the payee repeated in MEMO is given once, whichever holds the other.
+    [InlineData("<MEMO>PRLV SEPA EDF CLIENTS PARTICULIE", "PRLV SEPA EDF CLIENTS PARTICULIE")]
+    [InlineData("<MEMO>Prlv sepa EDF clients particulie 0123456", "Prlv sepa EDF clients particulie 0123456")]
+    [InlineData("<MEMO>EDF CLIENTS", "PRLV SEPA EDF CLIENTS PARTICULIE")]
+    public void A_memo_repeating_the_name_gives_it_once(string memo, string expected)
+        => Assert.Equal(expected, Read(t => t.Replace("<MEMO>Échéance électricité octobre", memo)).Lines[1].Label);
+
     private static StatementFile Read(Func<string, string> edit)
         => StatementReader.Parse(System.Text.Encoding.Latin1.GetBytes(edit(System.Text.Encoding.Latin1.GetString(Vectors.Read("ofx1-sgml.ofx")))));
 
