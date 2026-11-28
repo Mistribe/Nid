@@ -24,7 +24,7 @@ export function mondaysOf(rows: GapRow[]): Set<string> {
 /** The Mondays back as rows: one per run of consecutive weeks, in date order. */
 export function rowsOf(mondays: Iterable<string>): GapRow[] {
   const rows: { monday: string; weeks: number }[] = [];
-  for (const m of [...mondays].sort()) {
+  for (const m of [...mondays].sort((a, b) => a.localeCompare(b))) {
     const last = rows.at(-1);
     if (last && plusDays(last.monday, 7 * last.weeks) === m) last.weeks += 1;
     else rows.push({ monday: m, weeks: 1 });
