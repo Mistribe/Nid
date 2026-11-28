@@ -118,8 +118,8 @@ public class SyncTests(PostgresFixture fixture) : IClassFixture<PostgresFixture>
                 System.Globalization.CultureInfo.InvariantCulture), august.GetProperty("payload").GetProperty("note").GetString()));
         // September's end takes the month's last balance, dated as it (#429: the flows after it are the next value's).
         Assert.Equal("Solde bancaire du 15/09/2026", proposals[1].GetProperty("payload").GetProperty("note").GetString());
-        // The envelope is shared: B reads its proposals.
-        Assert.Equal(2, (await BankProposalsAsync(app, app.AdultB)).Count);
+        // The envelope is shared but A's alone: B reads it without deciding its proposals, so does not list them pending.
+        Assert.Empty(await BankProposalsAsync(app, app.AdultB));
         await using var core = PostgresFixture.NewCoreContext(app.ConnectionString);
         Assert.False(await core.Valuations.AnyAsync(v => v.ItemId == envelope.Value, cancellationToken: TestContext.Current.CancellationToken));
         await using var db = Db(app);
