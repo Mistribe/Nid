@@ -59,9 +59,9 @@ public class LastMonthTests
     private static readonly ItemId Item = new(Guid.NewGuid());
     private static readonly LocalDate Start = D(2025, 9, 1);
 
-    private static (List<Statement> Validated, MonthEvaluation Last) Run(LocalDate last, ContractEnd how, IReadOnlyList<CareGap> gaps, decimal? gross = 5.50m)
+    private static (List<Statement> Validated, MonthEvaluation Last) Run(LocalDate last, ContractEnd how, IReadOnlyList<CareGap> gaps, decimal? gross = 5.50m, bool fullYear = false)
     {
-        Terms[] revisions = [new(Item, Start, last, 4.30m, gross, 0.10m, 3.80m, 3.20m, [new WeekType("Semaine type", ProgrammedWeeks, Schedule)])];
+        Terms[] revisions = [new(Item, Start, last, 4.30m, gross, 0.10m, 3.80m, 3.20m, [new WeekType("Semaine type", fullYear ? 52 : ProgrammedWeeks, Schedule)], FullYear: fullYear)];
         var validated = new List<Statement>();
         for (var m = Start.ToYearMonth(); m.CompareTo(last.ToYearMonth()) < 0; m = m.PlusMonths(1))
         {
@@ -86,10 +86,26 @@ public class LastMonthTests
     }
 
     [Fact]
-    public void Weeks_off_taken_early_leave_a_balance_owed_to_the_family()
+    public void Weeks_off_taken_early_are_not_taken_back()
     {
         var (_, last) = Run(D(2025, 12, 31), new ContractEnd(EndReason.Resignation, D(2025, 12, 1)), [new CareGap(D(2025, 9, 8), 6)]);
-        Assert.True(last.Figures!.Regularisation < 0m);
+        var f = last.Figures!;
+        Assert.Equal(0m, f.Regularisation); // F16842: only in the carer's favour
+        Assert.Equal(f.BasePay - f.Deduction + f.ExtraPay, f.Declaration.NetPay);
+    }
+
+    /// <summary>
+    /// A full year: no regularisation (art. 124 is for an incomplete year), and the leave balance is every day accrued by the month and not
+    /// taken: September 2025 to May 2026, 9 months × 2,5 = 23 days, then June to December 2026, 7 months × 2,5 = 18.
+    /// </summary>
+    [Fact]
+    public void A_full_year_settles_every_day_accrued_and_not_taken()
+    {
+        var (_, last) = Run(D(2026, 12, 31), new ContractEnd(EndReason.Withdrawal, D(2026, 11, 30)), [], fullYear: true);
+        var f = last.Figures!;
+        Assert.Equal(0m, f.Regularisation);
+        Assert.Equal(41, f.Declaration.PaidLeaveDays);
+        Assert.True(f.Declaration.LeaveIndemnity > 0m);
     }
 
     [Fact]

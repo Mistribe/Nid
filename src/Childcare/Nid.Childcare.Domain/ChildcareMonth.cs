@@ -10,10 +10,12 @@ public sealed record PaidLeaveInput(int AccruedDays, decimal ReferenceNetPay);
 /// The contract's last month: why and when it was notified; the leave period still unpaid (since the last 1 June) — the earlier
 /// months' days within it and their pay; the earlier months' hours due at their rate (<see cref="EndOfContract.HoursDue"/>) and their
 /// mensualised pay after deductions; the earlier months' net pay; the gross-to-net hourly ratio, null when the contract has no gross rate.
+/// <c>FullYearLeaveLeft</c>: a full year's leave days accrued from the start to the contract's end, less those the earlier months paid
+/// (<see cref="StatementContext.LeaveLeft"/>), the last period's and any left from the one before; null for an incomplete year.
 /// </summary>
 public sealed record EndingInput(
     EndReason Reason, LocalDate Notified, IReadOnlyList<StatementDay> LeaveDaysBefore, decimal LeavePayBefore, decimal DueBefore, decimal PaidBefore, decimal NetPayBefore,
-    decimal? GrossRatio);
+    decimal? GrossRatio, int? FullYearLeaveLeft = null);
 
 /// <summary>
 /// A month to compute. <c>Days</c>: every day of the month; <c>NeighbourDays</c>: the days of the adjacent months that
@@ -106,8 +108,11 @@ public static class ChildcareMonth
         if (input.Ending is { } end)
         {
             var due = end.DueBefore + DuePay(inContract, input.Plan, input.ChildSickUsedBefore, termsOn, input.Terms);
-            regularisation = due - end.PaidBefore - (basePay - deduction);
-            balanceDays = PaidLeave.Accrued([.. end.LeaveDaysBefore, .. inContract], input.Plan, input.Terms.UnpaidAbsences, input.Gaps);
+            // An incomplete year only, and only in the carer's favour (F16842): hours paid and not welcomed are not taken back.
+            regularisation = input.Terms.FullYear ? 0m : Math.Max(0m, due - end.PaidBefore - (basePay - deduction));
+            // A full year pays its leave within the monthly pay as it is taken: what is left is the days accrued by the month, less those taken, this month's included.
+            balanceDays = end.FullYearLeaveLeft is { } left ? Math.Max(0, left - leaveTaken)
+                : PaidLeave.Accrued([.. end.LeaveDaysBefore, .. inContract], input.Plan, input.Terms.UnpaidAbsences, input.Gaps);
             if (balanceDays > 0)
                 leaveIndemnity = PaidLeave.JuneIndemnity(end.LeavePayBefore + basePay - deduction + extraPay + regularisation, last.NetHourlyRate, weeklyHours, balanceDays);
         }

@@ -49,9 +49,9 @@ public static class EndOfContract
     /// <summary>
     /// The hours a month owes at the hourly rate, for the regularisation of an incomplete year (art. 124): its planned hours, less
     /// those deducted. A paid absence (a public holiday, the family's convenience) stays owed; extra hours are paid apart. The
-    /// regularisation is these hours at their rate less the mensualised pay after deductions, over the whole contract, « au crédit et
-    /// au débit de l'assistant maternel » (DREETS, quoting art. 124): below 0 when the carer was paid for hours the child was not
-    /// welcomed. Service-public (F16842) reads it as only in the carer's favour; Nid shows the convention's balance either way.
+    /// regularisation is these hours at their rate less the mensualised pay after deductions, over the whole contract, and only in the
+    /// carer's favour: service-public F16842, « qui ne peut être qu'à l'avantage de l'assistante maternelle ». The carer paid for hours
+    /// the child was not welcomed keeps them, the employer takes nothing back.
     /// </summary>
     public static decimal HoursDue(IReadOnlyList<StatementDay> days, WeekPlan plan, int childSickUsedBefore, IReadOnlyList<AbsenceReason>? unpaid)
         => days.Where(d => d.Planned).Sum(d => plan.HoursOn(d.Date)) - AbsenceDeduction.Deducted(days, plan, childSickUsedBefore, unpaid).Hours;
