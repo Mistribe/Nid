@@ -144,8 +144,12 @@ public static class MonthAssembler
             }
         }
         var gross = terms.Revisions.LastOrDefault(r => r.GrossHourlyRate is not null);
+        // A full year: the month after the last counts the last month's accrual too.
+        int? fullYearLeft = terms.Contract.FullYear
+            ? StatementContext.LeaveLeft(start, last, terms.Month.PlusMonths(1), validated.Select(v => (v.Month, v.Figures!.PaidLeaveTaken)).ToList())
+            : null;
         return (new EndingInput(end.Reason, end.Notified, leaveDays, leavePay, due, paid, net,
-            gross is null ? null : gross.GrossHourlyRate!.Value / gross.NetHourlyRate), []);
+            gross is null ? null : gross.GrossHourlyRate!.Value / gross.NetHourlyRate, fullYearLeft), []);
     }
 
     /// <summary>

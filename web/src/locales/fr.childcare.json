@@ -351,7 +351,7 @@
     "cmg_estimate": "Estimé d’après les derniers mois : {{amount}}",
     "minimums_open": "Ouvrir le contrat pour le réviser",
     "regularisation": "Régularisation",
-    "regularisation_tip": "Le dernier mois, le salaire est régularisé : les heures réellement accueillies depuis le début du contrat, au taux horaire, moins le salaire mensualisé déjà versé. Positive, elle est due à l’assistante maternelle ; négative, elle vient en déduction (convention collective, art. 124).",
+    "regularisation_tip": "Le dernier mois, le salaire est régularisé : les heures réellement accueillies depuis le début du contrat, au taux horaire, moins le salaire mensualisé déjà versé. Elle ne joue qu’en faveur de l’assistante maternelle : des heures payées sans accueil ne sont pas reprises (convention collective, art. 124).",
     "settlement": "Voir le solde de tout compte"
   },
   "childcare_year": {
@@ -452,7 +452,7 @@
     "reason": "Motif de la fin :",
     "last_pay": "Salaire de {{month}}",
     "regularisation": "Régularisation de l’année incomplète",
-    "regularisation_tip": "Les heures réellement accueillies depuis le début du contrat, au taux horaire, moins le salaire mensualisé déjà versé (convention collective, art. 124). Négative, elle vient en déduction.",
+    "regularisation_tip": "Les heures réellement accueillies depuis le début du contrat, au taux horaire, moins le salaire mensualisé déjà versé (convention collective, art. 124). Jamais négative : des heures payées sans accueil ne sont pas reprises.",
     "leave": "Indemnité compensatrice de congés payés",
     "leave_days_one": "Indemnité de congés payés ({{count}} jour)",
     "leave_days_other": "Indemnité de congés payés ({{count}} jours)",
